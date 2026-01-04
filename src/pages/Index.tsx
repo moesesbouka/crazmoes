@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import { ProductGrid } from "@/components/ProductGrid";
+import { CategorySection } from "@/components/CategorySection";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
@@ -70,6 +71,34 @@ const Index = () => {
     return result;
   }, [products, searchQuery, sortOption]);
 
+  // Group products by category
+  const productsByCategory = useMemo(() => {
+    const categories: Record<string, ShopifyProduct[]> = {};
+    
+    filteredAndSortedProducts.forEach((product) => {
+      const category = product.node.productType || "Other";
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+      categories[category].push(product);
+    });
+
+    // Sort categories alphabetically, but put "Other" at the end
+    const sortedCategories = Object.keys(categories).sort((a, b) => {
+      if (a === "Other") return 1;
+      if (b === "Other") return -1;
+      return a.localeCompare(b);
+    });
+
+    return sortedCategories.map((category) => ({
+      category,
+      products: categories[category],
+    }));
+  }, [filteredAndSortedProducts]);
+
+  // Check if we're searching (show flat grid) or not (show categories)
+  const isSearching = searchQuery.trim().length > 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
@@ -84,10 +113,32 @@ const Index = () => {
           totalProducts={filteredAndSortedProducts.length}
         />
         
-        <ProductGrid
-          products={filteredAndSortedProducts}
-          isLoading={isLoading}
-        />
+        {isLoading ? (
+          <ProductGrid products={[]} isLoading={true} />
+        ) : isSearching ? (
+          <ProductGrid products={filteredAndSortedProducts} isLoading={false} />
+        ) : (
+          <div className="space-y-8">
+            {productsByCategory.map(({ category, products: categoryProducts }, categoryIndex) => {
+              const startIndex = productsByCategory
+                .slice(0, categoryIndex)
+                .reduce((acc, cat) => acc + cat.products.length, 0);
+              
+              return (
+                <CategorySection
+                  key={category}
+                  category={category}
+                  products={categoryProducts}
+                  startIndex={startIndex}
+                />
+              );
+            })}
+            
+            {productsByCategory.length === 0 && (
+              <ProductGrid products={[]} isLoading={false} />
+            )}
+          </div>
+        )}
       </main>
       
       <Footer />
