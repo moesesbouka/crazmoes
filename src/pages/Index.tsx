@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
@@ -14,6 +13,10 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("title-asc");
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+
+  useEffect(() => {
+    document.title = "Crazy Moe's - Quality Consumer Goods at Unbeatable Prices";
+  }, []);
 
   useEffect(() => {
     async function loadProducts() {
@@ -68,42 +71,32 @@ const Index = () => {
   }, [products, searchQuery, sortOption]);
 
   return (
-    <>
-      <Helmet>
-        <title>Crazy Moe's - Quality Consumer Goods at Unbeatable Prices</title>
-        <meta
-          name="description"
-          content="Browse our complete inventory of quality consumer goods. Search, filter, and find exactly what you need at unbeatable prices."
+    <div className="min-h-screen bg-background">
+      <Header onNewsletterClick={() => setNewsletterOpen(true)} />
+      <HeroSection />
+      
+      <main className="container pb-8">
+        <SearchFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
+          totalProducts={filteredAndSortedProducts.length}
         />
-      </Helmet>
-
-      <div className="min-h-screen bg-background">
-        <Header onNewsletterClick={() => setNewsletterOpen(true)} />
-        <HeroSection />
         
-        <main className="container pb-8">
-          <SearchFilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortOption={sortOption}
-            onSortChange={setSortOption}
-            totalProducts={filteredAndSortedProducts.length}
-          />
-          
-          <ProductGrid
-            products={filteredAndSortedProducts}
-            isLoading={isLoading}
-          />
-        </main>
-        
-        <Footer />
-        
-        <NewsletterModal
-          open={newsletterOpen}
-          onOpenChange={setNewsletterOpen}
+        <ProductGrid
+          products={filteredAndSortedProducts}
+          isLoading={isLoading}
         />
-      </div>
-    </>
+      </main>
+      
+      <Footer />
+      
+      <NewsletterModal
+        open={newsletterOpen}
+        onOpenChange={setNewsletterOpen}
+      />
+    </div>
   );
 };
 
