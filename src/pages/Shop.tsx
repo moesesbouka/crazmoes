@@ -73,7 +73,9 @@ const Shop = () => {
     const categories: Record<string, ShopifyProduct[]> = {};
     
     filteredAndSortedProducts.forEach((product) => {
-      const category = product.node.productType || 
+      // Priority: 1. Shopify category, 2. productType, 3. keyword-based categorization
+      const category = product.node.category?.name || 
+        product.node.productType || 
         categorizeProduct(product.node.title, product.node.description);
       
       if (!categories[category]) {
