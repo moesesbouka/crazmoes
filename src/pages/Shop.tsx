@@ -5,7 +5,7 @@ import { CategorySection } from "@/components/CategorySection";
 import { ProductGrid } from "@/components/ProductGrid";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
-import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
+import { fetchAllProducts, ShopifyProduct } from "@/lib/shopify";
 import { categorizeProduct } from "@/lib/categoryMapper";
 
 const Shop = () => {
@@ -23,7 +23,7 @@ const Shop = () => {
     async function loadProducts() {
       setIsLoading(true);
       try {
-        const data = await fetchProducts(100);
+        const data = await fetchAllProducts();
         setProducts(data);
       } catch (error) {
         console.error("Failed to fetch products:", error);
