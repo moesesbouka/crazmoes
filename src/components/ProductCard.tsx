@@ -18,8 +18,8 @@ export function ProductCard({ product, index }: ProductCardProps) {
   return (
     <Link to={`/product/${node.handle}`}>
       <Card 
-        className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer animate-fade-in-up"
-        style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
+        className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer animate-fade-in-up opacity-0"
+        style={{ animationDelay: `${index * 50}ms` }}
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
           {image ? (
