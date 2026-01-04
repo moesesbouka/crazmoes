@@ -3,8 +3,11 @@
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   // Appliances - check before Electronics (more specific)
   "Appliances": [
-    "washer", "dryer", "refrigerator", "fridge", "freezer", "dishwasher", "oven", "stove", "range", "hood", 
-    "vacuum", "roomba", "dyson", "bissell", "shark", "iron", "steamer", "fan", "heater", "air conditioner", 
+    "washer", "dryer", "refrigerator", "fridge", "freezer", "dishwasher", "oven", "stove",
+    "range hood", "hood vent",
+    "vacuum", "roomba", "dyson", "bissell", "shark", "iron", "steamer",
+    "box fan", "tower fan", "floor fan",
+    "heater", "air conditioner",
     "ac unit", "dehumidifier", "humidifier", "purifier", "air purifier", "water heater", "garbage disposal",
     "instant pot", "pressure cooker", "slow cooker", "crock pot", "air fryer", "deep fryer", "rice cooker",
     "bread maker", "ice maker", "wine cooler", "beverage cooler", "chest freezer", "upright freezer",
@@ -73,13 +76,13 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   "Home & Garden": [
     "plant", "planter", "pot", "flower pot", "garden", "gardening", "hose", "sprinkler", "nozzle",
     "lawn", "grass", "seed", "fertilizer", "mulch", "soil", "compost", "rake", "shovel", "spade", "hoe",
-    "wheelbarrow", "garden cart", "outdoor", "patio", "deck", "grill", "bbq", "barbecue", "smoker",
+    "wheelbarrow", "garden cart", "patio", "deck", "grill", "bbq", "barbecue", "smoker",
     "fire pit", "chiminea", "umbrella", "patio umbrella", "gazebo", "pergola", "awning", "shade",
-    "cushion", "outdoor cushion", "rug", "area rug", "carpet", "runner", "mat", "doormat",
+    "outdoor cushion", "area rug", "runner", "doormat",
     "curtain", "drape", "blind", "shade", "shutter", "lamp", "floor lamp", "table lamp", "light fixture",
-    "chandelier", "pendant", "sconce", "ceiling fan", "decor", "wall art", "picture frame", "photo frame",
-    "vase", "decorative", "mirror", "wall mirror", "clock", "wall clock", "pillow", "throw pillow",
-    "blanket", "throw blanket", "candle", "candle holder", "diffuser", "fountain", "bird bath", "bird feeder",
+    "chandelier", "pendant", "sconce", "ceiling fan", "wall art", "picture frame", "photo frame",
+    "vase", "mirror", "wall mirror", "clock", "wall clock", "throw pillow",
+    "throw blanket", "candle", "candle holder", "diffuser", "fountain", "bird bath", "bird feeder",
     "planter box", "raised bed", "trellis", "arbor", "fence", "gate", "shed", "storage shed"
   ],
   
@@ -87,7 +90,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   "Sports & Fitness": [
     "bike", "bicycle", "mountain bike", "road bike", "hybrid", "ebike", "electric bike", "cycling",
     "golf", "golf club", "golf bag", "golf cart", "tennis", "tennis racket", "pickleball", "badminton",
-    "basketball", "basketball hoop", "football", "soccer", "soccer ball", "baseball", "bat", "glove",
+    "basketball", "basket ball", "nba", "wnba", "spalding", "wilson", "basketball hoop", "football", "soccer", "soccer ball", "baseball", "bat", "glove",
     "fishing", "fishing rod", "reel", "tackle", "lure", "camping", "tent", "sleeping bag", "camping gear",
     "backpack", "hiking", "hiking boots", "trail", "kayak", "canoe", "paddle", "paddleboard", "sup",
     "surfboard", "wetsuit", "snorkel", "scuba", "skateboard", "longboard", "scooter", "roller skates",
@@ -171,7 +174,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "pet bed", "dog bed", "cat bed", "dog house", "cat tree", "scratching post", "crate", "kennel",
     "carrier", "pet carrier", "pet gate", "dog food", "cat food", "pet food", "treat", "dog treat",
     "cat treat", "food bowl", "water bowl", "pet bowl", "automatic feeder", "water fountain",
-    "pet toy", "dog toy", "cat toy", "chew toy", "ball", "frisbee", "rope toy", "squeaky toy",
+    "pet toy", "dog toy", "cat toy", "chew toy", "frisbee", "rope toy", "squeaky toy",
     "aquarium", "fish tank", "filter", "aquarium filter", "fish", "tropical fish", "fish food",
     "bird", "bird cage", "parakeet", "parrot", "hamster", "guinea pig", "rabbit", "bunny",
     "reptile", "terrarium", "heat lamp", "flea", "tick", "flea treatment", "shampoo", "grooming",
@@ -246,17 +249,40 @@ export function mapShopifyCategoryName(name?: string | null): string | null {
 export function categorizeProduct(title: string, description: string = ""): string {
   const searchText = `${title} ${description}`.toLowerCase();
 
+  let bestCategory = "Other";
+  let bestScore = 0;
+
   for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    let score = 0;
+
     for (const keyword of keywords) {
-      const escaped = escapeRegExp(keyword);
-      const regex = new RegExp(`\\b${escaped}s?\\b`, "i");
+      const normalizedKeyword = keyword.toLowerCase();
+      const escaped = escapeRegExp(normalizedKeyword);
+
+      // For multi-word phrases, allow any whitespace between words.
+      const pattern = normalizedKeyword.includes(" ")
+        ? `\\b${escaped.replace(/\s+/g, "\\\\s+")}\\b`
+        : `\\b${escaped}s?\\b`;
+
+      const regex = new RegExp(pattern, "i");
+
       if (regex.test(searchText)) {
-        return category;
+        const weight = normalizedKeyword.includes(" ")
+          ? 3
+          : normalizedKeyword.length >= 8
+            ? 2
+            : 1;
+        score += weight;
       }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = category;
     }
   }
 
-  return "Other";
+  return bestScore > 0 ? bestCategory : "Other";
 }
 
 export function resolveProductCategory(params: {
@@ -265,15 +291,8 @@ export function resolveProductCategory(params: {
   shopifyCategoryName?: string | null;
   productType?: string | null;
 }): string {
-  const mapped = mapShopifyCategoryName(params.shopifyCategoryName);
-  if (mapped) return mapped;
-
-  const keyword = categorizeProduct(params.title, params.description ?? "");
-  if (keyword !== "Other") return keyword;
-
-  const pt = params.productType?.trim();
-  if (pt) return pt;
-
-  return "Other";
+  // User requirement: prioritize our own categorization based on title/description,
+  // and do not rely on Shopify-provided classifications.
+  return categorizeProduct(params.title, params.description ?? "");
 }
 
