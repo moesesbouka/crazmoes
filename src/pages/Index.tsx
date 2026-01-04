@@ -7,6 +7,7 @@ import { CategorySection } from "@/components/CategorySection";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
+import { categorizeProduct } from "@/lib/categoryMapper";
 
 const Index = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -71,12 +72,15 @@ const Index = () => {
     return result;
   }, [products, searchQuery, sortOption]);
 
-  // Group products by category
+  // Group products by auto-generated category
   const productsByCategory = useMemo(() => {
     const categories: Record<string, ShopifyProduct[]> = {};
     
     filteredAndSortedProducts.forEach((product) => {
-      const category = product.node.productType || "Other";
+      // Use Shopify productType if set, otherwise auto-categorize
+      const category = product.node.productType || 
+        categorizeProduct(product.node.title, product.node.description);
+      
       if (!categories[category]) {
         categories[category] = [];
       }
