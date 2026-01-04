@@ -18,44 +18,44 @@ export function ProductCard({ product, index }: ProductCardProps) {
   return (
     <Link to={`/product/${node.handle}`}>
       <Card 
-        className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer animate-fade-in-up opacity-0"
+        className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer rounded-2xl animate-fade-in-up opacity-0 hover:-translate-y-1"
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        <div className="relative aspect-square overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-muted rounded-t-2xl">
           {image ? (
             <img
               src={image.url}
               alt={image.altText || node.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">
               <Package className="h-12 w-12 text-muted-foreground/50" />
             </div>
           )}
           
           {!isAvailable && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs font-bold">
                 Sold Out
               </Badge>
             </div>
           )}
           
           {isAvailable && (
-            <Badge className="absolute top-3 right-3 hero-gradient border-0">
+            <Badge className="absolute top-3 right-3 fun-gradient border-0 font-bold">
               In Stock
             </Badge>
           )}
         </div>
         
         <CardContent className="p-4">
-          <h3 className="font-display font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="font-display font-bold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
             {node.title}
           </h3>
           
           <div className="mt-3 flex items-center justify-between">
-            <span className="font-display text-lg font-bold text-primary">
+            <span className="font-display text-xl font-bold text-gradient">
               {formatPrice(price.amount, price.currencyCode)}
             </span>
           </div>
