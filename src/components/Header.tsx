@@ -1,7 +1,8 @@
-import { Package, Bell, Menu, X } from "lucide-react";
+import { Bell, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
+import logo from "@/assets/logo.png";
 
 interface HeaderProps {
   onNewsletterClick: () => void;
@@ -20,19 +21,15 @@ export function Header({ onNewsletterClick }: HeaderProps) {
   const isActive = (href: string) => location.pathname === href;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-xl">
+      <div className="container flex h-20 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl fun-gradient shadow-fun group-hover:scale-110 transition-transform">
-              <Package className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
-                Crazy Moe's
-              </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Amazing Deals Daily</p>
-            </div>
+            <img 
+              src={logo} 
+              alt="Crazy Moe's - Closeouts & Open Box Deals" 
+              className="h-16 w-auto group-hover:scale-105 transition-transform"
+            />
           </Link>
 
           {/* Desktop Nav */}

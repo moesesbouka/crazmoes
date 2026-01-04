@@ -1,41 +1,69 @@
-import { ArrowRight, Armchair, Laptop, Wrench, Shirt, Sparkles, Package } from "lucide-react";
+import { ArrowRight, Armchair, Laptop, Wrench, Shirt, Sparkles, Package, UtensilsCrossed, Car, Heart, Baby, Briefcase, PawPrint } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const categories = [
   { 
     name: "Furniture", 
     icon: Armchair, 
-    color: "bg-fun-purple/10 text-fun-purple",
-    bgGradient: "from-fun-purple/20 to-fun-purple/5",
+    color: "bg-fun-blue/10 text-fun-blue",
+    bgGradient: "from-fun-blue/20 to-fun-blue/5",
     count: "50+ items"
   },
   { 
     name: "Electronics", 
     icon: Laptop, 
-    color: "bg-fun-blue/10 text-fun-blue",
-    bgGradient: "from-fun-blue/20 to-fun-blue/5",
+    color: "bg-fun-yellow/10 text-fun-orange",
+    bgGradient: "from-fun-yellow/20 to-fun-yellow/5",
     count: "80+ items"
   },
   { 
     name: "Tools", 
     icon: Wrench, 
-    color: "bg-fun-orange/10 text-fun-orange",
-    bgGradient: "from-fun-orange/20 to-fun-orange/5",
+    color: "bg-fun-red/10 text-fun-red",
+    bgGradient: "from-fun-red/20 to-fun-red/5",
     count: "40+ items"
   },
   { 
-    name: "Clothing", 
-    icon: Shirt, 
-    color: "bg-fun-pink/10 text-fun-pink",
-    bgGradient: "from-fun-pink/20 to-fun-pink/5",
+    name: "Kitchen", 
+    icon: UtensilsCrossed, 
+    color: "bg-fun-green/10 text-fun-green",
+    bgGradient: "from-fun-green/20 to-fun-green/5",
     count: "60+ items"
   },
   { 
-    name: "Home Decor", 
+    name: "Home & Garden", 
     icon: Sparkles, 
-    color: "bg-fun-teal/10 text-fun-teal",
-    bgGradient: "from-fun-teal/20 to-fun-teal/5",
+    color: "bg-secondary/10 text-secondary",
+    bgGradient: "from-secondary/20 to-secondary/5",
     count: "30+ items"
+  },
+  { 
+    name: "Sports", 
+    icon: Shirt, 
+    color: "bg-fun-orange/10 text-fun-orange",
+    bgGradient: "from-fun-orange/20 to-fun-orange/5",
+    count: "45+ items"
+  },
+  { 
+    name: "Automotive", 
+    icon: Car, 
+    color: "bg-fun-blue/10 text-fun-blue",
+    bgGradient: "from-fun-blue/20 to-fun-blue/5",
+    count: "25+ items"
+  },
+  { 
+    name: "Baby & Kids", 
+    icon: Baby, 
+    color: "bg-fun-yellow/10 text-fun-orange",
+    bgGradient: "from-fun-yellow/20 to-fun-yellow/5",
+    count: "35+ items"
+  },
+  { 
+    name: "Pet Supplies", 
+    icon: PawPrint, 
+    color: "bg-fun-green/10 text-fun-green",
+    bgGradient: "from-fun-green/20 to-fun-green/5",
+    count: "20+ items"
   },
   { 
     name: "All Items", 
@@ -51,7 +79,7 @@ export function ShopByCategory() {
     <section className="py-16 bg-gradient-to-b from-muted/30 to-transparent">
       <div className="container">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-fun-teal/10 text-fun-teal px-4 py-1.5 rounded-full text-sm font-bold mb-3">
+          <div className="inline-flex items-center gap-2 bg-fun-blue/10 text-fun-blue px-4 py-1.5 rounded-full text-sm font-bold mb-3">
             🛍️ Browse by Category
           </div>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground">
@@ -60,7 +88,7 @@ export function ShopByCategory() {
           <p className="mt-2 text-muted-foreground">Find exactly what you're looking for</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {categories.map((category, index) => (
             <Link 
               key={category.name} 
