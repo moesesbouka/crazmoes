@@ -213,19 +213,67 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   ],
 };
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const SHOPIFY_CATEGORY_MAP: Array<{ match: RegExp; category: string }> = [
+  { match: /^sporting goods/i, category: "Sports & Fitness" },
+  { match: /^apparel/i, category: "Clothing & Accessories" },
+  { match: /^health & beauty/i, category: "Health & Beauty" },
+  { match: /^pet supplies/i, category: "Pet Supplies" },
+  { match: /^electronics/i, category: "Electronics" },
+  { match: /^furniture/i, category: "Furniture" },
+  { match: /^home & garden/i, category: "Home & Garden" },
+  { match: /^tools/i, category: "Tools & Hardware" },
+  { match: /^hardware/i, category: "Tools & Hardware" },
+  { match: /^office/i, category: "Office & School" },
+  { match: /^automotive/i, category: "Automotive" },
+  { match: /^baby/i, category: "Baby & Kids" },
+];
+
+export function mapShopifyCategoryName(name?: string | null): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+
+  for (const rule of SHOPIFY_CATEGORY_MAP) {
+    if (rule.match.test(trimmed)) return rule.category;
+  }
+
+  return null;
+}
+
 export function categorizeProduct(title: string, description: string = ""): string {
   const searchText = `${title} ${description}`.toLowerCase();
-  
-  // Check each category's keywords
+
   for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     for (const keyword of keywords) {
-      // Use word boundary matching to avoid partial matches
-      const regex = new RegExp(`\\b${keyword}s?\\b`, 'i');
+      const escaped = escapeRegExp(keyword);
+      const regex = new RegExp(`\\b${escaped}s?\\b`, "i");
       if (regex.test(searchText)) {
         return category;
       }
     }
   }
-  
+
   return "Other";
 }
+
+export function resolveProductCategory(params: {
+  title: string;
+  description?: string;
+  shopifyCategoryName?: string | null;
+  productType?: string | null;
+}): string {
+  const mapped = mapShopifyCategoryName(params.shopifyCategoryName);
+  if (mapped) return mapped;
+
+  const keyword = categorizeProduct(params.title, params.description ?? "");
+  if (keyword !== "Other") return keyword;
+
+  const pt = params.productType?.trim();
+  if (pt) return pt;
+
+  return "Other";
+}
+
