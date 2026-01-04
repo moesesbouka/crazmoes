@@ -6,7 +6,7 @@ import { ProductGrid } from "@/components/ProductGrid";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { fetchAllProducts, ShopifyProduct } from "@/lib/shopify";
-import { categorizeProduct } from "@/lib/categoryMapper";
+import { resolveProductCategory } from "@/lib/categoryMapper";
 
 const Shop = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -73,10 +73,12 @@ const Shop = () => {
     const categories: Record<string, ShopifyProduct[]> = {};
     
     filteredAndSortedProducts.forEach((product) => {
-      // Priority: 1. Shopify category, 2. productType, 3. keyword-based categorization
-      const category = product.node.category?.name || 
-        product.node.productType || 
-        categorizeProduct(product.node.title, product.node.description);
+      const category = resolveProductCategory({
+        title: product.node.title,
+        description: product.node.description,
+        shopifyCategoryName: product.node.category?.name,
+        productType: product.node.productType,
+      });
       
       if (!categories[category]) {
         categories[category] = [];

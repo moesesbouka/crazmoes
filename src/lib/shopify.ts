@@ -53,7 +53,7 @@ export interface ShopifyProduct {
   };
 }
 
-const STOREFRONT_QUERY = `
+const STOREFRONT_QUERY_WITH_CATEGORY = `
   query GetProducts($first: Int!, $after: String) {
     products(first: $first, after: $after) {
       pageInfo {
@@ -70,6 +70,62 @@ const STOREFRONT_QUERY = `
           category {
             name
           }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          images(first: 5) {
+            edges {
+              node {
+                url
+                altText
+              }
+            }
+          }
+          variants(first: 10) {
+            edges {
+              node {
+                id
+                title
+                price {
+                  amount
+                  currencyCode
+                }
+                availableForSale
+                selectedOptions {
+                  name
+                  value
+                }
+              }
+            }
+          }
+          options {
+            name
+            values
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Fallback query (Shopify occasionally returns INTERNAL_SERVER_ERROR when requesting category at scale)
+const STOREFRONT_QUERY_NO_CATEGORY = `
+  query GetProducts($first: Int!, $after: String) {
+    products(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          id
+          title
+          description
+          handle
+          productType
           priceRange {
             minVariantPrice {
               amount
@@ -145,30 +201,77 @@ export async function storefrontApiRequest(query: string, variables: Record<stri
 }
 
 export async function fetchProducts(limit: number = 250): Promise<ShopifyProduct[]> {
+  // Smaller pages are more reliable (Shopify may return INTERNAL_SERVER_ERROR when the payload is too large)
+  const PAGE_SIZE = 20;
+
   const allProducts: ShopifyProduct[] = [];
   let hasNextPage = true;
   let cursor: string | null = null;
 
   while (hasNextPage) {
-    const data = await storefrontApiRequest(STOREFRONT_QUERY, { 
-      first: Math.min(limit, 250),
-      after: cursor
-    });
-    
-    if (!data) return allProducts;
-    
+    const remaining = limit === Infinity ? PAGE_SIZE : Math.max(0, limit - allProducts.length);
+    const firstBase = limit === Infinity ? PAGE_SIZE : Math.min(PAGE_SIZE, remaining);
+    if (firstBase <= 0) break;
+
+    const trySizes = [firstBase, Math.max(5, Math.floor(firstBase / 2))];
+
+    let data: any;
+
+    // Try WITH_CATEGORY first (best categorization)
+    for (const size of trySizes) {
+      try {
+        data = await storefrontApiRequest(STOREFRONT_QUERY_WITH_CATEGORY, {
+          first: size,
+          after: cursor,
+        });
+        break;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const isInternal = message.includes("Internal error") || message.includes("INTERNAL_SERVER_ERROR");
+        if (!isInternal) {
+          // Non-internal errors shouldn't block showing inventory; return what we have so far.
+          return allProducts;
+        }
+      }
+    }
+
+    // If WITH_CATEGORY fails, fall back to NO_CATEGORY for this page
+    if (!data) {
+      for (const size of trySizes) {
+        try {
+          data = await storefrontApiRequest(STOREFRONT_QUERY_NO_CATEGORY, {
+            first: size,
+            after: cursor,
+          });
+          break;
+        } catch {
+          // keep trying smaller
+        }
+      }
+    }
+
+    if (!data) {
+      // Give up gracefully; show the inventory we managed to load.
+      return allProducts;
+    }
+
     const { edges, pageInfo } = data.data.products;
+
+    if (!edges?.length) break;
+
     allProducts.push(...edges);
-    
-    hasNextPage = pageInfo.hasNextPage;
-    cursor = pageInfo.endCursor;
-    
-    // If we've reached the requested limit, stop
+
+    hasNextPage = Boolean(pageInfo?.hasNextPage);
+    cursor = pageInfo?.endCursor ?? null;
+
+    // Safety: prevent infinite loops if Shopify returns hasNextPage without a cursor
+    if (hasNextPage && !cursor) break;
+
     if (limit !== Infinity && allProducts.length >= limit) {
-      break;
+      return allProducts.slice(0, limit);
     }
   }
-  
+
   return allProducts;
 }
 
