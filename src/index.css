@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Poppins:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,95 +6,111 @@
 
 @layer base {
   :root {
-    /* Warm marketplace palette */
-    --background: 45 30% 98%;
-    --foreground: 30 20% 15%;
+    /* Playful & Colorful palette */
+    --background: 45 100% 98%;
+    --foreground: 250 30% 18%;
 
-    --card: 45 40% 99%;
-    --card-foreground: 30 20% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 250 30% 18%;
 
-    --popover: 45 40% 99%;
-    --popover-foreground: 30 20% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 250 30% 18%;
 
-    /* Warm amber/orange brand color */
-    --primary: 28 85% 55%;
-    --primary-foreground: 45 40% 99%;
+    /* Vibrant coral/pink brand color */
+    --primary: 350 85% 60%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 25% 93%;
-    --secondary-foreground: 30 20% 20%;
+    --secondary: 180 60% 50%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 45 20% 90%;
-    --muted-foreground: 30 10% 45%;
+    --muted: 45 30% 94%;
+    --muted-foreground: 250 15% 45%;
 
-    --accent: 28 75% 92%;
-    --accent-foreground: 28 85% 35%;
+    --accent: 45 95% 65%;
+    --accent-foreground: 35 90% 25%;
+
+    /* Fun additional colors */
+    --fun-purple: 270 70% 60%;
+    --fun-teal: 175 70% 45%;
+    --fun-orange: 25 95% 55%;
+    --fun-pink: 330 80% 65%;
+    --fun-blue: 210 90% 55%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 45 40% 99%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 45 20% 88%;
-    --input: 45 20% 88%;
-    --ring: 28 85% 55%;
+    --border: 45 30% 88%;
+    --input: 45 30% 90%;
+    --ring: 350 85% 60%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Custom tokens */
-    --gradient-hero: linear-gradient(135deg, hsl(28 85% 55%) 0%, hsl(35 90% 60%) 50%, hsl(42 95% 65%) 100%);
-    --gradient-warm: linear-gradient(180deg, hsl(45 30% 98%) 0%, hsl(45 40% 95%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(45 40% 99%) 0%, hsl(45 30% 96%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(350 85% 60%) 0%, hsl(25 95% 55%) 50%, hsl(45 95% 65%) 100%);
+    --gradient-fun: linear-gradient(135deg, hsl(270 70% 60%) 0%, hsl(350 85% 60%) 50%, hsl(25 95% 55%) 100%);
+    --gradient-cool: linear-gradient(135deg, hsl(175 70% 45%) 0%, hsl(210 90% 55%) 100%);
+    --gradient-warm: linear-gradient(180deg, hsl(45 100% 98%) 0%, hsl(45 60% 95%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(45 40% 98%) 100%);
     
-    --shadow-soft: 0 4px 20px -4px hsl(30 20% 15% / 0.08);
-    --shadow-card: 0 8px 30px -8px hsl(30 20% 15% / 0.1);
-    --shadow-glow: 0 0 40px hsl(28 85% 55% / 0.2);
+    --shadow-soft: 0 4px 20px -4px hsl(250 30% 18% / 0.06);
+    --shadow-card: 0 8px 30px -8px hsl(250 30% 18% / 0.12);
+    --shadow-glow: 0 0 40px hsl(350 85% 60% / 0.25);
+    --shadow-fun: 0 10px 40px -10px hsl(270 70% 60% / 0.3);
 
     /* Sidebar */
-    --sidebar-background: 45 30% 97%;
-    --sidebar-foreground: 30 20% 20%;
-    --sidebar-primary: 28 85% 55%;
-    --sidebar-primary-foreground: 45 40% 99%;
-    --sidebar-accent: 45 25% 93%;
-    --sidebar-accent-foreground: 30 20% 20%;
-    --sidebar-border: 45 20% 88%;
-    --sidebar-ring: 28 85% 55%;
+    --sidebar-background: 45 60% 97%;
+    --sidebar-foreground: 250 30% 20%;
+    --sidebar-primary: 350 85% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 45 50% 93%;
+    --sidebar-accent-foreground: 250 30% 20%;
+    --sidebar-border: 45 30% 88%;
+    --sidebar-ring: 350 85% 60%;
   }
 
   .dark {
-    --background: 30 20% 8%;
-    --foreground: 45 30% 95%;
+    --background: 250 25% 8%;
+    --foreground: 45 50% 95%;
 
-    --card: 30 18% 12%;
-    --card-foreground: 45 30% 95%;
+    --card: 250 20% 12%;
+    --card-foreground: 45 50% 95%;
 
-    --popover: 30 18% 12%;
-    --popover-foreground: 45 30% 95%;
+    --popover: 250 20% 12%;
+    --popover-foreground: 45 50% 95%;
 
-    --primary: 28 85% 55%;
-    --primary-foreground: 30 20% 8%;
+    --primary: 350 80% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 15% 18%;
-    --secondary-foreground: 45 30% 95%;
+    --secondary: 180 55% 45%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 30 15% 20%;
-    --muted-foreground: 45 15% 60%;
+    --muted: 250 15% 18%;
+    --muted-foreground: 45 20% 65%;
 
-    --accent: 28 40% 20%;
-    --accent-foreground: 28 85% 70%;
+    --accent: 45 80% 55%;
+    --accent-foreground: 35 90% 15%;
+
+    --fun-purple: 270 65% 55%;
+    --fun-teal: 175 65% 40%;
+    --fun-orange: 25 90% 50%;
+    --fun-pink: 330 75% 60%;
+    --fun-blue: 210 85% 50%;
 
     --destructive: 0 62% 45%;
-    --destructive-foreground: 45 30% 95%;
+    --destructive-foreground: 45 50% 95%;
 
-    --border: 30 15% 20%;
-    --input: 30 15% 20%;
-    --ring: 28 85% 55%;
+    --border: 250 15% 20%;
+    --input: 250 15% 20%;
+    --ring: 350 80% 55%;
 
-    --sidebar-background: 30 20% 10%;
-    --sidebar-foreground: 45 30% 95%;
-    --sidebar-primary: 28 85% 55%;
-    --sidebar-primary-foreground: 30 20% 8%;
-    --sidebar-accent: 30 15% 18%;
-    --sidebar-accent-foreground: 45 30% 95%;
-    --sidebar-border: 30 15% 20%;
-    --sidebar-ring: 28 85% 55%;
+    --sidebar-background: 250 25% 10%;
+    --sidebar-foreground: 45 50% 95%;
+    --sidebar-primary: 350 80% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 250 15% 18%;
+    --sidebar-accent-foreground: 45 50% 95%;
+    --sidebar-border: 250 15% 20%;
+    --sidebar-ring: 350 80% 55%;
   }
 }
 
@@ -105,11 +121,11 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Nunito', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Poppins', sans-serif;
   }
 }
 
@@ -119,12 +135,30 @@
     background-image: var(--gradient-hero);
   }
 
+  .text-gradient-fun {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-fun);
+  }
+
+  .text-gradient-cool {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-cool);
+  }
+
   .card-gradient {
     background: var(--gradient-card);
   }
 
   .hero-gradient {
     background: var(--gradient-hero);
+  }
+
+  .fun-gradient {
+    background: var(--gradient-fun);
+  }
+
+  .cool-gradient {
+    background: var(--gradient-cool);
   }
 
   .shadow-soft {
@@ -137,6 +171,19 @@
 
   .shadow-glow {
     box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-fun {
+    box-shadow: var(--shadow-fun);
+  }
+
+  /* Fun blob shapes */
+  .blob {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+
+  .blob-2 {
+    border-radius: 40% 60% 70% 30% / 40% 50% 50% 60%;
   }
 }
 
@@ -170,6 +217,42 @@
   }
 }
 
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes bounce-soft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes blob-morph {
+  0%, 100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  50% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 0.5s ease-out forwards;
 }
@@ -182,4 +265,20 @@
   animation: shimmer 2s infinite linear;
   background: linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.1) 50%, transparent 100%);
   background-size: 200% 100%;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+.animate-bounce-soft {
+  animation: bounce-soft 2s ease-in-out infinite;
+}
+
+.animate-blob {
+  animation: blob-morph 8s ease-in-out infinite;
 }
