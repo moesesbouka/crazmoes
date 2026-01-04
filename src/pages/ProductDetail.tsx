@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Package, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +22,9 @@ const ProductDetail = () => {
         const products = await fetchProducts(100);
         const found = products.find((p) => p.node.handle === handle);
         setProduct(found || null);
+        if (found) {
+          document.title = `${found.node.title} - Crazy Moe's`;
+        }
       } catch (error) {
         console.error("Failed to fetch product:", error);
       } finally {
@@ -84,119 +86,112 @@ const ProductDetail = () => {
   const isAvailable = node.variants.edges.some((v) => v.node.availableForSale);
 
   return (
-    <>
-      <Helmet>
-        <title>{node.title} - Crazy Moe's</title>
-        <meta name="description" content={node.description || `Shop ${node.title} at Crazy Moe's`} />
-      </Helmet>
-
-      <div className="min-h-screen bg-background">
-        <Header onNewsletterClick={() => setNewsletterOpen(true)} />
+    <div className="min-h-screen bg-background">
+      <Header onNewsletterClick={() => setNewsletterOpen(true)} />
+      
+      <main className="container py-8">
+        <Link 
+          to="/" 
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to All Products
+        </Link>
         
-        <main className="container py-8">
-          <Link 
-            to="/" 
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to All Products
-          </Link>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Image Gallery */}
-            <div className="space-y-4">
-              <div className="aspect-square rounded-xl overflow-hidden bg-muted shadow-card">
-                {images.length > 0 ? (
-                  <img
-                    src={images[selectedImageIndex]?.node.url}
-                    alt={images[selectedImageIndex]?.node.altText || node.title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Package className="h-24 w-24 text-muted-foreground/30" />
-                  </div>
-                )}
-              </div>
-              
-              {images.length > 1 && (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {images.map((img, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                        index === selectedImageIndex
-                          ? "border-primary"
-                          : "border-transparent hover:border-border"
-                      }`}
-                    >
-                      <img
-                        src={img.node.url}
-                        alt={img.node.altText || `${node.title} ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Image Gallery */}
+          <div className="space-y-4">
+            <div className="aspect-square rounded-xl overflow-hidden bg-muted shadow-card">
+              {images.length > 0 ? (
+                <img
+                  src={images[selectedImageIndex]?.node.url}
+                  alt={images[selectedImageIndex]?.node.altText || node.title}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <Package className="h-24 w-24 text-muted-foreground/30" />
                 </div>
               )}
             </div>
             
-            {/* Product Info */}
-            <div className="space-y-6">
-              <div>
-                {isAvailable ? (
-                  <Badge className="hero-gradient border-0 mb-4">
-                    <Check className="mr-1 h-3 w-3" />
-                    In Stock
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="mb-4">
-                    Sold Out
-                  </Badge>
-                )}
-                
-                <h1 className="font-display text-3xl font-bold tracking-tight">
-                  {node.title}
-                </h1>
+            {images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {images.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedImageIndex(index)}
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                      index === selectedImageIndex
+                        ? "border-primary"
+                        : "border-transparent hover:border-border"
+                    }`}
+                  >
+                    <img
+                      src={img.node.url}
+                      alt={img.node.altText || `${node.title} ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
-              
-              <p className="font-display text-4xl font-bold text-primary">
-                {formatPrice(price.amount, price.currencyCode)}
-              </p>
-              
-              {node.description && (
-                <div className="prose prose-sm max-w-none">
-                  <p className="text-muted-foreground leading-relaxed">
-                    {node.description}
-                  </p>
-                </div>
+            )}
+          </div>
+          
+          {/* Product Info */}
+          <div className="space-y-6">
+            <div>
+              {isAvailable ? (
+                <Badge className="hero-gradient border-0 mb-4">
+                  <Check className="mr-1 h-3 w-3" />
+                  In Stock
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="mb-4">
+                  Sold Out
+                </Badge>
               )}
               
-              <div className="rounded-lg bg-accent/50 p-4">
-                <h3 className="font-semibold mb-2">Interested in this item?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Contact us through Facebook Marketplace to purchase. Subscribe to our newsletter to get notified about new inventory and flash sales!
+              <h1 className="font-display text-3xl font-bold tracking-tight">
+                {node.title}
+              </h1>
+            </div>
+            
+            <p className="font-display text-4xl font-bold text-primary">
+              {formatPrice(price.amount, price.currencyCode)}
+            </p>
+            
+            {node.description && (
+              <div className="prose prose-sm max-w-none">
+                <p className="text-muted-foreground leading-relaxed">
+                  {node.description}
                 </p>
-                <Button 
-                  onClick={() => setNewsletterOpen(true)}
-                  className="mt-4 hero-gradient hover:opacity-90"
-                >
-                  Get Updates
-                </Button>
               </div>
+            )}
+            
+            <div className="rounded-lg bg-accent/50 p-4">
+              <h3 className="font-semibold mb-2">Interested in this item?</h3>
+              <p className="text-sm text-muted-foreground">
+                Contact us through Facebook Marketplace to purchase. Subscribe to our newsletter to get notified about new inventory and flash sales!
+              </p>
+              <Button 
+                onClick={() => setNewsletterOpen(true)}
+                className="mt-4 hero-gradient hover:opacity-90"
+              >
+                Get Updates
+              </Button>
             </div>
           </div>
-        </main>
-        
-        <Footer />
-        
-        <NewsletterModal
-          open={newsletterOpen}
-          onOpenChange={setNewsletterOpen}
-        />
-      </div>
-    </>
+        </div>
+      </main>
+      
+      <Footer />
+      
+      <NewsletterModal
+        open={newsletterOpen}
+        onOpenChange={setNewsletterOpen}
+      />
+    </div>
   );
 };
 
