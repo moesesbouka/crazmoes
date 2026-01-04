@@ -36,18 +36,18 @@ export function FeaturedProducts({ products, isLoading }: FeaturedProductsProps)
   return (
     <section className="py-16 relative">
       {/* Decorative blob */}
-      <div className="absolute -right-32 top-1/2 w-64 h-64 bg-fun-pink/10 blob -z-10" />
+      <div className="absolute -right-32 top-1/2 w-64 h-64 bg-fun-yellow/10 blob -z-10" />
       
       <div className="container">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 bg-fun-purple/10 text-fun-purple px-4 py-1.5 rounded-full text-sm font-bold mb-3">
+            <div className="inline-flex items-center gap-2 bg-fun-red/10 text-fun-red px-4 py-1.5 rounded-full text-sm font-bold mb-3">
               🔥 Hot Right Now
             </div>
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground">
               Featured Finds
             </h2>
-            <p className="mt-2 text-muted-foreground">Check out these amazing deals!</p>
+            <p className="mt-2 text-muted-foreground">Check out these amazing closeout deals!</p>
           </div>
           <Link to="/shop">
             <Button variant="ghost" className="font-bold text-primary hover:text-primary/80">

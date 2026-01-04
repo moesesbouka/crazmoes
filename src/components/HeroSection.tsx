@@ -8,9 +8,9 @@ export function HeroSection() {
       {/* Playful background blobs */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/20 blob animate-blob" />
-        <div className="absolute top-1/2 -left-20 w-64 h-64 bg-fun-purple/20 blob-2 animate-blob" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 -left-20 w-64 h-64 bg-fun-blue/20 blob-2 animate-blob" style={{ animationDelay: '2s' }} />
         <div className="absolute -bottom-10 right-1/4 w-72 h-72 bg-accent/30 blob animate-blob" style={{ animationDelay: '4s' }} />
-        <div className="absolute top-20 left-1/3 w-32 h-32 bg-fun-teal/20 rounded-full animate-float" />
+        <div className="absolute top-20 left-1/3 w-32 h-32 bg-fun-yellow/20 rounded-full animate-float" />
       </div>
       
       <div className="container">
@@ -50,8 +50,8 @@ export function HeroSection() {
           {/* Fun stats */}
           <div className="mt-16 flex flex-wrap items-center justify-center gap-8 animate-fade-in-up opacity-0" style={{ animationDelay: '400ms' }}>
             <div className="flex items-center gap-3 bg-card rounded-2xl px-6 py-4 shadow-card">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fun-purple/20">
-                <TrendingUp className="h-6 w-6 text-fun-purple" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fun-blue/20">
+                <TrendingUp className="h-6 w-6 text-fun-blue" />
               </div>
               <div className="text-left">
                 <span className="block text-2xl font-bold font-display text-foreground">500+</span>
@@ -59,8 +59,8 @@ export function HeroSection() {
               </div>
             </div>
             <div className="flex items-center gap-3 bg-card rounded-2xl px-6 py-4 shadow-card">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fun-teal/20">
-                <Zap className="h-6 w-6 text-fun-teal" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fun-green/20">
+                <Zap className="h-6 w-6 text-fun-green" />
               </div>
               <div className="text-left">
                 <span className="block text-2xl font-bold font-display text-foreground">Daily</span>
@@ -68,12 +68,12 @@ export function HeroSection() {
               </div>
             </div>
             <div className="flex items-center gap-3 bg-card rounded-2xl px-6 py-4 shadow-card">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fun-orange/20">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fun-yellow/20">
                 <Star className="h-6 w-6 text-fun-orange" />
               </div>
               <div className="text-left">
-                <span className="block text-2xl font-bold font-display text-foreground">Great</span>
-                <span className="text-sm text-muted-foreground">Prices</span>
+                <span className="block text-2xl font-bold font-display text-foreground">Up to 75%</span>
+                <span className="text-sm text-muted-foreground">Off Retail</span>
               </div>
             </div>
           </div>
