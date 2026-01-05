@@ -12,7 +12,7 @@ const extensionFiles = {
     "manifest.json": `{
   "manifest_version": 3,
   "name": "FB Marketplace Lister - Crazy Moe's",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Copy product data from shopping sites and create Facebook Marketplace listings with one click",
   "permissions": [
     "activeTab",
@@ -20,13 +20,7 @@ const extensionFiles = {
     "scripting"
   ],
   "host_permissions": [
-    "https://www.amazon.com/*",
-    "https://www.ebay.com/*",
-    "https://www.walmart.com/*",
-    "https://www.bestbuy.com/*",
-    "https://www.target.com/*",
-    "https://www.facebook.com/*",
-    "https://facebook.com/*"
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -191,7 +185,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
-});`,
+
+  // Handle image fetching to bypass CORS
+  if (request.action === 'fetchImage') {
+    fetchImageAsDataUrl(request.url)
+      .then(dataUrl => {
+        sendResponse({ success: true, dataUrl: dataUrl });
+      })
+      .catch(error => {
+        console.error('Error fetching image:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+});
+
+// Fetch image and convert to data URL
+async function fetchImageAsDataUrl(url) {
+  try {
+    const response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch image: ' + response.status);
+    }
+    
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('fetchImageAsDataUrl error:', error);
+    throw error;
+  }
+}`,
     "content-scraper.js": `// FB Marketplace Lister - Content Script for Product Pages
 (function() {
   'use strict';
@@ -437,7 +470,92 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkForPendingData();
   }
 
-  function createImagePanel(images) {
+  // Fetch image as blob via background script (to handle CORS)
+  async function fetchImageAsBlob(url) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'fetchImage', url: url }, (response) => {
+        if (response && response.success && response.dataUrl) {
+          fetch(response.dataUrl)
+            .then(res => res.blob())
+            .then(blob => resolve(blob))
+            .catch(() => resolve(null));
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  // Upload images using DataTransfer
+  async function uploadImages(images) {
+    if (!images || images.length === 0) {
+      console.log('FB Lister: No images to upload');
+      return false;
+    }
+
+    console.log('FB Lister: Attempting to upload', images.length, 'images');
+
+    // Find the file input for images
+    let fileInput = null;
+    const allFileInputs = document.querySelectorAll('input[type="file"]');
+    for (const input of allFileInputs) {
+      if (input.accept && (input.accept.includes('image') || input.accept.includes('*'))) {
+        fileInput = input;
+        break;
+      }
+    }
+    if (!fileInput && allFileInputs.length > 0) {
+      fileInput = allFileInputs[0];
+    }
+
+    if (!fileInput) {
+      console.log('FB Lister: No file input found, showing image panel');
+      showImagePanel(images);
+      return false;
+    }
+
+    console.log('FB Lister: Found file input:', fileInput);
+
+    // Fetch all images as blobs
+    const files = [];
+    for (let i = 0; i < Math.min(images.length, 10); i++) {
+      const url = images[i];
+      console.log('FB Lister: Fetching image', i + 1);
+      
+      const blob = await fetchImageAsBlob(url);
+      if (blob) {
+        const extension = blob.type.includes('png') ? 'png' : 'jpg';
+        const fileName = 'product-image-' + (i + 1) + '.' + extension;
+        const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+        files.push(file);
+        console.log('FB Lister: Created file:', fileName, 'size:', file.size);
+      }
+    }
+
+    if (files.length === 0) {
+      console.log('FB Lister: No images could be fetched');
+      showImagePanel(images);
+      return false;
+    }
+
+    // Create DataTransfer and add files
+    const dataTransfer = new DataTransfer();
+    files.forEach(file => dataTransfer.items.add(file));
+
+    try {
+      fileInput.files = dataTransfer.files;
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+      console.log('FB Lister: Successfully set', files.length, 'files on input');
+      return true;
+    } catch (error) {
+      console.error('FB Lister: Error setting files:', error);
+      showImagePanel(images);
+      return false;
+    }
+  }
+
+  function showImagePanel(images) {
     const existing = document.querySelector('#fb-lister-image-panel');
     if (existing) existing.remove();
     if (!images || images.length === 0) return;
@@ -482,14 +600,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   function simulateNativeInput(element, value) {
     if (!element || !value) return false;
-    const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    const nativeTextareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+    const nativeTextareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
     
     element.focus();
-    if (element.tagName === 'INPUT' && nativeInputSetter) {
-      nativeInputSetter.call(element, value);
-    } else if (element.tagName === 'TEXTAREA' && nativeTextareaSetter) {
-      nativeTextareaSetter.call(element, value);
+    if (element.tagName === 'INPUT' && nativeInputSetter && nativeInputSetter.set) {
+      nativeInputSetter.set.call(element, value);
+    } else if (element.tagName === 'TEXTAREA' && nativeTextareaSetter && nativeTextareaSetter.set) {
+      nativeTextareaSetter.set.call(element, value);
     } else {
       element.value = value;
     }
@@ -517,7 +635,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     if (!element) {
       const labels = document.querySelectorAll('label, span');
-      for (const label of labels) {
+      for (let i = 0; i < labels.length; i++) {
+        const label = labels[i];
         if (label.textContent.toLowerCase().includes(lowerLabel)) {
           const parent = label.closest('div');
           if (parent) {
@@ -530,7 +649,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     if (!element) {
       const editables = document.querySelectorAll('[contenteditable="true"], [role="textbox"]');
-      for (const editable of editables) {
+      for (let i = 0; i < editables.length; i++) {
+        const editable = editables[i];
         const parent = editable.closest('div[role="group"], label');
         if (parent && parent.textContent.toLowerCase().includes(lowerLabel)) {
           return fillContentEditable(editable, value);
@@ -548,7 +668,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (!pendingListing) {
       button.innerHTML = 'No data to paste';
       button.classList.add('error');
-      setTimeout(() => { button.classList.remove('error'); button.innerHTML = 'Paste Data'; }, 2000);
+      setTimeout(function() { button.classList.remove('error'); button.innerHTML = 'Paste Data'; }, 2000);
       return;
     }
 
@@ -556,26 +676,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     button.classList.add('loading');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
       console.log('FB Lister: Pasting data...', pendingListing);
+
+      // Upload images first
+      let imagesUploaded = false;
+      if (pendingListing.images && pendingListing.images.length > 0) {
+        imagesUploaded = await uploadImages(pendingListing.images);
+        await new Promise(function(resolve) { setTimeout(resolve, 500); });
+      }
 
       const filledTitle = findAndFillField('Title', pendingListing.title, false);
       const filledPrice = findAndFillField('Price', pendingListing.price, false);
-      const filledDesc = findAndFillField('Description', pendingListing.description?.substring(0, 1000), true);
+      const filledDesc = findAndFillField('Description', pendingListing.description ? pendingListing.description.substring(0, 1000) : '', true);
 
-      console.log('FB Lister: Results - Title:', filledTitle, 'Price:', filledPrice, 'Desc:', filledDesc);
+      console.log('FB Lister: Results - Title:', filledTitle, 'Price:', filledPrice, 'Desc:', filledDesc, 'Images:', imagesUploaded);
 
-      if (pendingListing.images && pendingListing.images.length > 0) {
-        createImagePanel(pendingListing.images);
+      if (imagesUploaded) {
+        button.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Done!';
+      } else {
+        button.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Done! Add images manually';
       }
-
-      button.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Done! Add images';
       button.classList.remove('loading');
       button.classList.add('success');
 
       await chrome.storage.local.remove('pendingListing');
 
-      setTimeout(() => {
+      setTimeout(function() {
         button.classList.remove('success', 'has-data');
         button.innerHTML = 'Paste Data';
         pendingListing = null;
@@ -586,7 +713,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       button.innerHTML = 'Error - Try Again';
       button.classList.remove('loading');
       button.classList.add('error');
-      setTimeout(() => { button.classList.remove('error'); button.innerHTML = 'Paste Data'; checkForPendingData(); }, 3000);
+      setTimeout(function() { button.classList.remove('error'); button.innerHTML = 'Paste Data'; checkForPendingData(); }, 3000);
     }
   }
 
@@ -599,7 +726,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   init();
   let lastUrl = location.href;
-  new MutationObserver(() => {
+  new MutationObserver(function() {
     if (location.href !== lastUrl) { lastUrl = location.href; setTimeout(init, 1500); }
   }).observe(document.body, { subtree: true, childList: true });
 })();`,
