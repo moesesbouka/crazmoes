@@ -6,6 +6,7 @@ import { ShopByCategory } from "@/components/ShopByCategory";
 import { NewsAndUpdates } from "@/components/NewsAndUpdates";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
+import { FloatingParticles } from "@/components/FloatingParticles";
 import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
 
 const Index = () => {
@@ -33,7 +34,10 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Background floating particles */}
+      <FloatingParticles count={12} />
+      
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
       <HeroSection />
       <FeaturedProducts products={products} isLoading={isLoading} />
