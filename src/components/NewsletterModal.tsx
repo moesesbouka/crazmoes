@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, X, Sparkles, Bell, Tag, Package } from "lucide-react";
+import { Bell, Package, Tag, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NewsletterModalProps {
   open: boolean;
@@ -21,9 +22,9 @@ export function NewsletterModal({ open, onOpenChange }: NewsletterModalProps) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [preferences, setPreferences] = useState({
-    newInventory: true,
+    latestInventory: true,
     flashSales: true,
-    weeklyDigest: false,
+    newArrivals: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -37,17 +38,40 @@ export function NewsletterModal({ open, onOpenChange }: NewsletterModalProps) {
     
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    toast.success("You're subscribed!", {
-      description: "You'll receive updates based on your preferences.",
-    });
-    
-    setEmail("");
-    setName("");
-    setIsSubmitting(false);
-    onOpenChange(false);
+    try {
+      const { error } = await supabase.from("newsletter_subscribers").insert({
+        email,
+        name: name || null,
+        pref_latest_inventory: preferences.latestInventory,
+        pref_flash_sales: preferences.flashSales,
+        pref_new_arrivals: preferences.newArrivals,
+      });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast.error("You're already subscribed!", {
+            description: "This email is already on our list.",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
+      
+      toast.success("You're subscribed!", {
+        description: "You'll receive updates based on your preferences.",
+      });
+      
+      setEmail("");
+      setName("");
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error("Failed to subscribe", {
+        description: error.message,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -92,14 +116,14 @@ export function NewsletterModal({ open, onOpenChange }: NewsletterModalProps) {
             <div className="space-y-3">
               <label className="flex items-center gap-3 cursor-pointer">
                 <Checkbox
-                  checked={preferences.newInventory}
+                  checked={preferences.latestInventory}
                   onCheckedChange={(checked) =>
-                    setPreferences((p) => ({ ...p, newInventory: !!checked }))
+                    setPreferences((p) => ({ ...p, latestInventory: !!checked }))
                   }
                 />
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">New inventory alerts</span>
+                  <span className="text-sm">Latest Inventory</span>
                 </div>
               </label>
               
@@ -112,20 +136,20 @@ export function NewsletterModal({ open, onOpenChange }: NewsletterModalProps) {
                 />
                 <div className="flex items-center gap-2">
                   <Tag className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Flash sale notifications</span>
+                  <span className="text-sm">Flash Sales</span>
                 </div>
               </label>
               
               <label className="flex items-center gap-3 cursor-pointer">
                 <Checkbox
-                  checked={preferences.weeklyDigest}
+                  checked={preferences.newArrivals}
                   onCheckedChange={(checked) =>
-                    setPreferences((p) => ({ ...p, weeklyDigest: !!checked }))
+                    setPreferences((p) => ({ ...p, newArrivals: !!checked }))
                   }
                 />
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Weekly digest</span>
+                  <span className="text-sm">New Arrivals</span>
                 </div>
               </label>
             </div>

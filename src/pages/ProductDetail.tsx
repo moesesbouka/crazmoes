@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Package, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, Package, Check, AlertCircle, DollarSign, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { fetchProducts, ShopifyProduct, formatPrice } from "@/lib/shopify";
+import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
@@ -33,6 +34,20 @@ const ProductDetail = () => {
     }
     loadProduct();
   }, [handle]);
+
+  const handleCashAppBuy = () => {
+    if (!product) return;
+    
+    const price = product.node.priceRange.minVariantPrice;
+    const amount = parseFloat(price.amount);
+    const note = encodeURIComponent(`Crazy Moe's - ${product.node.title}`);
+    
+    window.open(`https://cash.app/$CrazyMoes/${amount}?note=${note}`, '_blank');
+    
+    toast.success("Opening Cash App", {
+      description: "Complete your payment in Cash App, then schedule your pickup!",
+    });
+  };
 
   if (isLoading) {
     return (
@@ -91,25 +106,26 @@ const ProductDetail = () => {
       
       <main className="container py-8">
         <Link 
-          to="/" 
+          to="/shop" 
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to All Products
+          Back to Shop
         </Link>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div className="aspect-square rounded-xl overflow-hidden bg-muted shadow-card">
+            <div className="aspect-square rounded-xl overflow-hidden bg-white shadow-card">
               {images.length > 0 ? (
                 <img
                   src={images[selectedImageIndex]?.node.url}
                   alt={images[selectedImageIndex]?.node.altText || node.title}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain p-4"
+                  style={{ backgroundColor: 'white' }}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center">
+                <div className="flex h-full w-full items-center justify-center bg-white">
                   <Package className="h-24 w-24 text-muted-foreground/30" />
                 </div>
               )}
@@ -121,7 +137,7 @@ const ProductDetail = () => {
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors bg-white ${
                       index === selectedImageIndex
                         ? "border-primary"
                         : "border-transparent hover:border-border"
@@ -130,7 +146,7 @@ const ProductDetail = () => {
                     <img
                       src={img.node.url}
                       alt={img.node.altText || `${node.title} ${index + 1}`}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain p-1"
                     />
                   </button>
                 ))}
@@ -168,11 +184,36 @@ const ProductDetail = () => {
                 </p>
               </div>
             )}
+
+            {isAvailable && (
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleCashAppBuy}
+                  className="w-full bg-[#00D632] hover:bg-[#00B82B] text-white font-bold text-lg py-6 rounded-xl"
+                  size="lg"
+                >
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  Buy Now via Cash App
+                </Button>
+                
+                <Button 
+                  asChild
+                  variant="outline"
+                  className="w-full font-bold rounded-xl"
+                  size="lg"
+                >
+                  <Link to="/schedule-pickup">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Schedule Pickup
+                  </Link>
+                </Button>
+              </div>
+            )}
             
             <div className="rounded-lg bg-accent/50 p-4">
-              <h3 className="font-semibold mb-2">Interested in this item?</h3>
+              <h3 className="font-semibold mb-2">Want to know about new deals?</h3>
               <p className="text-sm text-muted-foreground">
-                Contact us through Facebook Marketplace to purchase. Subscribe to our newsletter to get notified about new inventory and flash sales!
+                Subscribe to our newsletter to get notified about new inventory and flash sales!
               </p>
               <Button 
                 onClick={() => setNewsletterOpen(true)}

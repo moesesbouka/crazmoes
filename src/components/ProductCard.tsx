@@ -1,8 +1,10 @@
 import { ShopifyProduct, formatPrice } from "@/lib/shopify";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Package, DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 interface ProductCardProps {
   product: ShopifyProduct;
@@ -15,21 +17,38 @@ export function ProductCard({ product, index }: ProductCardProps) {
   const image = node.images.edges[0]?.node;
   const isAvailable = node.variants.edges.some((v) => v.node.availableForSale);
 
+  const handleCashAppBuy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Open Cash App with payment info
+    const amount = parseFloat(price.amount);
+    const note = encodeURIComponent(`Crazy Moe's - ${node.title}`);
+    
+    // Cash App payment link format
+    window.open(`https://cash.app/$CrazyMoes/${amount}?note=${note}`, '_blank');
+    
+    toast.success("Opening Cash App", {
+      description: "Complete your payment in Cash App, then schedule your pickup!",
+    });
+  };
+
   return (
     <Link to={`/product/${node.handle}`}>
       <Card 
         className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer rounded-2xl animate-fade-in-up opacity-0 hover:-translate-y-1"
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        <div className="relative aspect-square overflow-hidden bg-muted rounded-t-2xl">
+        <div className="relative aspect-square overflow-hidden bg-white rounded-t-2xl">
           {image ? (
             <img
               src={image.url}
               alt={image.altText || node.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-110"
+              style={{ backgroundColor: 'white' }}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+            <div className="flex h-full w-full items-center justify-center bg-white">
               <Package className="h-12 w-12 text-muted-foreground/50" />
             </div>
           )}
@@ -64,6 +83,17 @@ export function ProductCard({ product, index }: ProductCardProps) {
             <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
               {node.description}
             </p>
+          )}
+
+          {isAvailable && (
+            <Button
+              onClick={handleCashAppBuy}
+              className="w-full mt-3 bg-[#00D632] hover:bg-[#00B82B] text-white font-bold rounded-xl"
+              size="sm"
+            >
+              <DollarSign className="h-4 w-4 mr-1" />
+              Buy Now via Cash App
+            </Button>
           )}
         </CardContent>
       </Card>

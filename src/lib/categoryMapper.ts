@@ -1,6 +1,6 @@
 // Auto-categorize products based on title keywords
 // Priority order matters - more specific categories should come first
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
+export const CATEGORY_KEYWORDS: Record<string, string[]> = {
   // Appliances - check before Electronics (more specific)
   "Appliances": [
     "washer", "dryer", "refrigerator", "fridge", "freezer", "dishwasher", "oven", "stove",
@@ -285,14 +285,14 @@ export function categorizeProduct(title: string, description: string = ""): stri
   return bestScore > 0 ? bestCategory : "Other";
 }
 
-export function resolveProductCategory(params: {
-  title: string;
-  description?: string;
-  shopifyCategoryName?: string | null;
-  productType?: string | null;
-}): string {
+export function resolveProductCategory(
+  title: string,
+  description?: string,
+  shopifyCategoryName?: string | null,
+  productType?: string | null
+): string {
   // User requirement: prioritize our own categorization based on title/description,
   // and do not rely on Shopify-provided classifications.
-  return categorizeProduct(params.title, params.description ?? "");
+  return categorizeProduct(title, description ?? "");
 }
 

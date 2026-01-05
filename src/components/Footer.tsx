@@ -29,21 +29,22 @@ export function Footer() {
             <nav className="space-y-2">
               <Link to="/" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Home</Link>
               <Link to="/shop" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Shop All</Link>
+              <Link to="/schedule-pickup" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Schedule Pickup</Link>
               <Link to="/about" className="block text-sm text-muted-foreground hover:text-primary transition-colors">About Us</Link>
             </nav>
           </div>
 
           {/* Contact */}
           <div>
-            <h4 className="font-display font-bold text-foreground mb-4">Get in Touch</h4>
+            <h4 className="font-display font-bold text-foreground mb-4">Visit Us</h4>
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 text-fun-orange" />
-                <span>Facebook Marketplace</span>
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <MapPin className="h-4 w-4 text-fun-orange mt-0.5" />
+                <span>74 Houghton Ave, Buffalo, NY 14212</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-4 w-4 text-fun-teal" />
-                <span>Contact via Marketplace</span>
+                <span>Contact via Facebook</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Facebook className="h-4 w-4 text-fun-blue" />
