@@ -2,11 +2,11 @@ import { ShopifyProduct, formatPrice } from "@/lib/shopify";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, DollarSign } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { AnimatedBadge } from "./AnimatedBadge";
-
+import { ProductImage } from "./ProductImage";
 interface ProductCardProps {
   product: ShopifyProduct;
   index: number;
@@ -43,18 +43,12 @@ export function ProductCard({ product, index }: ProductCardProps) {
         style={{ animationDelay: `${index * 50}ms` }}
       >
         <div className="relative aspect-square overflow-hidden bg-background rounded-t-2xl">
-          {image ? (
-            <img
-              src={image.url}
-              alt={image.altText || node.title}
-              className="h-full w-full object-contain p-2 transition-all duration-500 group-hover:scale-110 group-hover:rotate-1"
-              style={{ backgroundColor: 'hsl(var(--background))' }}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted">
-              <Package className="h-12 w-12 text-muted-foreground/50" />
-            </div>
-          )}
+          <ProductImage
+            src={image?.url || ''}
+            alt={image?.altText || node.title}
+            className="h-full w-full p-2 transition-all duration-500 group-hover:scale-110 group-hover:rotate-1"
+            showProcessingIndicator={false}
+          />
           
           {!isAvailable && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80">
