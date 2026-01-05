@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { NewsletterModal } from "@/components/NewsletterModal";
+import { ProductImage } from "@/components/ProductImage";
 import { fetchProducts, ShopifyProduct, formatPrice } from "@/lib/shopify";
 import { toast } from "sonner";
 
@@ -116,19 +117,12 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div className="aspect-square rounded-xl overflow-hidden bg-white shadow-card">
-              {images.length > 0 ? (
-                <img
-                  src={images[selectedImageIndex]?.node.url}
-                  alt={images[selectedImageIndex]?.node.altText || node.title}
-                  className="h-full w-full object-contain p-4"
-                  style={{ backgroundColor: 'white' }}
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-white">
-                  <Package className="h-24 w-24 text-muted-foreground/30" />
-                </div>
-              )}
+            <div className="aspect-square rounded-xl overflow-hidden bg-background shadow-card">
+              <ProductImage
+                src={images[selectedImageIndex]?.node.url || ''}
+                alt={images[selectedImageIndex]?.node.altText || node.title}
+                className="h-full w-full p-4"
+              />
             </div>
             
             {images.length > 1 && (
@@ -137,16 +131,17 @@ const ProductDetail = () => {
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors bg-white ${
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors bg-background ${
                       index === selectedImageIndex
                         ? "border-primary"
                         : "border-transparent hover:border-border"
                     }`}
                   >
-                    <img
+                    <ProductImage
                       src={img.node.url}
                       alt={img.node.altText || `${node.title} ${index + 1}`}
-                      className="h-full w-full object-contain p-1"
+                      className="h-full w-full p-1"
+                      showProcessingIndicator={false}
                     />
                   </button>
                 ))}
