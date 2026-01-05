@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { removeBackground } from '@/lib/backgroundRemoval';
 import { getCachedImage, setCachedImage } from '@/lib/imageCache';
+import { useImageProcessingStore } from '@/lib/imageProcessingStore';
 import { Package, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ export function ProductImage({
   const [processedSrc, setProcessedSrc] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const incrementProcessed = useImageProcessingStore((state) => state.incrementProcessed);
 
   useEffect(() => {
     let mounted = true;
@@ -32,6 +34,7 @@ export function ProductImage({
         const cached = await getCachedImage(src);
         if (cached && mounted) {
           setProcessedSrc(cached);
+          incrementProcessed();
           return;
         }
 
@@ -43,11 +46,13 @@ export function ProductImage({
           setProcessedSrc(processed);
           // Cache the result
           await setCachedImage(src, processed);
+          incrementProcessed();
         }
       } catch (error) {
         console.error('Failed to process image:', error);
         if (mounted) {
           setHasError(true);
+          incrementProcessed();
         }
       } finally {
         if (mounted) {
@@ -61,7 +66,7 @@ export function ProductImage({
     return () => {
       mounted = false;
     };
-  }, [src]);
+  }, [src, incrementProcessed]);
 
   // Show original image while processing or on error
   const displaySrc = processedSrc || src;
