@@ -332,12 +332,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     const button = document.createElement('button');
     button.id = 'fb-lister-button';
-    button.innerHTML = \\\`
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/>
-      </svg>
-      Copy to Facebook
-    \\\`;
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/></svg> Copy to Facebook';
     button.className = 'fb-lister-floating-btn';
     
     button.addEventListener('click', handleCopyClick);
@@ -379,23 +374,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         url: 'https://www.facebook.com/marketplace/create/item' 
       });
 
-      button.innerHTML = \\\`
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-        </svg>
-        Copied!
-      \\\`;
+      button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';
       button.classList.remove('loading');
       button.classList.add('success');
 
       setTimeout(() => {
         button.classList.remove('success');
-        button.innerHTML = \\\`
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/>
-          </svg>
-          Copy to Facebook
-        \\\`;
+        button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/></svg> Copy to Facebook';
       }, 3000);
 
     } catch (error) {
@@ -406,12 +391,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       setTimeout(() => {
         button.classList.remove('error');
-        button.innerHTML = \\\`
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/>
-          </svg>
-          Copy to Facebook
-        \\\`;
+        button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/></svg> Copy to Facebook';
       }, 3000);
     }
   }
@@ -465,7 +445,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const button = document.querySelector('#fb-lister-paste-btn');
         if (button) {
           button.classList.add('has-data');
-          button.innerHTML = \\\`Paste Data (\\\${pendingListing.title.substring(0, 20)}...)\\\`;
+          button.innerHTML = 'Paste Data (' + pendingListing.title.substring(0, 20) + '...)';
         }
       }
     } catch (error) {
@@ -544,12 +524,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         simulateInput(descInput, desc);
       }
 
-      button.innerHTML = \\\`
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px">
-          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-        </svg>
-        Done! Add images manually
-      \\\`;
+      button.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Done! Add images manually';
       button.classList.remove('loading');
       button.classList.add('success');
 
@@ -557,7 +532,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('=== FB Lister: Product Images ===');
         console.log('Download these images and upload them:');
         pendingListing.images.forEach((url, i) => {
-          console.log(\\\`Image \\\${i + 1}: \\\${url}\\\`);
+          console.log('Image ' + (i + 1) + ': ' + url);
         });
       }
 
@@ -585,6 +560,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   function init() {
     if (window.location.href.includes('facebook.com/marketplace/create')) {
+      console.log('FB Lister: Detected marketplace create page, adding paste button...');
       setTimeout(createPasteButton, 2000);
     }
   }
