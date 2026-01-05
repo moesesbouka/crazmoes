@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Package, DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { AnimatedBadge } from "./AnimatedBadge";
 
 interface ProductCardProps {
   product: ShopifyProduct;
@@ -16,6 +17,8 @@ export function ProductCard({ product, index }: ProductCardProps) {
   const price = node.priceRange.minVariantPrice;
   const image = node.images.edges[0]?.node;
   const isAvailable = node.variants.edges.some((v) => v.node.availableForSale);
+  const isNewArrival = index < 4; // First 4 items are "new"
+  const isHotDeal = Math.random() > 0.7; // Random hot deals for demo
 
   const handleCashAppBuy = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,19 +39,19 @@ export function ProductCard({ product, index }: ProductCardProps) {
   return (
     <Link to={`/product/${node.handle}`}>
       <Card 
-        className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer rounded-2xl animate-fade-in-up opacity-0 hover:-translate-y-1"
+        className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer rounded-2xl animate-fade-in-up opacity-0 tilt-3d glow-border"
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        <div className="relative aspect-square overflow-hidden bg-white rounded-t-2xl">
+        <div className="relative aspect-square overflow-hidden bg-background rounded-t-2xl">
           {image ? (
             <img
               src={image.url}
               alt={image.altText || node.title}
-              className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-110"
-              style={{ backgroundColor: 'white' }}
+              className="h-full w-full object-contain p-2 transition-all duration-500 group-hover:scale-110 group-hover:rotate-1"
+              style={{ backgroundColor: 'hsl(var(--background))' }}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-white">
+            <div className="flex h-full w-full items-center justify-center bg-muted">
               <Package className="h-12 w-12 text-muted-foreground/50" />
             </div>
           )}
@@ -61,11 +64,24 @@ export function ProductCard({ product, index }: ProductCardProps) {
             </div>
           )}
           
-          {isAvailable && (
-            <Badge className="absolute top-3 right-3 fun-gradient border-0 font-bold">
-              In Stock
-            </Badge>
-          )}
+          {/* Stacked badges */}
+          <div className="absolute top-3 right-3 flex flex-col gap-2">
+            {isAvailable && (
+              <AnimatedBadge variant="sale">
+                In Stock
+              </AnimatedBadge>
+            )}
+            {isNewArrival && isAvailable && (
+              <AnimatedBadge variant="new">
+                New
+              </AnimatedBadge>
+            )}
+            {isHotDeal && isAvailable && (
+              <AnimatedBadge variant="hot">
+                Hot
+              </AnimatedBadge>
+            )}
+          </div>
         </div>
         
         <CardContent className="p-4">
@@ -74,7 +90,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
           </h3>
           
           <div className="mt-3 flex items-center justify-between">
-            <span className="font-display text-xl font-bold text-gradient">
+            <span className="font-display text-xl font-black text-gradient-animated">
               {formatPrice(price.amount, price.currencyCode)}
             </span>
           </div>
@@ -88,10 +104,10 @@ export function ProductCard({ product, index }: ProductCardProps) {
           {isAvailable && (
             <Button
               onClick={handleCashAppBuy}
-              className="w-full mt-3 bg-[#00D632] hover:bg-[#00B82B] text-white font-bold rounded-xl"
+              className="w-full mt-3 bg-[#00D632] hover:bg-[#00B82B] text-primary-foreground font-bold rounded-xl hover-bounce transition-all duration-300 hover:shadow-lg"
               size="sm"
             >
-              <DollarSign className="h-4 w-4 mr-1" />
+              <DollarSign className="h-4 w-4 mr-1 animate-bounce-soft" />
               Buy Now via Cash App
             </Button>
           )}

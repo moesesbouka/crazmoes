@@ -34,25 +34,26 @@ export function FeaturedProducts({ products, isLoading }: FeaturedProductsProps)
   const featured = products.slice(0, 8);
 
   return (
-    <section className="py-16 relative">
-      {/* Decorative blob */}
-      <div className="absolute -right-32 top-1/2 w-64 h-64 bg-fun-yellow/10 blob -z-10" />
+    <section className="py-16 relative overflow-hidden">
+      {/* Animated decorative blobs */}
+      <div className="absolute -right-32 top-1/2 w-64 h-64 bg-fun-yellow/10 blob -z-10 animate-blob" />
+      <div className="absolute -left-32 bottom-0 w-48 h-48 bg-fun-red/10 blob-2 -z-10 animate-blob" style={{ animationDelay: "-4s" }} />
       
-      <div className="container">
+      <div className="container relative">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 bg-fun-red/10 text-fun-red px-4 py-1.5 rounded-full text-sm font-bold mb-3">
+            <div className="inline-flex items-center gap-2 bg-fun-red/10 text-fun-red px-4 py-1.5 rounded-full text-sm font-bold mb-3 animate-bounce-in">
               🔥 Hot Right Now
             </div>
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground">
-              Featured Finds
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground animate-fade-in-up opacity-0" style={{ animationDelay: "0.1s" }}>
+              Featured <span className="text-gradient-animated">Finds</span>
             </h2>
-            <p className="mt-2 text-muted-foreground">Check out these amazing closeout deals!</p>
+            <p className="mt-2 text-muted-foreground animate-fade-in-up opacity-0" style={{ animationDelay: "0.2s" }}>Check out these amazing closeout deals!</p>
           </div>
           <Link to="/shop">
-            <Button variant="ghost" className="font-bold text-primary hover:text-primary/80">
+            <Button variant="ghost" className="font-bold text-primary hover:text-primary/80 hover-shake animate-fade-in-up opacity-0" style={{ animationDelay: "0.3s" }}>
               View All
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
         </div>
