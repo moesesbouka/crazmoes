@@ -42,7 +42,7 @@ const ProductDetail = () => {
     const amount = parseFloat(price.amount);
     const note = encodeURIComponent(`Crazy Moe's - ${product.node.title}`);
     
-    window.open(`https://cash.app/$CrazyMoes/${amount}?note=${note}`, '_blank');
+    window.open(`https://cash.app/$MOEB1978/${amount}?note=${note}`, '_blank');
     
     toast.success("Opening Cash App", {
       description: "Complete your payment in Cash App, then schedule your pickup!",

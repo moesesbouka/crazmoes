@@ -26,7 +26,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
     const note = encodeURIComponent(`Crazy Moe's - ${node.title}`);
     
     // Cash App payment link format
-    window.open(`https://cash.app/$CrazyMoes/${amount}?note=${note}`, '_blank');
+    window.open(`https://cash.app/$MOEB1978/${amount}?note=${note}`, '_blank');
     
     toast.success("Opening Cash App", {
       description: "Complete your payment in Cash App, then schedule your pickup!",
