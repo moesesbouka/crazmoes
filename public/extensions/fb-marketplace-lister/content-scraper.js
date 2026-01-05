@@ -194,8 +194,11 @@
       // Store in Chrome storage
       await chrome.storage.local.set({ pendingListing: marketplaceData });
 
-      // Open Facebook Marketplace create page
-      window.open('https://www.facebook.com/marketplace/create/item', '_blank');
+      // Open Facebook Marketplace create page using chrome.tabs API (avoids popup blocker)
+      chrome.runtime.sendMessage({ 
+        action: 'openMarketplace', 
+        url: 'https://www.facebook.com/marketplace/create/item' 
+      });
 
       button.innerHTML = `
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
