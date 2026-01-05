@@ -4,11 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, MessageSquare, Calendar, Tags, Users } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Tags, Users, Package, Wrench } from "lucide-react";
 import { AdminChatConsole } from "@/components/admin/AdminChatConsole";
 import { AdminCategoryManager } from "@/components/admin/AdminCategoryManager";
 import { AdminPickupSchedules } from "@/components/admin/AdminPickupSchedules";
 import { AdminSubscribers } from "@/components/admin/AdminSubscribers";
+import { AdminMarketplaceInventory } from "@/components/admin/AdminMarketplaceInventory";
+import { AdminTools } from "@/components/admin/AdminTools";
 
 const Admin = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -80,22 +82,30 @@ const Admin = () => {
 
       <main className="container py-8">
         <Tabs defaultValue="chats" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
             <TabsTrigger value="chats" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              Chats
+              <span className="hidden sm:inline">Chats</span>
             </TabsTrigger>
             <TabsTrigger value="categories" className="flex items-center gap-2">
               <Tags className="h-4 w-4" />
-              Categories
+              <span className="hidden sm:inline">Categories</span>
             </TabsTrigger>
             <TabsTrigger value="pickups" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Pickups
+              <span className="hidden sm:inline">Pickups</span>
             </TabsTrigger>
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Subscribers
+              <span className="hidden sm:inline">Subscribers</span>
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              <span className="hidden sm:inline">Inventory</span>
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Tools</span>
             </TabsTrigger>
           </TabsList>
 
@@ -113,6 +123,14 @@ const Admin = () => {
 
           <TabsContent value="subscribers">
             <AdminSubscribers />
+          </TabsContent>
+
+          <TabsContent value="inventory">
+            <AdminMarketplaceInventory />
+          </TabsContent>
+
+          <TabsContent value="tools">
+            <AdminTools />
           </TabsContent>
         </Tabs>
       </main>

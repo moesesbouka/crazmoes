@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 320px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .header-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .header-text h1 {
+      font-size: 16px;
+      margin: 0 0 2px 0;
+      font-weight: 600;
+    }
+    
+    .header-text span {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .stat-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .stat-value.highlight {
+      color: #10b981;
+    }
+    
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    
+    .instructions {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .instructions h3 {
+      font-size: 12px;
+      margin: 0 0 10px 0;
+      color: #aaa;
+    }
+    
+    .instructions ol {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #888;
+      line-height: 1.6;
+    }
+    
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 10px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24" fill="white">
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>FB Marketplace Importer</h1>
+      <span>Backup Your Inventory</span>
+    </div>
+  </div>
+  
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Last Import</div>
+      <div class="stat-value" id="last-import">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Saved</div>
+      <div class="stat-value highlight" id="total-saved">0</div>
+    </div>
+  </div>
+  
+  <button class="action-btn" id="go-to-listings">
+    Go to Your Listings
+  </button>
+  
+  <div class="instructions">
+    <h3>HOW TO USE</h3>
+    <ol>
+      <li>Click the button above to open your listings</li>
+      <li>Click "Import All Listings" on the page</li>
+      <li>Wait while listings are backed up</li>
+      <li>View your inventory in Admin Dashboard</li>
+    </ol>
+  </div>
+  
+  <div class="footer">
+    Made for Crazy Moe's Discount Warehouse
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

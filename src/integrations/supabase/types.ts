@@ -127,6 +127,63 @@ export type Database = {
           },
         ]
       }
+      marketplace_listings: {
+        Row: {
+          category: string | null
+          condition: string | null
+          created_at: string
+          description: string | null
+          facebook_id: string | null
+          id: string
+          images: string[] | null
+          imported_at: string
+          listing_url: string | null
+          location: string | null
+          metadata: Json | null
+          original_price: number | null
+          price: number | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          description?: string | null
+          facebook_id?: string | null
+          id?: string
+          images?: string[] | null
+          imported_at?: string
+          listing_url?: string | null
+          location?: string | null
+          metadata?: Json | null
+          original_price?: number | null
+          price?: number | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          condition?: string | null
+          created_at?: string
+          description?: string | null
+          facebook_id?: string | null
+          id?: string
+          images?: string[] | null
+          imported_at?: string
+          listing_url?: string | null
+          location?: string | null
+          metadata?: Json | null
+          original_price?: number | null
+          price?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       newsletter_subscribers: {
         Row: {
           email: string
