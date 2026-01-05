@@ -9,6 +9,12 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Handle messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openMarketplace') {
+    chrome.tabs.create({ url: request.url });
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (request.action === 'getStoredData') {
     chrome.storage.local.get('pendingListing', (result) => {
       sendResponse(result.pendingListing || null);

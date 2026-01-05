@@ -165,6 +165,7 @@
   // Initialize when on marketplace create page
   function init() {
     if (window.location.href.includes('facebook.com/marketplace/create')) {
+      console.log('FB Lister: Detected marketplace create page, adding paste button...');
       setTimeout(createPasteButton, 2000);
     }
   }

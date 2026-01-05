@@ -25,7 +25,8 @@ const extensionFiles = {
     "https://www.walmart.com/*",
     "https://www.bestbuy.com/*",
     "https://www.target.com/*",
-    "https://www.facebook.com/marketplace/*"
+    "https://www.facebook.com/*",
+    "https://facebook.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -48,7 +49,10 @@ const extensionFiles = {
       "css": ["styles.css"]
     },
     {
-      "matches": ["https://www.facebook.com/marketplace/create/*"],
+      "matches": [
+        "https://www.facebook.com/marketplace/create/*",
+        "https://facebook.com/marketplace/create/*"
+      ],
       "js": ["content-paster.js"],
       "css": ["styles.css"]
     }
@@ -168,6 +172,12 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Handle messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openMarketplace') {
+    chrome.tabs.create({ url: request.url });
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (request.action === 'getStoredData') {
     chrome.storage.local.get('pendingListing', (result) => {
       sendResponse(result.pendingListing || null);
@@ -364,7 +374,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       };
 
       await chrome.storage.local.set({ pendingListing: marketplaceData });
-      window.open('https://www.facebook.com/marketplace/create/item', '_blank');
+      chrome.runtime.sendMessage({ 
+        action: 'openMarketplace', 
+        url: 'https://www.facebook.com/marketplace/create/item' 
+      });
 
       button.innerHTML = \\\`
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">

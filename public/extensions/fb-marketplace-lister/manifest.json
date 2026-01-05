@@ -14,7 +14,8 @@
     "https://www.walmart.com/*",
     "https://www.bestbuy.com/*",
     "https://www.target.com/*",
-    "https://www.facebook.com/marketplace/*"
+    "https://www.facebook.com/*",
+    "https://facebook.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -37,7 +38,10 @@
       "css": ["styles.css"]
     },
     {
-      "matches": ["https://www.facebook.com/marketplace/create/*"],
+      "matches": [
+        "https://www.facebook.com/marketplace/create/*",
+        "https://facebook.com/marketplace/create/*"
+      ],
       "js": ["content-paster.js"],
       "css": ["styles.css"]
     }
