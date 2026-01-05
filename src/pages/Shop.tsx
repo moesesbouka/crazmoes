@@ -73,12 +73,12 @@ const Shop = () => {
     const categories: Record<string, ShopifyProduct[]> = {};
     
     filteredAndSortedProducts.forEach((product) => {
-      const category = resolveProductCategory({
-        title: product.node.title,
-        description: product.node.description,
-        shopifyCategoryName: product.node.category?.name,
-        productType: product.node.productType,
-      });
+      const category = resolveProductCategory(
+        product.node.title,
+        product.node.description,
+        product.node.category?.name,
+        product.node.productType
+      );
       
       if (!categories[category]) {
         categories[category] = [];

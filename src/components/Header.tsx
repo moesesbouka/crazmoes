@@ -15,6 +15,7 @@ export function Header({ onNewsletterClick }: HeaderProps) {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
+    { href: "/schedule-pickup", label: "Schedule Pickup" },
     { href: "/about", label: "About" },
   ];
 
