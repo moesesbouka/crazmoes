@@ -44,8 +44,10 @@ export function ProductImage({
         
         if (mounted) {
           setProcessedSrc(processed);
-          // Cache the result
-          await setCachedImage(src, processed);
+          // Cache only when we actually got a different (processed) image.
+          if (processed !== src) {
+            await setCachedImage(src, processed);
+          }
           incrementProcessed();
         }
       } catch (error) {
