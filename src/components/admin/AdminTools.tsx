@@ -437,6 +437,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkForPendingData();
   }
 
+  function createImagePanel(images) {
+    const existing = document.querySelector('#fb-lister-image-panel');
+    if (existing) existing.remove();
+    if (!images || images.length === 0) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'fb-lister-image-panel';
+    panel.style.cssText = 'position:fixed;top:100px;right:20px;z-index:999998;background:white;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);padding:16px;max-width:300px;max-height:400px;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+
+    panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong style="font-size:14px;color:#333;">Product Images (' + images.length + ')</strong><button id="fb-lister-close-panel" style="background:none;border:none;cursor:pointer;font-size:18px;color:#666;">&times;</button></div><p style="font-size:12px;color:#666;margin:0 0 12px 0;">Right-click images to save, then upload:</p><div id="fb-lister-image-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>';
+
+    document.body.appendChild(panel);
+
+    const grid = document.querySelector('#fb-lister-image-grid');
+    images.slice(0, 6).forEach((url, i) => {
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.style.cssText = 'display:block;aspect-ratio:1;overflow:hidden;border-radius:8px;border:1px solid #e0e0e0;';
+      link.innerHTML = '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;" alt="Image ' + (i+1) + '" onerror="this.parentElement.style.display=\\'none\\'" />';
+      grid.appendChild(link);
+    });
+
+    document.querySelector('#fb-lister-close-panel').addEventListener('click', () => panel.remove());
+  }
+
   async function checkForPendingData() {
     try {
       const result = await chrome.storage.local.get('pendingListing');
@@ -447,28 +473,73 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           button.classList.add('has-data');
           button.innerHTML = 'Paste Data (' + pendingListing.title.substring(0, 20) + '...)';
         }
+        console.log('FB Lister: Pending data found:', pendingListing);
       }
     } catch (error) {
       console.error('Error checking pending data:', error);
     }
   }
 
-  function simulateInput(element, value) {
-    if (!element || !value) return;
+  function simulateNativeInput(element, value) {
+    if (!element || !value) return false;
+    const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    const nativeTextareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    
     element.focus();
-    element.value = value;
+    if (element.tagName === 'INPUT' && nativeInputSetter) {
+      nativeInputSetter.call(element, value);
+    } else if (element.tagName === 'TEXTAREA' && nativeTextareaSetter) {
+      nativeTextareaSetter.call(element, value);
+    } else {
+      element.value = value;
+    }
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
-    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    element.dispatchEvent(new Event('blur', { bubbles: true }));
+    return true;
   }
 
-  function findInput(selectors) {
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element) return element;
+  function fillContentEditable(element, value) {
+    if (!element || !value) return false;
+    element.focus();
+    element.textContent = value;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('blur', { bubbles: true }));
+    return true;
+  }
+
+  function findAndFillField(labelText, value, isTextarea) {
+    if (!value) return false;
+    const lowerLabel = labelText.toLowerCase();
+    
+    let element = document.querySelector((isTextarea ? 'textarea' : 'input') + '[aria-label*="' + labelText + '" i]');
+    if (!element) element = document.querySelector((isTextarea ? 'textarea' : 'input') + '[placeholder*="' + labelText + '" i]');
+    
+    if (!element) {
+      const labels = document.querySelectorAll('label, span');
+      for (const label of labels) {
+        if (label.textContent.toLowerCase().includes(lowerLabel)) {
+          const parent = label.closest('div');
+          if (parent) {
+            element = parent.querySelector(isTextarea ? 'textarea' : 'input');
+            if (element) break;
+          }
+        }
+      }
     }
-    return null;
+    
+    if (!element) {
+      const editables = document.querySelectorAll('[contenteditable="true"], [role="textbox"]');
+      for (const editable of editables) {
+        const parent = editable.closest('div[role="group"], label');
+        if (parent && parent.textContent.toLowerCase().includes(lowerLabel)) {
+          return fillContentEditable(editable, value);
+        }
+      }
+    }
+    
+    if (element) return simulateNativeInput(element, value);
+    return false;
   }
 
   async function handlePaste() {
@@ -477,10 +548,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (!pendingListing) {
       button.innerHTML = 'No data to paste';
       button.classList.add('error');
-      setTimeout(() => {
-        button.classList.remove('error');
-        button.innerHTML = 'Paste Data';
-      }, 2000);
+      setTimeout(() => { button.classList.remove('error'); button.innerHTML = 'Paste Data'; }, 2000);
       return;
     }
 
@@ -488,53 +556,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     button.classList.add('loading');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('FB Lister: Pasting data...', pendingListing);
 
-      const titleInput = findInput([
-        'input[aria-label="Title"]',
-        'input[placeholder*="Title"]',
-        'input[name="title"]',
-        'input[type="text"]:first-of-type'
-      ]);
-      
-      if (titleInput) {
-        simulateInput(titleInput, pendingListing.title);
-      }
+      const filledTitle = findAndFillField('Title', pendingListing.title, false);
+      const filledPrice = findAndFillField('Price', pendingListing.price, false);
+      const filledDesc = findAndFillField('Description', pendingListing.description?.substring(0, 1000), true);
 
-      const priceInput = findInput([
-        'input[aria-label="Price"]',
-        'input[placeholder*="Price"]',
-        'input[name="price"]',
-        'input[type="number"]'
-      ]);
-      
-      if (priceInput && pendingListing.price) {
-        simulateInput(priceInput, pendingListing.price);
-      }
-
-      const descInput = findInput([
-        'textarea[aria-label="Description"]',
-        'textarea[placeholder*="Description"]',
-        'textarea[name="description"]',
-        'textarea'
-      ]);
-      
-      if (descInput && pendingListing.description) {
-        const desc = pendingListing.description.substring(0, 1000);
-        simulateInput(descInput, desc);
-      }
-
-      button.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Done! Add images manually';
-      button.classList.remove('loading');
-      button.classList.add('success');
+      console.log('FB Lister: Results - Title:', filledTitle, 'Price:', filledPrice, 'Desc:', filledDesc);
 
       if (pendingListing.images && pendingListing.images.length > 0) {
-        console.log('=== FB Lister: Product Images ===');
-        console.log('Download these images and upload them:');
-        pendingListing.images.forEach((url, i) => {
-          console.log('Image ' + (i + 1) + ': ' + url);
-        });
+        createImagePanel(pendingListing.images);
       }
+
+      button.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Done! Add images';
+      button.classList.remove('loading');
+      button.classList.add('success');
 
       await chrome.storage.local.remove('pendingListing');
 
@@ -542,37 +579,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         button.classList.remove('success', 'has-data');
         button.innerHTML = 'Paste Data';
         pendingListing = null;
-      }, 5000);
+      }, 10000);
 
     } catch (error) {
       console.error('Paste error:', error);
       button.innerHTML = 'Error - Try Again';
       button.classList.remove('loading');
       button.classList.add('error');
-
-      setTimeout(() => {
-        button.classList.remove('error');
-        button.innerHTML = 'Paste Data';
-        checkForPendingData();
-      }, 3000);
+      setTimeout(() => { button.classList.remove('error'); button.innerHTML = 'Paste Data'; checkForPendingData(); }, 3000);
     }
   }
 
   function init() {
     if (window.location.href.includes('facebook.com/marketplace/create')) {
-      console.log('FB Lister: Detected marketplace create page, adding paste button...');
+      console.log('FB Lister: Detected marketplace create page...');
       setTimeout(createPasteButton, 2000);
     }
   }
 
   init();
-
   let lastUrl = location.href;
   new MutationObserver(() => {
-    if (location.href !== lastUrl) {
-      lastUrl = location.href;
-      setTimeout(init, 1500);
-    }
+    if (location.href !== lastUrl) { lastUrl = location.href; setTimeout(init, 1500); }
   }).observe(document.body, { subtree: true, childList: true });
 })();`,
     "styles.css": `/* FB Marketplace Lister - Floating Button Styles */
