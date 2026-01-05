@@ -1,0 +1,13 @@
+// Check for pending listing data
+chrome.storage.local.get('pendingListing', (result) => {
+  const statusEl = document.getElementById('status');
+  
+  if (result.pendingListing) {
+    const title = result.pendingListing.title;
+    statusEl.textContent = title.length > 30 ? title.substring(0, 30) + '...' : title;
+    statusEl.className = 'status-value ready';
+  } else {
+    statusEl.textContent = 'No data copied';
+    statusEl.className = 'status-value no-data';
+  }
+});
