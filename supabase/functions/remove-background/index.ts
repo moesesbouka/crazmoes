@@ -64,40 +64,37 @@ serve(async (req) => {
       },
     )
   } catch (error) {
-    console.error("Error in remove-background function:", error)
-
+    // IMPORTANT: do not log the full error object here.
+    // Some SDK errors include request/response objects with sensitive headers.
     const errorMessage = error instanceof Error ? error.message : String(error)
 
-    // Replicate errors often include JSON with status/retry_after.
-    const statusMatch = errorMessage.match(/status\s+(\d{3})|"status"\s*:\s*(\d{3})/)
-    const status = statusMatch ? Number(statusMatch[1] ?? statusMatch[2]) : null
+    const statusFromResponse = (error as any)?.response?.status
+    const statusMatch = errorMessage.match(/\b(402|429)\b/)
+    const statusFromMessage = statusMatch ? Number(statusMatch[1]) : null
+    const status = (typeof statusFromResponse === "number" ? statusFromResponse : statusFromMessage) ?? 500
 
+    const retryAfterFromResponseRaw = (error as any)?.response?.headers?.get?.("ratelimit-reset")
+    const retryAfterFromResponse = retryAfterFromResponseRaw ? Number(retryAfterFromResponseRaw) : null
     const retryAfterMatch = errorMessage.match(/"retry_after"\s*:\s*(\d+)/)
-    const retryAfter = retryAfterMatch ? Number(retryAfterMatch[1]) : null
+    const retryAfterFromMessage = retryAfterMatch ? Number(retryAfterMatch[1]) : null
+    const retryAfter = retryAfterFromResponse ?? retryAfterFromMessage
 
-    // Treat billing/rate-limit as a graceful "no-op" so the UI doesn't crash.
-    if (status === 402 || status === 429) {
-      return new Response(
-        JSON.stringify({
-          processedImageUrl: null,
-          skipped: true,
-          status,
-          retry_after: retryAfter,
-          error: errorMessage,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        },
-      )
-    }
+    console.warn("remove-background skipped", { status, retryAfter })
 
+    // Always return 200 so the frontend can safely fall back to the original image.
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({
+        processedImageUrl: null,
+        skipped: true,
+        status,
+        retry_after: retryAfter,
+        error: errorMessage,
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status: 200,
       },
     )
   }
 })
+
