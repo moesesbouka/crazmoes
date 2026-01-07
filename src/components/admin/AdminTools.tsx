@@ -66,86 +66,129 @@ const extensionFiles = {
   <meta charset="UTF-8">
   <style>
     body {
-      width: 280px;
+      width: 300px;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      background: #1a1a2e;
+      color: #fff;
     }
+    
     .header {
-      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #333;
     }
+    
+    .header svg {
+      width: 32px;
+      height: 32px;
+    }
+    
     .header h1 {
       font-size: 16px;
-      margin: 0 0 4px 0;
-    }
-    .header p {
-      font-size: 11px;
-      opacity: 0.8;
       margin: 0;
-    }
-    .status-card {
-      background: rgba(255,255,255,0.15);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    .status-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      opacity: 0.7;
-      margin-bottom: 4px;
-    }
-    .status-value {
-      font-size: 14px;
       font-weight: 600;
     }
-    .status-value.ready { color: #10b981; }
-    .status-value.no-data { opacity: 0.5; }
+    
+    .header span {
+      font-size: 12px;
+      color: #888;
+      display: block;
+    }
+    
+    .status {
+      background: #2d2d44;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .status-title {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    
+    .status-value {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .status-value.ready {
+      color: #4ade80;
+    }
+    
+    .status-value.no-data {
+      color: #888;
+    }
+    
     .instructions {
-      font-size: 11px;
-      opacity: 0.8;
+      font-size: 12px;
+      color: #aaa;
       line-height: 1.5;
     }
-    .instructions ol {
-      margin: 8px 0 0 0;
-      padding-left: 16px;
+    
+    .instructions strong {
+      color: #fff;
     }
-    .instructions li {
-      margin-bottom: 4px;
+    
+    .footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+      text-align: center;
+      font-size: 11px;
+      color: #666;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>FB Marketplace Lister</h1>
-    <p>Crazy Moe's Discount Warehouse</p>
+    <svg viewBox="0 0 24 24" fill="#1877f2">
+      <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/>
+    </svg>
+    <div>
+      <h1>FB Marketplace Lister</h1>
+      <span>Crazy Moe's Edition</span>
+    </div>
   </div>
   
-  <div class="status-card">
-    <div class="status-label">Copied Data</div>
-    <div id="status" class="status-value no-data">No data copied</div>
+  <div class="status">
+    <div class="status-title">Pending Listing</div>
+    <div class="status-value" id="status">Checking...</div>
   </div>
   
   <div class="instructions">
-    <strong>How to use:</strong>
-    <ol>
-      <li>Browse to a product on Amazon, eBay, etc.</li>
-      <li>Click the "Copy to Facebook" button</li>
-      <li>On FB Marketplace, click "Paste Data"</li>
-      <li>Add photos and publish!</li>
-    </ol>
+    <strong>How to use:</strong><br>
+    1. Visit a product page (Amazon, eBay, etc.)<br>
+    2. Click the "Copy to Facebook" button<br>
+    3. On FB Marketplace, click "Paste Data"<br>
+    4. Add images and submit your listing
   </div>
   
+  <div class="footer">
+    Made for Crazy Moe's Discount Warehouse • v<span id="ext-version">-</span>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>`,
-    "popup.js": `// Check for pending listing data
+    "popup.js": `// Show extension version
+try {
+  const versionEl = document.getElementById('ext-version');
+  if (versionEl) versionEl.textContent = chrome.runtime.getManifest().version;
+} catch (e) {
+  // ignore
+}
+
+// Check for pending listing data
 chrome.storage.local.get('pendingListing', (result) => {
   const statusEl = document.getElementById('status');
-  
+
   if (result.pendingListing) {
     const title = result.pendingListing.title;
     statusEl.textContent = title.length > 30 ? title.substring(0, 30) + '...' : title;
@@ -304,18 +347,100 @@ async function fetchImageAsDataUrl(url) {
     bestbuy: {
       match: /bestbuy\\.com/,
       extract: () => {
-        const title = document.querySelector('.sku-title h1')?.textContent?.trim() ||
+        console.log('FB Lister: Extracting Best Buy product data (v1.1.1)...');
+
+        // Prefer JSON-LD (much more stable than DOM selectors on BestBuy)
+        const jsonLdResult = (() => {
+          try {
+            const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+            const nodes = [];
+
+            const pushNode = (n) => {
+              if (!n) return;
+              if (Array.isArray(n)) return n.forEach(pushNode);
+              if (typeof n !== 'object') return;
+              if (n['@graph']) return pushNode(n['@graph']);
+              nodes.push(n);
+            };
+
+            for (const s of scripts) {
+              if (!s.textContent) continue;
+              pushNode(JSON.parse(s.textContent));
+            }
+
+            const productNode = nodes.find((n) => {
+              const t = n['@type'];
+              return t === 'Product' || (Array.isArray(t) && t.includes('Product'));
+            });
+
+            if (!productNode) return null;
+
+            const title = (productNode.name || '').toString().trim();
+            const description = (productNode.description || '').toString().trim();
+
+            const offers = productNode.offers;
+            const offer = Array.isArray(offers) ? offers[0] : offers;
+            const rawPrice = offer?.price ?? offer?.lowPrice ?? '';
+            const price = rawPrice ? String(rawPrice).replace(/[^0-9.]/g, '') : '';
+
+            let images = [];
+            if (Array.isArray(productNode.image)) images = productNode.image;
+            else if (typeof productNode.image === 'string') images = [productNode.image];
+
+            images = images
+              .map((u) => String(u))
+              .filter(Boolean)
+              .map((u) => u.replace(/;maxHeight=\\d+;maxWidth=\\d+/, ';maxHeight=1200;maxWidth=1200'));
+
+            if (!title) return null;
+
+            console.log('FB Lister: BestBuy JSON-LD extracted', {
+              title,
+              price,
+              descriptionLen: description.length,
+              images: images.length,
+            });
+
+            return { title, price, description, images };
+          } catch (e) {
+            return null;
+          }
+        })();
+
+        if (jsonLdResult) return jsonLdResult;
+
+        // Fallback DOM scraping (older BestBuy layouts)
+        const title = document.querySelector('h1.heading-5, h1[class*="heading"]')?.textContent?.trim() ||
                       document.querySelector('h1')?.textContent?.trim() || '';
-        
-        const priceElement = document.querySelector('.priceView-customer-price span') ||
-                            document.querySelector('[data-testid="customer-price"] span');
-        let price = priceElement?.textContent?.replace(/[^0-9.]/g, '') || '';
-        
-        const description = document.querySelector('.shop-product-description')?.textContent?.trim() || '';
-        
+
+        // Price - look for the main price display
+        let price = '';
+        const priceContainers = document.querySelectorAll('[class*="price"], [data-testid*="price"]');
+        for (const container of priceContainers) {
+          const text = container.textContent || '';
+          const match = text.match(/\\$(\\d+(?:,\\d{3})*(?:\\.\\d{2})?)/);
+          if (match) {
+            price = match[1].replace(',', '');
+            break;
+          }
+        }
+
+        // Description
+        let description = '';
+        const specsSection = document.querySelector('[class*="specifications"], [class*="features"], .shop-product-description');
+        if (specsSection) {
+          description = specsSection.textContent?.trim().substring(0, 500) || '';
+        }
+
+        // Images - Best Buy uses pisces.bbystatic.com for images
         const images = [];
-        document.querySelectorAll('.picture-wrapper img, .primary-image').forEach(img => {
-          if (img.src && !images.includes(img.src)) images.push(img.src);
+        document.querySelectorAll('img[src*="pisces.bbystatic.com"], img[src*="bestbuy.com/images"]').forEach((img) => {
+          let src = img.src || '';
+          if (src && !images.includes(src)) {
+            src = src.replace(/;maxHeight=\\d+;maxWidth=\\d+/, ';maxHeight=1200;maxWidth=1200');
+            src = src.replace(/\\?format=webp/, '');
+            images.push(src);
+          }
         });
 
         return { title, price, description, images };
