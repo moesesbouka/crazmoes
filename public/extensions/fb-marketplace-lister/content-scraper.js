@@ -3,7 +3,7 @@
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.2.0';
+  const EXTENSION_VERSION = '1.3.0';
 
   // Product data extractors for different sites
   const extractors = {
