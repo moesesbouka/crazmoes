@@ -54,7 +54,7 @@ export function AdminTools() {
       const newVersions: Record<string, string> = {};
       for (const key of Object.keys(EXTENSIONS)) {
         try {
-          const response = await fetch(`/extensions/${key}/manifest.json`);
+          const response = await fetch(`/extensions/${key}/manifest.json`, { cache: "no-store" });
           if (response.ok) {
             const manifest = await response.json();
             newVersions[key] = manifest.version || "unknown";
@@ -82,8 +82,8 @@ export function AdminTools() {
       
       for (const fileName of extension.files) {
         try {
-          const response = await fetch(`${basePath}/${fileName}`);
-          if (!response.ok) {
+            const response = await fetch(`${basePath}/${fileName}`, { cache: "no-store" });
+            if (!response.ok) {
             console.warn(`Could not fetch ${fileName}: ${response.status}`);
             continue;
           }
@@ -110,7 +110,7 @@ export function AdminTools() {
       
       for (const size of iconSizes) {
         try {
-          const response = await fetch(`${basePath}/icons/icon${size}.png`);
+          const response = await fetch(`${basePath}/icons/icon${size}.png`, { cache: "no-store" });
           if (response.ok) {
             const blob = await response.blob();
             const arrayBuffer = await blob.arrayBuffer();
