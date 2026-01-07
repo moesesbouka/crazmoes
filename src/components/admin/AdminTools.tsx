@@ -43,6 +43,11 @@ const EXTENSIONS = {
 
 type ExtensionKey = keyof typeof EXTENSIONS;
 
+function withCacheBust(url: string) {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}cb=${Date.now()}`;
+}
+
 export function AdminTools() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState<string | null>(null);
@@ -54,7 +59,7 @@ export function AdminTools() {
       const newVersions: Record<string, string> = {};
       for (const key of Object.keys(EXTENSIONS)) {
         try {
-          const response = await fetch(`/extensions/${key}/manifest.json`, { cache: "no-store" });
+          const response = await fetch(withCacheBust(`/extensions/${key}/manifest.json`), { cache: "no-store" });
           if (response.ok) {
             const manifest = await response.json();
             newVersions[key] = manifest.version || "unknown";
@@ -82,7 +87,7 @@ export function AdminTools() {
       
       for (const fileName of extension.files) {
         try {
-            const response = await fetch(`${basePath}/${fileName}`, { cache: "no-store" });
+            const response = await fetch(withCacheBust(`${basePath}/${fileName}`), { cache: "no-store" });
             if (!response.ok) {
             console.warn(`Could not fetch ${fileName}: ${response.status}`);
             continue;
@@ -110,7 +115,7 @@ export function AdminTools() {
       
       for (const size of iconSizes) {
         try {
-          const response = await fetch(`${basePath}/icons/icon${size}.png`, { cache: "no-store" });
+          const response = await fetch(withCacheBust(`${basePath}/icons/icon${size}.png`), { cache: "no-store" });
           if (response.ok) {
             const blob = await response.blob();
             const arrayBuffer = await blob.arrayBuffer();
