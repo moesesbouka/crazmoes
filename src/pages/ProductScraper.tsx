@@ -66,16 +66,11 @@ $${product.price}
 ${product.description}`;
 
     await navigator.clipboard.writeText(text);
-    toast.success("Copied! Opening Facebook item listing...");
+    toast.success("Copied! Opening Facebook...");
     
-    // Small delay to let toast show, then open FB item creation specifically
+    // Use mobile-friendly URL that opens the item listing form
     setTimeout(() => {
-      // This URL goes directly to "Item for Sale" creation
-      window.open("fb://marketplace_create_listing/", "_blank");
-      // Fallback to web URL after a moment if app doesn't open
-      setTimeout(() => {
-        window.location.href = "https://www.facebook.com/marketplace/create/item";
-      }, 1500);
+      window.location.href = "https://m.facebook.com/marketplace/create/item";
     }, 500);
   };
 
