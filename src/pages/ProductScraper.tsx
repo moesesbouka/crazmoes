@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Link2, Loader2, Copy, ExternalLink, ArrowLeft } from "lucide-react";
+import { Link2, Loader2, Copy, Download, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface ProductData {
@@ -56,7 +56,7 @@ const ProductScraper = () => {
     toast.success(`${label} copied!`);
   };
 
-  const copyAllForFacebook = async () => {
+  const copyAndOpenFacebook = async () => {
     if (!product) return;
 
     const text = `${product.title}
@@ -66,11 +66,41 @@ $${product.price}
 ${product.description}`;
 
     await navigator.clipboard.writeText(text);
-    toast.success("All product info copied! Paste into Facebook Marketplace.");
+    toast.success("Copied! Opening Facebook Marketplace...");
+    
+    // Small delay to let toast show, then open FB
+    setTimeout(() => {
+      window.open("https://www.facebook.com/marketplace/create/item", "_blank");
+    }, 500);
   };
 
-  const openFacebookMarketplace = () => {
-    window.open("https://www.facebook.com/marketplace/create/item", "_blank");
+  const downloadImage = async (imageUrl: string, index: number) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `product-image-${index + 1}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Image ${index + 1} saved!`);
+    } catch (error) {
+      // Fallback: open in new tab for manual save
+      window.open(imageUrl, '_blank');
+      toast.info("Long-press image to save");
+    }
+  };
+
+  const downloadAllImages = async () => {
+    if (!product?.images.length) return;
+    toast.info(`Downloading ${product.images.length} images...`);
+    for (let i = 0; i < Math.min(product.images.length, 5); i++) {
+      await downloadImage(product.images[i], i);
+      await new Promise(r => setTimeout(r, 300)); // Small delay between downloads
+    }
   };
 
   return (
@@ -116,18 +146,32 @@ ${product.description}`;
               {/* Images */}
               {product.images.length > 0 && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Images ({product.images.length})</label>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {product.images.slice(0, 5).map((img, i) => (
-                      <img
-                        key={i}
-                        src={img}
-                        alt={`Product ${i + 1}`}
-                        className="w-20 h-20 object-cover rounded border flex-shrink-0"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium">Images ({product.images.length})</label>
+                    <Button variant="outline" size="sm" onClick={downloadAllImages}>
+                      <Download className="w-3 h-3 mr-1" />
+                      Save All
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {product.images.slice(0, 6).map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img
+                          src={img}
+                          alt={`Product ${i + 1}`}
+                          className="w-full aspect-square object-cover rounded border"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                        <button
+                          onClick={() => downloadImage(img, i)}
+                          className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded transition-opacity"
+                        >
+                          <Download className="w-5 h-5 text-white" />
+                        </button>
+                      </div>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">Tap "Save All" then upload to Facebook</p>
                 </div>
               )}
 
@@ -181,14 +225,10 @@ ${product.description}`;
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-col gap-2 pt-4">
-                <Button onClick={copyAllForFacebook} className="w-full">
+              <div className="pt-4">
+                <Button onClick={copyAndOpenFacebook} className="w-full" size="lg">
                   <Copy className="w-4 h-4 mr-2" />
-                  Copy All for Facebook
-                </Button>
-                <Button variant="outline" onClick={openFacebookMarketplace} className="w-full">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Facebook Marketplace
+                  Copy & Open Facebook
                 </Button>
               </div>
             </CardContent>
