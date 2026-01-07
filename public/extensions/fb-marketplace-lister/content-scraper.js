@@ -1,6 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
+// Version 1.2.0 - Added diagnostics toast
 (function() {
   'use strict';
+
+  const EXTENSION_VERSION = '1.2.0';
 
   // Product data extractors for different sites
   const extractors = {
@@ -78,7 +81,7 @@
     bestbuy: {
       match: /bestbuy\.com/,
       extract: () => {
-        console.log('FB Lister: Extracting Best Buy product data (v1.1.1)...');
+        console.log(`FB Lister v${EXTENSION_VERSION}: Extracting Best Buy product data...`);
 
         // Prefer JSON-LD (much more stable than DOM selectors on BestBuy)
         const jsonLdResult = (() => {
@@ -125,7 +128,7 @@
 
             if (!title) return null;
 
-            console.log('FB Lister: BestBuy JSON-LD extracted', {
+            console.log(`FB Lister v${EXTENSION_VERSION}: BestBuy JSON-LD extracted`, {
               title,
               price,
               descriptionLen: description.length,
@@ -134,6 +137,7 @@
 
             return { title, price, description, images };
           } catch (e) {
+            console.error(`FB Lister v${EXTENSION_VERSION}: JSON-LD parsing failed`, e);
             return null;
           }
         })();
@@ -141,6 +145,8 @@
         if (jsonLdResult) return jsonLdResult;
 
         // Fallback DOM scraping (older BestBuy layouts)
+        console.log(`FB Lister v${EXTENSION_VERSION}: JSON-LD not found, falling back to DOM scraping`);
+        
         const title = document.querySelector('h1.heading-5, h1[class*="heading"]')?.textContent?.trim() ||
                       document.querySelector('h1')?.textContent?.trim() || '';
 
@@ -223,6 +229,55 @@
     return Math.round(numPrice / 2).toString();
   }
 
+  // Show diagnostic toast on the page
+  function showDiagnosticToast(data, success = true) {
+    // Remove any existing toast
+    const existing = document.querySelector('#fb-lister-diagnostic-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'fb-lister-diagnostic-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      z-index: 999999;
+      background: ${success ? '#1e7e34' : '#bd2130'};
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      max-width: 320px;
+      line-height: 1.5;
+    `;
+
+    const titlePreview = data.title ? 
+      (data.title.length > 40 ? data.title.substring(0, 40) + '...' : data.title) : 
+      '(none)';
+
+    toast.innerHTML = `
+      <div style="font-weight: 600; margin-bottom: 8px;">
+        FB Lister v${EXTENSION_VERSION} - ${success ? 'Captured!' : 'Error'}
+      </div>
+      <div style="opacity: 0.9;">
+        <div>✓ Title: ${data.title ? 'yes' : 'NO'}</div>
+        <div>✓ Price: ${data.originalPrice || '(none)'} → ${data.price || '(none)'}</div>
+        <div>✓ Description: ${data.description ? data.description.length + ' chars' : '(none)'}</div>
+        <div>✓ Images: ${data.images ? data.images.length : 0}</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 11px; opacity: 0.7;">
+        "${titlePreview}"
+      </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 6 seconds
+    setTimeout(() => toast.remove(), 6000);
+  }
+
   // Create floating action button
   function createFloatingButton() {
     if (document.querySelector('#fb-lister-button')) return;
@@ -270,11 +325,24 @@
         description: productData.description,
         images: productData.images,
         sourceUrl: window.location.href,
-        copiedAt: new Date().toISOString()
+        copiedAt: new Date().toISOString(),
+        extensionVersion: EXTENSION_VERSION
       };
 
       // Store in Chrome storage
       await chrome.storage.local.set({ pendingListing: marketplaceData });
+
+      // Also store debug info
+      await chrome.storage.local.set({ 
+        lastScrapeDebug: {
+          ...marketplaceData,
+          scrapedAt: new Date().toISOString(),
+          url: window.location.href
+        }
+      });
+
+      // Show diagnostic toast
+      showDiagnosticToast(marketplaceData, true);
 
       // Open Facebook Marketplace create page using chrome.tabs API (avoids popup blocker)
       chrome.runtime.sendMessage({ 
@@ -302,6 +370,8 @@
       }, 3000);
 
     } catch (error) {
+      showDiagnosticToast({ title: '', price: '', description: '', images: [] }, false);
+      
       button.innerHTML = 'Error - Try Again';
       button.classList.remove('loading');
       button.classList.add('error');
