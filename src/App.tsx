@@ -8,6 +8,7 @@ import Shop from "./pages/Shop";
 import About from "./pages/About";
 import ProductDetail from "./pages/ProductDetail";
 import SchedulePickup from "./pages/SchedulePickup";
+import ProductScraper from "./pages/ProductScraper";
 import AdminLogin from "./pages/AdminLogin";
 import AdminSetup from "./pages/AdminSetup";
 import Admin from "./pages/Admin";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/product/:handle" element={<ProductDetail />} />
           <Route path="/schedule-pickup" element={<SchedulePickup />} />
+          <Route path="/scraper" element={<ProductScraper />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/setup" element={<AdminSetup />} />
           <Route path="/admin" element={<Admin />} />
