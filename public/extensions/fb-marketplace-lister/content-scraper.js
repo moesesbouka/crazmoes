@@ -78,55 +78,89 @@
     bestbuy: {
       match: /bestbuy\.com/,
       extract: () => {
-        // Updated selectors for Best Buy's current site design (2024+)
-        const title = document.querySelector('[data-testid="heading-title"]')?.textContent?.trim() ||
-                      document.querySelector('h1[class*="heading"]')?.textContent?.trim() ||
+        console.log('FB Lister: Extracting Best Buy product data...');
+        
+        // Title - Best Buy uses h1 for product title
+        const title = document.querySelector('h1.heading-5, h1[class*="heading"]')?.textContent?.trim() ||
                       document.querySelector('h1')?.textContent?.trim() || '';
+        console.log('FB Lister: Title found:', title);
         
-        // Price selectors - Best Buy uses various formats
-        const priceElement = document.querySelector('[data-testid="customer-price"] span') ||
-                            document.querySelector('[class*="priceView"] [aria-hidden="true"]') ||
-                            document.querySelector('.priceView-hero-price span') ||
-                            document.querySelector('[class*="price"] span[aria-hidden="true"]');
-        let price = priceElement?.textContent?.replace(/[^0-9.]/g, '') || '';
-        
-        // Description - check multiple possible containers
-        const description = document.querySelector('[class*="product-description"]')?.textContent?.trim() ||
-                           document.querySelector('[data-testid="product-description"]')?.textContent?.trim() ||
-                           document.querySelector('.overview-wrapper')?.textContent?.trim() ||
-                           document.querySelector('[class*="description"]')?.textContent?.trim() || '';
-        
-        // Images - Best Buy loads images dynamically, try multiple selectors
-        const images = [];
-        // Main product image (high priority)
-        const mainImg = document.querySelector('[data-testid="image-gallery-container"] img') ||
-                       document.querySelector('.primary-image img') ||
-                       document.querySelector('[class*="image-gallery"] img') ||
-                       document.querySelector('img[class*="primary"]');
-        if (mainImg?.src && !mainImg.src.includes('placeholder')) {
-          images.push(mainImg.src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1000;maxWidth=1000'));
+        // Price - look for the main price display (usually contains $ sign)
+        let price = '';
+        // Try to find price container with actual dollar amount
+        const priceContainers = document.querySelectorAll('[class*="price"], [data-testid*="price"]');
+        for (const container of priceContainers) {
+          const text = container.textContent || '';
+          const match = text.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+          if (match) {
+            price = match[1].replace(',', '');
+            console.log('FB Lister: Price found:', price);
+            break;
+          }
+        }
+        // Fallback: search entire page for first price pattern
+        if (!price) {
+          const bodyText = document.body.innerText;
+          const priceMatch = bodyText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+          if (priceMatch) {
+            price = priceMatch[1].replace(',', '');
+            console.log('FB Lister: Price fallback:', price);
+          }
         }
         
-        // Thumbnail images
-        document.querySelectorAll('[data-testid="image-gallery-thumbnails"] img, [class*="thumbnail"] img, .carousel-image img').forEach(img => {
-          let src = img.src || img.dataset?.src || '';
-          if (src && !src.includes('placeholder') && !images.includes(src)) {
-            // Upgrade thumbnail to full-size
-            src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1000;maxWidth=1000');
+        // Description - Best Buy shows specs, try to get features/overview
+        let description = '';
+        const specsSection = document.querySelector('[class*="specifications"], [class*="features"], .shop-product-description');
+        if (specsSection) {
+          description = specsSection.textContent?.trim().substring(0, 500) || '';
+        }
+        // Fallback: use SKU info
+        if (!description) {
+          const model = document.body.innerText.match(/Model:\s*([A-Z0-9-]+)/i);
+          const sku = document.body.innerText.match(/SKU:\s*(\d+)/i);
+          if (model || sku) {
+            description = [model?.[0], sku?.[0]].filter(Boolean).join(' | ');
+          }
+        }
+        console.log('FB Lister: Description:', description.substring(0, 100) + '...');
+        
+        // Images - Best Buy uses pisces.bbystatic.com for images
+        const images = [];
+        
+        // Find all product images (pisces.bbystatic.com domain)
+        document.querySelectorAll('img[src*="pisces.bbystatic.com"], img[src*="bestbuy.com/images"]').forEach(img => {
+          let src = img.src || '';
+          if (src && !images.includes(src)) {
+            // Upgrade to high-res version
+            src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200');
+            src = src.replace(/\?format=webp/, ''); // Remove webp format for broader compatibility
             images.push(src);
           }
         });
+        
+        // Also check for data-src attributes (lazy loaded)
+        document.querySelectorAll('img[data-src*="pisces.bbystatic.com"]').forEach(img => {
+          let src = img.dataset.src || '';
+          if (src && !images.includes(src)) {
+            src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200');
+            images.push(src);
+          }
+        });
+        
+        // De-duplicate based on base URL (before size params)
+        const uniqueImages = [];
+        const seenBase = new Set();
+        images.forEach(url => {
+          const base = url.split(';')[0].split('?')[0];
+          if (!seenBase.has(base)) {
+            seenBase.add(base);
+            uniqueImages.push(url);
+          }
+        });
+        
+        console.log('FB Lister: Images found:', uniqueImages.length, uniqueImages);
 
-        // Fallback: any product images on page
-        if (images.length === 0) {
-          document.querySelectorAll('img[src*="bestbuy.com"]').forEach(img => {
-            if (img.src && img.width > 100 && !images.includes(img.src)) {
-              images.push(img.src);
-            }
-          });
-        }
-
-        return { title, price, description, images };
+        return { title, price, description, images: uniqueImages };
       }
     },
     target: {
