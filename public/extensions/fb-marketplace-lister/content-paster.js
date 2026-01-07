@@ -267,16 +267,38 @@
     if (!value) return false;
     
     const lowerLabel = labelText.toLowerCase();
+    console.log('FB Lister: Looking for field:', labelText, 'isTextarea:', isTextarea);
     
-    // Strategy 1: Find by aria-label
+    // Strategy 1: Find by aria-label (exact and partial)
     let element = document.querySelector((isTextarea ? 'textarea' : 'input') + '[aria-label*="' + labelText + '" i]');
+    if (element) console.log('FB Lister: Found via aria-label');
     
     // Strategy 2: Find by placeholder
     if (!element) {
       element = document.querySelector((isTextarea ? 'textarea' : 'input') + '[placeholder*="' + labelText + '" i]');
+      if (element) console.log('FB Lister: Found via placeholder');
     }
     
-    // Strategy 3: Find label and get associated input
+    // Strategy 3: For description, look for textareas or large text inputs
+    if (!element && isTextarea) {
+      // Facebook often uses spans with role="textbox" for description
+      const textboxes = document.querySelectorAll('[role="textbox"], textarea, [contenteditable="true"]');
+      for (const tb of textboxes) {
+        const ariaLabel = (tb.getAttribute('aria-label') || '').toLowerCase();
+        const placeholder = (tb.getAttribute('placeholder') || '').toLowerCase();
+        const parentText = (tb.closest('label, div[role="group"]')?.textContent || '').toLowerCase();
+        
+        if (ariaLabel.includes('description') || ariaLabel.includes('describe') ||
+            placeholder.includes('description') || placeholder.includes('describe') ||
+            parentText.includes('description') || parentText.includes('describe')) {
+          element = tb;
+          console.log('FB Lister: Found description textbox via role/content check');
+          break;
+        }
+      }
+    }
+    
+    // Strategy 4: Find label and get associated input
     if (!element) {
       const labels = document.querySelectorAll('label, span');
       for (let i = 0; i < labels.length; i++) {
@@ -285,28 +307,41 @@
           const parent = label.closest('div');
           if (parent) {
             element = parent.querySelector(isTextarea ? 'textarea' : 'input');
-            if (element) break;
+            if (!element && isTextarea) {
+              // Try contenteditable or role=textbox
+              element = parent.querySelector('[contenteditable="true"], [role="textbox"]');
+            }
+            if (element) {
+              console.log('FB Lister: Found via parent label');
+              break;
+            }
           }
         }
       }
     }
     
-    // Strategy 4: Find contentEditable divs (Facebook's approach)
+    // Strategy 5: Find any contentEditable divs with matching context (Facebook's approach)
     if (!element) {
       const editables = document.querySelectorAll('[contenteditable="true"], [role="textbox"]');
       for (let i = 0; i < editables.length; i++) {
         const editable = editables[i];
         const parent = editable.closest('div[role="group"], div[class*="input"], label');
         if (parent && parent.textContent.toLowerCase().includes(lowerLabel)) {
+          console.log('FB Lister: Found contentEditable for', labelText);
           return fillContentEditable(editable, value);
         }
       }
     }
     
     if (element) {
+      // Check if it's a contenteditable element
+      if (element.getAttribute('contenteditable') === 'true' || element.getAttribute('role') === 'textbox') {
+        return fillContentEditable(element, value);
+      }
       return simulateNativeInput(element, value);
     }
     
+    console.log('FB Lister: Could not find field for:', labelText);
     return false;
   }
 
@@ -344,7 +379,15 @@
       // Find and fill fields
       let filledTitle = findAndFillField('Title', pendingListing.title);
       let filledPrice = findAndFillField('Price', pendingListing.price);
-      let filledDesc = findAndFillField('Description', pendingListing.description ? pendingListing.description.substring(0, 1000) : '', true);
+      
+      // Try multiple label variations for description
+      let filledDesc = false;
+      const descValue = pendingListing.description ? pendingListing.description.substring(0, 1000) : '';
+      if (descValue) {
+        filledDesc = findAndFillField('Description', descValue, true);
+        if (!filledDesc) filledDesc = findAndFillField('Describe', descValue, true);
+        if (!filledDesc) filledDesc = findAndFillField('describe your item', descValue, true);
+      }
 
       console.log('FB Lister: Fill results - Title:', filledTitle, 'Price:', filledPrice, 'Desc:', filledDesc, 'Images:', imagesUploaded);
 
