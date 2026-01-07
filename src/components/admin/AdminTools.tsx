@@ -12,7 +12,7 @@ const extensionFiles = {
     "manifest.json": `{
   "manifest_version": 3,
   "name": "FB Marketplace Lister - Crazy Moe's",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "Copy product data from shopping sites and create Facebook Marketplace listings with one click",
   "permissions": [
     "activeTab",
@@ -1334,14 +1334,28 @@ export function AdminTools() {
   const downloadExtension = async (extensionName: string) => {
     setDownloading(extensionName);
     setDownloadComplete(null);
-    
+
     try {
       const zip = new JSZip();
       const files = extensionFiles[extensionName as keyof typeof extensionFiles];
-      
+
       if (!files) {
         throw new Error("Extension not found");
       }
+
+      const manifestVersion = (() => {
+        try {
+          const manifest = JSON.parse(files["manifest.json"] ?? "{}");
+          return typeof manifest?.version === "string" ? manifest.version : "unknown";
+        } catch {
+          return "unknown";
+        }
+      })();
+
+      const zipName =
+        manifestVersion !== "unknown"
+          ? `${extensionName}-v${manifestVersion}.zip`
+          : `${extensionName}.zip`;
 
       // Add all text files
       for (const [filename, content] of Object.entries(files)) {
@@ -1351,7 +1365,7 @@ export function AdminTools() {
       // Add placeholder icons
       const iconColor = extensionName === "fb-marketplace-lister" ? "#f97316" : "#6366f1";
       const iconLetter = extensionName === "fb-marketplace-lister" ? "L" : "I";
-      
+
       // Create icons folder with placeholder SVG icons (Chrome accepts SVG in manifest v3)
       const sizes = [16, 48, 128];
       for (const size of sizes) {
@@ -1362,7 +1376,7 @@ export function AdminTools() {
         // Chrome extensions need PNG icons, so we'll use a tiny 1x1 placeholder
         // The SVG will be embedded, users can replace with real PNGs later
         zip.file(`icons/icon${size}.svg`, iconSvg);
-        
+
         // Also create a simple PNG placeholder (1x1 pixel encoded)
         // This is a minimal valid PNG
         const pngData = createMinimalPng(size, iconColor, iconLetter);
@@ -1374,18 +1388,18 @@ export function AdminTools() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${extensionName}.zip`;
+      link.download = zipName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       setDownloadComplete(extensionName);
       toast({
         title: "Download complete!",
-        description: `${extensionName}.zip has been downloaded. Extract it and load in Chrome.`,
+        description: `${zipName} has been downloaded. Extract it and load in Chrome.`,
       });
-      
+
       setTimeout(() => setDownloadComplete(null), 3000);
     } catch (error) {
       console.error("Download error:", error);
