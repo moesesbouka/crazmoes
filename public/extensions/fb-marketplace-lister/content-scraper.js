@@ -78,89 +78,103 @@
     bestbuy: {
       match: /bestbuy\.com/,
       extract: () => {
-        console.log('FB Lister: Extracting Best Buy product data...');
-        
-        // Title - Best Buy uses h1 for product title
+        console.log('FB Lister: Extracting Best Buy product data (v1.1.1)...');
+
+        // Prefer JSON-LD (much more stable than DOM selectors on BestBuy)
+        const jsonLdResult = (() => {
+          try {
+            const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+            const nodes = [];
+
+            const pushNode = (n) => {
+              if (!n) return;
+              if (Array.isArray(n)) return n.forEach(pushNode);
+              if (typeof n !== 'object') return;
+              if (n['@graph']) return pushNode(n['@graph']);
+              nodes.push(n);
+            };
+
+            for (const s of scripts) {
+              if (!s.textContent) continue;
+              pushNode(JSON.parse(s.textContent));
+            }
+
+            const productNode = nodes.find((n) => {
+              const t = n['@type'];
+              return t === 'Product' || (Array.isArray(t) && t.includes('Product'));
+            });
+
+            if (!productNode) return null;
+
+            const title = (productNode.name || '').toString().trim();
+            const description = (productNode.description || '').toString().trim();
+
+            const offers = productNode.offers;
+            const offer = Array.isArray(offers) ? offers[0] : offers;
+            const rawPrice = offer?.price ?? offer?.lowPrice ?? '';
+            const price = rawPrice ? String(rawPrice).replace(/[^0-9.]/g, '') : '';
+
+            let images = [];
+            if (Array.isArray(productNode.image)) images = productNode.image;
+            else if (typeof productNode.image === 'string') images = [productNode.image];
+
+            images = images
+              .map((u) => String(u))
+              .filter(Boolean)
+              .map((u) => u.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200'));
+
+            if (!title) return null;
+
+            console.log('FB Lister: BestBuy JSON-LD extracted', {
+              title,
+              price,
+              descriptionLen: description.length,
+              images: images.length,
+            });
+
+            return { title, price, description, images };
+          } catch (e) {
+            return null;
+          }
+        })();
+
+        if (jsonLdResult) return jsonLdResult;
+
+        // Fallback DOM scraping (older BestBuy layouts)
         const title = document.querySelector('h1.heading-5, h1[class*="heading"]')?.textContent?.trim() ||
                       document.querySelector('h1')?.textContent?.trim() || '';
-        console.log('FB Lister: Title found:', title);
-        
+
         // Price - look for the main price display (usually contains $ sign)
         let price = '';
-        // Try to find price container with actual dollar amount
         const priceContainers = document.querySelectorAll('[class*="price"], [data-testid*="price"]');
         for (const container of priceContainers) {
           const text = container.textContent || '';
           const match = text.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
           if (match) {
             price = match[1].replace(',', '');
-            console.log('FB Lister: Price found:', price);
             break;
           }
         }
-        // Fallback: search entire page for first price pattern
-        if (!price) {
-          const bodyText = document.body.innerText;
-          const priceMatch = bodyText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
-          if (priceMatch) {
-            price = priceMatch[1].replace(',', '');
-            console.log('FB Lister: Price fallback:', price);
-          }
-        }
-        
-        // Description - Best Buy shows specs, try to get features/overview
+
+        // Description
         let description = '';
         const specsSection = document.querySelector('[class*="specifications"], [class*="features"], .shop-product-description');
         if (specsSection) {
           description = specsSection.textContent?.trim().substring(0, 500) || '';
         }
-        // Fallback: use SKU info
-        if (!description) {
-          const model = document.body.innerText.match(/Model:\s*([A-Z0-9-]+)/i);
-          const sku = document.body.innerText.match(/SKU:\s*(\d+)/i);
-          if (model || sku) {
-            description = [model?.[0], sku?.[0]].filter(Boolean).join(' | ');
-          }
-        }
-        console.log('FB Lister: Description:', description.substring(0, 100) + '...');
-        
+
         // Images - Best Buy uses pisces.bbystatic.com for images
         const images = [];
-        
-        // Find all product images (pisces.bbystatic.com domain)
-        document.querySelectorAll('img[src*="pisces.bbystatic.com"], img[src*="bestbuy.com/images"]').forEach(img => {
+        document.querySelectorAll('img[src*="pisces.bbystatic.com"], img[src*="bestbuy.com/images"]').forEach((img) => {
           let src = img.src || '';
           if (src && !images.includes(src)) {
-            // Upgrade to high-res version
             src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200');
-            src = src.replace(/\?format=webp/, ''); // Remove webp format for broader compatibility
+            src = src.replace(/\?format=webp/, '');
             images.push(src);
           }
         });
-        
-        // Also check for data-src attributes (lazy loaded)
-        document.querySelectorAll('img[data-src*="pisces.bbystatic.com"]').forEach(img => {
-          let src = img.dataset.src || '';
-          if (src && !images.includes(src)) {
-            src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200');
-            images.push(src);
-          }
-        });
-        
-        // De-duplicate based on base URL (before size params)
-        const uniqueImages = [];
-        const seenBase = new Set();
-        images.forEach(url => {
-          const base = url.split(';')[0].split('?')[0];
-          if (!seenBase.has(base)) {
-            seenBase.add(base);
-            uniqueImages.push(url);
-          }
-        });
-        
-        console.log('FB Lister: Images found:', uniqueImages.length, uniqueImages);
 
-        return { title, price, description, images: uniqueImages };
+        return { title, price, description, images };
       }
     },
     target: {
