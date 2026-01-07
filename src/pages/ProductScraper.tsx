@@ -66,11 +66,16 @@ $${product.price}
 ${product.description}`;
 
     await navigator.clipboard.writeText(text);
-    toast.success("Copied! Opening Facebook Marketplace...");
+    toast.success("Copied! Opening Facebook item listing...");
     
-    // Small delay to let toast show, then open FB
+    // Small delay to let toast show, then open FB item creation specifically
     setTimeout(() => {
-      window.open("https://www.facebook.com/marketplace/create/item", "_blank");
+      // This URL goes directly to "Item for Sale" creation
+      window.open("fb://marketplace_create_listing/", "_blank");
+      // Fallback to web URL after a moment if app doesn't open
+      setTimeout(() => {
+        window.location.href = "https://www.facebook.com/marketplace/create/item";
+      }, 1500);
     }, 500);
   };
 
@@ -171,7 +176,7 @@ ${product.description}`;
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Tap "Save All" then upload to Facebook</p>
+                  <p className="text-xs text-muted-foreground mt-2">📁 Images save to your Downloads folder</p>
                 </div>
               )}
 
