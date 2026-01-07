@@ -78,19 +78,53 @@
     bestbuy: {
       match: /bestbuy\.com/,
       extract: () => {
-        const title = document.querySelector('.sku-title h1')?.textContent?.trim() ||
+        // Updated selectors for Best Buy's current site design (2024+)
+        const title = document.querySelector('[data-testid="heading-title"]')?.textContent?.trim() ||
+                      document.querySelector('h1[class*="heading"]')?.textContent?.trim() ||
                       document.querySelector('h1')?.textContent?.trim() || '';
         
-        const priceElement = document.querySelector('.priceView-customer-price span') ||
-                            document.querySelector('[data-testid="customer-price"] span');
+        // Price selectors - Best Buy uses various formats
+        const priceElement = document.querySelector('[data-testid="customer-price"] span') ||
+                            document.querySelector('[class*="priceView"] [aria-hidden="true"]') ||
+                            document.querySelector('.priceView-hero-price span') ||
+                            document.querySelector('[class*="price"] span[aria-hidden="true"]');
         let price = priceElement?.textContent?.replace(/[^0-9.]/g, '') || '';
         
-        const description = document.querySelector('.shop-product-description')?.textContent?.trim() || '';
+        // Description - check multiple possible containers
+        const description = document.querySelector('[class*="product-description"]')?.textContent?.trim() ||
+                           document.querySelector('[data-testid="product-description"]')?.textContent?.trim() ||
+                           document.querySelector('.overview-wrapper')?.textContent?.trim() ||
+                           document.querySelector('[class*="description"]')?.textContent?.trim() || '';
         
+        // Images - Best Buy loads images dynamically, try multiple selectors
         const images = [];
-        document.querySelectorAll('.picture-wrapper img, .primary-image').forEach(img => {
-          if (img.src && !images.includes(img.src)) images.push(img.src);
+        // Main product image (high priority)
+        const mainImg = document.querySelector('[data-testid="image-gallery-container"] img') ||
+                       document.querySelector('.primary-image img') ||
+                       document.querySelector('[class*="image-gallery"] img') ||
+                       document.querySelector('img[class*="primary"]');
+        if (mainImg?.src && !mainImg.src.includes('placeholder')) {
+          images.push(mainImg.src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1000;maxWidth=1000'));
+        }
+        
+        // Thumbnail images
+        document.querySelectorAll('[data-testid="image-gallery-thumbnails"] img, [class*="thumbnail"] img, .carousel-image img').forEach(img => {
+          let src = img.src || img.dataset?.src || '';
+          if (src && !src.includes('placeholder') && !images.includes(src)) {
+            // Upgrade thumbnail to full-size
+            src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1000;maxWidth=1000');
+            images.push(src);
+          }
         });
+
+        // Fallback: any product images on page
+        if (images.length === 0) {
+          document.querySelectorAll('img[src*="bestbuy.com"]').forEach(img => {
+            if (img.src && img.width > 100 && !images.includes(img.src)) {
+              images.push(img.src);
+            }
+          });
+        }
 
         return { title, price, description, images };
       }
