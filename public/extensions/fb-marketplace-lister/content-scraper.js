@@ -3,7 +3,7 @@
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.6';
+  const EXTENSION_VERSION = '1.4.7';
 
   // Product data extractors for different sites
   const extractors = {
@@ -191,16 +191,48 @@
             });
           }
           
-          // Check for longDescription (may contain feature HTML)
-          if (typeof obj.longDescription === 'string' && obj.longDescription.length > 50) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = obj.longDescription;
-            tempDiv.querySelectorAll('li').forEach(li => {
-              const text = li.textContent?.trim();
-              if (text && text.length > 10 && text.length < 400) {
+          // EXPANDED: Check for various description fields that may contain features
+          const featureTextKeys = [
+            'longDescription', 'shortDescription', 'overview', 'productOverview',
+            'marketingDescription', 'highlights', 'productDescription', 'description',
+            'aboutThisItem', 'productInfo'
+          ];
+          
+          for (const key of featureTextKeys) {
+            if (typeof obj[key] === 'string' && obj[key].length > 50 && result.features.length === 0) {
+              const text = obj[key].trim();
+              // Skip if it looks like spec-table content
+              if (text.includes('Key Specs') || text.includes('General:') || 
+                  text.includes('Ports:') || text.includes('Dimensions:')) {
+                continue;
+              }
+              // Skip boilerplate
+              if (/shop.*at best buy/i.test(text) || /price match/i.test(text) || 
+                  /free shipping/i.test(text)) {
+                continue;
+              }
+              
+              // If it contains HTML, parse for bullets or text
+              if (text.includes('<')) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = text;
+                tempDiv.querySelectorAll('li').forEach(li => {
+                  const liText = li.textContent?.trim();
+                  if (liText && liText.length > 10 && liText.length < 400) {
+                    result.features.push(liText);
+                  }
+                });
+                // If no bullets, get paragraph text
+                if (result.features.length === 0) {
+                  const plainText = tempDiv.textContent?.trim();
+                  if (plainText && plainText.length > 50) {
+                    result.features.push(plainText);
+                  }
+                }
+              } else if (text.length > 50) {
                 result.features.push(text);
               }
-            });
+            }
           }
           
           // Check for title/price while we're here
@@ -228,14 +260,77 @@
           }
         }
 
-        // ===== LAYER B: HEADING-DRIVEN DOM EXTRACTION =====
+        // ===== LAYER B: HEADING-DRIVEN DOM EXTRACTION (SCOPED TO PRODUCT CONTAINER) =====
+        
+        // Find the main product-details container first (prevents false positives)
+        function findProductDetailsContainer() {
+          // Best Buy-specific selectors for the main product content area
+          const productSelectors = [
+            '[data-testid="product-details"]',
+            '[class*="product-details"]',
+            '[class*="productDetails"]',
+            '[class*="shop-product"]',
+            '[class*="pdp-content"]',
+            '.shop-pdp-container',
+            '#shop-product-content',
+            '[class*="product-page"]',
+            '[class*="pdp-"]',
+            '[role="main"]',
+            'main',
+            '#main-content'
+          ];
+          
+          for (const selector of productSelectors) {
+            try {
+              const container = document.querySelector(selector);
+              if (container && container.textContent.length > 500) {
+                console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Product container found via: ${selector}`);
+                return container;
+              }
+            } catch (e) {
+              // Invalid selector, skip
+            }
+          }
+          
+          // Fallback: find the largest content div that contains product info
+          const candidates = document.querySelectorAll('div[class*="content"], div[class*="product"], section');
+          let best = null;
+          let bestScore = 0;
+          
+          for (const c of candidates) {
+            const hasProductInfo = c.textContent.includes('Add to Cart') || 
+                                   c.textContent.includes('Price') ||
+                                   c.querySelector('[class*="price"]');
+            const score = hasProductInfo ? c.textContent.length : 0;
+            if (score > bestScore) {
+              bestScore = score;
+              best = c;
+            }
+          }
+          
+          if (best) {
+            console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Product container found via fallback heuristic`);
+          }
+          return best;
+        }
         
         function extractByHeadings() {
           console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Heading-driven DOM extraction...`);
           const result = { features: [], specs: [] };
           
-          // Find ALL heading elements (including buttons which Best Buy uses)
-          const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6, button, [role="heading"], [role="button"]');
+          // CRITICAL: First, locate the main product-details container
+          const productContainer = findProductDetailsContainer();
+          if (!productContainer) {
+            console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Could not find product-details container, searching whole document`);
+          } else {
+            console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Searching within product container (${productContainer.className?.substring(0, 50) || 'no-class'})`);
+          }
+          
+          // Search ONLY within the product container (or whole document as fallback)
+          const searchRoot = productContainer || document;
+          const headings = searchRoot.querySelectorAll('h1, h2, h3, h4, h5, h6, button, [role="heading"], [role="button"]');
+          
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${headings.length} headings to scan`);
           
           for (const heading of headings) {
             const text = (heading.textContent || '').toLowerCase().trim();
@@ -243,12 +338,19 @@
             // ===== FEATURES =====
             if (text === 'features' || text === 'key features' || text === 'highlights' || 
                 (text.includes('features') && text.length < 30)) {
-              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found Features heading: "${text}"`);
+              
+              // DIAGNOSTIC: Log exactly which heading we're considering
+              const headingPath = `${heading.tagName} > ${heading.parentElement?.className?.substring(0, 40) || 'no-class'}`;
+              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Evaluating Features heading:`);
+              console.log(`  - Text: "${text}"`);
+              console.log(`  - Path: ${headingPath}`);
               
               // Get the container holding the features content
               const container = findContentContainer(heading);
               if (container) {
-                console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Features container found, length: ${container.textContent.length}`);
+                const containerSample = container.textContent?.trim().substring(0, 120) || '';
+                console.log(`  - Container Sample: "${containerSample}..."`);
+                console.log(`  - Container Length: ${container.textContent.length} chars`);
                 
                 // Method 1: Prefer bullet lists (li elements)
                 const bullets = [];
@@ -263,45 +365,50 @@
                   console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${bullets.length} bullet features`);
                   result.features.push(...bullets);
                 } else {
-                  // Method 2: Extract paragraph/text blocks (for Best Buy's paragraph-style features)
-                  console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] No bullets, trying paragraph extraction...`);
+                  // Method 2: Extract paragraph/text blocks until next section heading
+                  console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] No bullets, trying paragraph/block extraction...`);
                   
-                  // Collect all text from the container, excluding navigation/boilerplate
                   const textBlocks = [];
                   
-                  // First try paragraphs
-                  container.querySelectorAll('p').forEach(p => {
-                    const pText = p.textContent?.trim();
-                    if (pText && pText.length > 30 && !isBoilerplate(pText)) {
-                      textBlocks.push(pText);
-                    }
-                  });
-                  
-                  // If no paragraphs, try divs that contain actual text
-                  if (textBlocks.length === 0) {
-                    // Get the full text content and clean it up
-                    const fullText = container.textContent?.trim() || '';
+                  // Walk through child nodes, collecting text until we hit another major heading
+                  const collectTextFromContainer = (node) => {
+                    if (!node) return;
                     
-                    // Split by common delimiters and filter
-                    const sentences = fullText
-                      .split(/[.!?]\s+/)
-                      .map(s => s.trim())
-                      .filter(s => s.length > 20 && !isBoilerplate(s));
-                    
-                    if (sentences.length > 0) {
-                      // Join sentences back into paragraphs
-                      const featureText = sentences.join('. ');
-                      if (featureText.length > 30) {
-                        textBlocks.push(featureText);
+                    // Check all child elements
+                    const children = node.querySelectorAll('p, div, span');
+                    for (const child of children) {
+                      // Stop if we hit another section heading
+                      const childText = child.textContent?.toLowerCase() || '';
+                      if (childText.includes('specifications') || childText.includes('reviews') || 
+                          childText.includes('questions') || childText.includes('compare')) {
+                        if (child.tagName === 'H2' || child.tagName === 'H3' || child.tagName === 'H4' ||
+                            child.tagName === 'BUTTON') {
+                          break;
+                        }
+                      }
+                      
+                      // Only collect from leaf-ish elements
+                      const text = child.textContent?.trim();
+                      if (text && text.length > 30 && text.length < 1000 && !isBoilerplate(text)) {
+                        // Check if this is actual content (not just wrapper element)
+                        if (child.children.length <= 2) {
+                          textBlocks.push(text);
+                        }
                       }
                     }
-                  }
+                  };
                   
-                  if (textBlocks.length > 0) {
-                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${textBlocks.length} text blocks for features`);
-                    result.features.push(...textBlocks);
+                  collectTextFromContainer(container);
+                  
+                  // Dedupe and use
+                  const uniqueBlocks = [...new Set(textBlocks)];
+                  if (uniqueBlocks.length > 0) {
+                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${uniqueBlocks.length} text blocks for features`);
+                    result.features.push(...uniqueBlocks.slice(0, 5));
                   }
                 }
+              } else {
+                console.log(`  - Container: NOT FOUND`);
               }
             }
             
@@ -372,7 +479,7 @@
           result.features = [...new Set(result.features)].slice(0, 15);
           result.specs = [...new Set(result.specs)].slice(0, 25);
           
-          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Features: ${result.features.length}, Specs: ${result.specs.length}`);
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Final - Features: ${result.features.length}, Specs: ${result.specs.length}`);
           return result;
         }
         
