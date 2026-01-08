@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.5.1 - Added dedicated Home Depot extractor with proper image/description handling
+// Version 1.5.2 - Enhanced Home Depot: full gallery images + best srcset quality
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.5.1';
+  const EXTENSION_VERSION = '1.5.2';
 
   // ============= UNIVERSAL EXTRACTION UTILITIES =============
   
@@ -1263,80 +1263,209 @@
         }
         console.log(`FB Lister: Price: ${price || 'NOT FOUND'}`);
         
-        // ===== IMAGES - Use ACTUALLY LOADED images only =====
+        // ===== IMAGES - Comprehensive collection from ALL sources =====
         const imageMap = new Map();
         
-        // Get all currently loaded images from thdstatic.com
-        document.querySelectorAll('img').forEach(img => {
-          // Use currentSrc (what's actually displayed) or src
-          const src = img.currentSrc || img.src || '';
-          
-          // Only accept thdstatic.com images (Home Depot's CDN)
-          if (!src.includes('thdstatic.com')) return;
-          
-          // Skip tiny images, icons, thumbnails
-          const width = img.naturalWidth || img.width || 0;
-          const height = img.naturalHeight || img.height || 0;
-          if (width < 100 && height < 100) return;
-          
-          // Skip known non-product patterns
-          if (src.includes('/static/') || src.includes('/icons/') || 
-              src.includes('/logo') || src.includes('/badge')) return;
-          
-          // Get a unique key from the URL (filename/ID)
-          const urlParts = src.split('/');
-          const filename = urlParts[urlParts.length - 1].split('?')[0];
-          
-          // Deduplicate by filename
-          if (!imageMap.has(filename)) {
-            // Try to get highest resolution by removing size constraints
-            let highResSrc = src;
-            // Home Depot often uses _###_ for size variants - try to get larger
-            if (highResSrc.includes('_145_') || highResSrc.includes('_100_') || highResSrc.includes('_65_')) {
-              highResSrc = highResSrc.replace(/_\d+_/g, '_1000_');
-            }
-            imageMap.set(filename, highResSrc);
-          }
-        });
+        // Helper: Extract unique ID from thdstatic URL for deduplication
+        function getImageKey(url) {
+          // Try to get the product image ID (usually a UUID or numeric ID)
+          const match = url.match(/\/([a-f0-9-]{20,}|[\w-]+)\.(jpg|jpeg|png|webp)/i);
+          if (match) return match[1].toLowerCase();
+          // Fallback to filename
+          const parts = url.split('/');
+          return parts[parts.length - 1].split('?')[0].split(';')[0].toLowerCase();
+        }
         
-        // Also check for data-src attributes (lazy loaded)
-        document.querySelectorAll('img[data-src*="thdstatic.com"]').forEach(img => {
-          const src = img.getAttribute('data-src') || '';
-          if (src && src.includes('thdstatic.com')) {
-            const urlParts = src.split('/');
-            const filename = urlParts[urlParts.length - 1].split('?')[0];
-            if (!imageMap.has(filename)) {
-              imageMap.set(filename, src);
+        // Helper: Upgrade URL to highest resolution if possible
+        function getHighResUrl(url) {
+          if (!url) return url;
+          let highRes = url;
+          // Home Depot uses _###_ size patterns - upgrade to 1000
+          highRes = highRes.replace(/_(\d{2,3})_/g, '_1000_');
+          // Also handle ?wid= and ?hei= query params
+          highRes = highRes.replace(/(\?|&)wid=\d+/g, '$1wid=1000');
+          highRes = highRes.replace(/(\?|&)hei=\d+/g, '$1hei=1000');
+          return highRes;
+        }
+        
+        // Helper: Check if URL is a valid product image
+        function isValidProductImage(url) {
+          if (!url || !url.includes('thdstatic.com')) return false;
+          if (url.includes('/static/') || url.includes('/icons/') || 
+              url.includes('/logo') || url.includes('/badge') ||
+              url.includes('/placeholder') || url.includes('/spinner')) return false;
+          return true;
+        }
+        
+        // Method 1: JSON-LD images (most reliable, full gallery)
+        console.log(`FB Lister: [Images] Checking JSON-LD...`);
+        try {
+          const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+          for (const script of jsonLdScripts) {
+            const data = JSON.parse(script.textContent);
+            const product = data['@type'] === 'Product' ? data : 
+                            (data['@graph']?.find(item => item['@type'] === 'Product'));
+            if (product?.image) {
+              const images = Array.isArray(product.image) ? product.image : [product.image];
+              images.forEach(imgUrl => {
+                const url = typeof imgUrl === 'string' ? imgUrl : imgUrl?.url;
+                if (isValidProductImage(url)) {
+                  const key = getImageKey(url);
+                  if (!imageMap.has(key)) {
+                    imageMap.set(key, getHighResUrl(url));
+                  }
+                }
+              });
             }
           }
-        });
+          console.log(`FB Lister: [Images] JSON-LD found: ${imageMap.size}`);
+        } catch (e) {
+          console.log(`FB Lister: [Images] JSON-LD parsing failed`);
+        }
         
-        // Check srcset for higher resolution images
-        document.querySelectorAll('img[srcset*="thdstatic.com"]').forEach(img => {
-          const srcset = img.getAttribute('srcset') || '';
-          // Parse srcset and get the largest one
-          const sources = srcset.split(',').map(s => s.trim());
-          let bestSrc = '';
-          let bestSize = 0;
-          sources.forEach(source => {
-            const [url, size] = source.split(' ');
-            const sizeNum = parseInt(size) || 0;
-            if (url && url.includes('thdstatic.com') && sizeNum > bestSize) {
-              bestSrc = url;
-              bestSize = sizeNum;
+        // Method 2: Look for embedded page data (window.__PRELOADED_STATE__, etc.)
+        console.log(`FB Lister: [Images] Checking page state...`);
+        try {
+          const scripts = document.querySelectorAll('script:not([src])');
+          for (const script of scripts) {
+            const text = script.textContent || '';
+            if (text.length < 500) continue;
+            
+            // Look for image URL arrays in various state patterns
+            const imageUrlPattern = /https?:\/\/images\.thdstatic\.com\/[^"'\s]+/g;
+            const matches = text.match(imageUrlPattern);
+            if (matches) {
+              matches.forEach(url => {
+                if (isValidProductImage(url)) {
+                  const key = getImageKey(url);
+                  if (!imageMap.has(key)) {
+                    imageMap.set(key, getHighResUrl(url));
+                  }
+                }
+              });
+            }
+          }
+          console.log(`FB Lister: [Images] Page state found: ${imageMap.size} total`);
+        } catch (e) {
+          console.log(`FB Lister: [Images] Page state parsing failed`);
+        }
+        
+        // Method 3: Gallery thumbnails (even if not clicked/loaded)
+        console.log(`FB Lister: [Images] Checking gallery thumbnails...`);
+        const thumbnailSelectors = [
+          '[data-component="media-gallery"] img',
+          '[class*="mediagallery"] img',
+          '[class*="thumbnail"] img',
+          '[class*="gallery"] img',
+          '[data-testid*="gallery"] img',
+          '[data-testid*="thumbnail"] img',
+          'button img[src*="thdstatic"]', // Thumbnails are often in buttons
+          '[role="listbox"] img',
+          '[class*="carousel"] img'
+        ];
+        
+        for (const selector of thumbnailSelectors) {
+          document.querySelectorAll(selector).forEach(img => {
+            // Get ALL possible sources from the thumbnail
+            const sources = [
+              img.currentSrc,
+              img.src,
+              img.getAttribute('data-src'),
+              img.getAttribute('data-lazy-src'),
+              img.getAttribute('data-original')
+            ].filter(Boolean);
+            
+            // Also parse srcset to get the best quality
+            const srcset = img.getAttribute('srcset') || '';
+            if (srcset) {
+              const srcsetParts = srcset.split(',').map(s => s.trim());
+              let bestSrc = '';
+              let bestSize = 0;
+              srcsetParts.forEach(part => {
+                const [url, size] = part.split(' ');
+                const sizeNum = parseInt(size) || 0;
+                if (url && sizeNum > bestSize) {
+                  bestSrc = url;
+                  bestSize = sizeNum;
+                }
+              });
+              if (bestSrc) sources.push(bestSrc);
+            }
+            
+            sources.forEach(src => {
+              if (isValidProductImage(src)) {
+                const key = getImageKey(src);
+                if (!imageMap.has(key)) {
+                  imageMap.set(key, getHighResUrl(src));
+                }
+              }
+            });
+          });
+        }
+        console.log(`FB Lister: [Images] After thumbnails: ${imageMap.size} total`);
+        
+        // Method 4: Main product image(s) - currentSrc (what's actually displayed)
+        console.log(`FB Lister: [Images] Checking main images...`);
+        const mainImageSelectors = [
+          '[data-component="media-gallery"] [class*="main"] img',
+          '[class*="mediagallery"] [class*="hero"] img',
+          '[class*="product-image"] img',
+          'main img[src*="thdstatic"]'
+        ];
+        
+        for (const selector of mainImageSelectors) {
+          document.querySelectorAll(selector).forEach(img => {
+            const src = img.currentSrc || img.src;
+            if (isValidProductImage(src)) {
+              const key = getImageKey(src);
+              if (!imageMap.has(key)) {
+                imageMap.set(key, getHighResUrl(src));
+              }
+            }
+            // Also check srcset for higher res
+            const srcset = img.getAttribute('srcset') || '';
+            if (srcset) {
+              const srcsetParts = srcset.split(',').map(s => s.trim());
+              let bestSrc = '';
+              let bestSize = 0;
+              srcsetParts.forEach(part => {
+                const [url, size] = part.split(' ');
+                const sizeNum = parseInt(size) || 0;
+                if (url && sizeNum > bestSize) {
+                  bestSrc = url;
+                  bestSize = sizeNum;
+                }
+              });
+              if (isValidProductImage(bestSrc)) {
+                const key = getImageKey(bestSrc);
+                // Prefer higher srcset over existing
+                imageMap.set(key, getHighResUrl(bestSrc));
+              }
             }
           });
-          if (bestSrc) {
-            const urlParts = bestSrc.split('/');
-            const filename = urlParts[urlParts.length - 1].split('?')[0];
-            if (!imageMap.has(filename)) {
-              imageMap.set(filename, bestSrc);
+        }
+        
+        // Method 5: Fallback - any thdstatic images on page (excluding small ones)
+        if (imageMap.size < 3) {
+          console.log(`FB Lister: [Images] Fallback scan for any thdstatic images...`);
+          document.querySelectorAll('img').forEach(img => {
+            const src = img.currentSrc || img.src || '';
+            if (!isValidProductImage(src)) return;
+            
+            // Skip obviously small images
+            const width = img.naturalWidth || img.width || 0;
+            const height = img.naturalHeight || img.height || 0;
+            if (width > 0 && width < 50 && height > 0 && height < 50) return;
+            
+            const key = getImageKey(src);
+            if (!imageMap.has(key)) {
+              imageMap.set(key, getHighResUrl(src));
             }
-          }
-        });
+          });
+        }
         
         const images = Array.from(imageMap.values()).slice(0, 10);
-        console.log(`FB Lister: Images: ${images.length} unique from thdstatic.com`);
+        console.log(`FB Lister: Images: ${images.length} unique high-res from thdstatic.com`);
         
         // ===== DESCRIPTION - Product Details + Specifications =====
         const features = [];
