@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.4.4 - Best Buy: Tab/accordion interaction + Features/Specs ONLY (no meta fallback)
+// Version 1.4.5 - 3-Layer extraction: Embedded JSON → Heading-Driven DOM → Filtered Meta
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.4';
+  const EXTENSION_VERSION = '1.4.5';
 
   // Product data extractors for different sites
   const extractors = {
@@ -81,241 +81,366 @@
     bestbuy: {
       match: /bestbuy\.com/,
       extract: async () => {
-        console.log(`FB Lister v${EXTENSION_VERSION}: Extracting Best Buy product data...`);
+        console.log(`FB Lister v${EXTENSION_VERSION}: === BEST BUY 3-LAYER EXTRACTION ===`);
 
-        // ===== BEST BUY TAB INTERACTION =====
+        // ===== LAYER A: EMBEDDED PRODUCT JSON/STATE EXTRACTION =====
         
-        // Click a Best Buy tab by name and wait for content to load
-        async function openBestBuyTab(tabName) {
-          console.log(`FB Lister v${EXTENSION_VERSION}: Looking for "${tabName}" tab...`);
+        function extractFromEmbeddedJson() {
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer A] Scanning for embedded JSON/state...`);
+          const result = { features: [], specs: [], title: '', price: '', images: [] };
           
-          // Find all tab-like elements
-          const tabSelectors = [
-            '[role="tab"]',
-            'button[class*="tab"]',
-            'a[class*="tab"]',
-            '[data-testid*="tab"]',
-            '.shop-product-tabs button',
-            '.tab-list button',
-            '.tabs button',
-            'nav[aria-label*="product"] button',
-            'nav[aria-label*="product"] a'
-          ];
+          // Scan ALL script tags for JSON containing product data
+          const scripts = document.querySelectorAll('script');
           
-          for (const selector of tabSelectors) {
-            const tabs = document.querySelectorAll(selector);
-            for (const tab of tabs) {
-              const text = (tab.textContent || '').toLowerCase().trim();
-              if (text.includes(tabName.toLowerCase())) {
-                const isSelected = tab.getAttribute('aria-selected') === 'true' || 
-                                   tab.classList.contains('active') ||
-                                   tab.classList.contains('selected');
+          for (const script of scripts) {
+            const text = script.textContent || '';
+            if (text.length < 100) continue;
+            
+            // Pattern 1: window.__INITIAL_STATE__, __APP_INITIAL_DATA__, __PRELOADED_STATE__
+            const statePatterns = [
+              /window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\});?\s*(?:window\.|<\/script>|$)/,
+              /window\.__APP_INITIAL_DATA__\s*=\s*(\{[\s\S]*?\});?\s*(?:window\.|<\/script>|$)/,
+              /window\.__PRELOADED_STATE__\s*=\s*(\{[\s\S]*?\});?\s*(?:window\.|<\/script>|$)/,
+              /__NEXT_DATA__[^{]*(\{[\s\S]*?\})\s*<\/script>/
+            ];
+            
+            for (const pattern of statePatterns) {
+              const match = text.match(pattern);
+              if (match) {
+                try {
+                  const data = JSON.parse(match[1]);
+                  parseProductFromState(data, result);
+                  if (result.features.length > 0 || result.specs.length > 0) {
+                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer A] Found data via state pattern`);
+                    return result;
+                  }
+                } catch (e) {
+                  // Not valid JSON, continue
+                }
+              }
+            }
+            
+            // Pattern 2: Look for large JSON objects with product keys
+            if (text.includes('"specifications"') || text.includes('"features"') || 
+                text.includes('"longDescription"') || text.includes('"featureBullets"')) {
+              
+              // Try to find JSON object boundaries
+              const jsonMatches = text.matchAll(/\{[^{}]*"(?:specifications|features|longDescription|featureBullets)"[^{}]*\}/g);
+              for (const jsonMatch of jsonMatches) {
+                try {
+                  const data = JSON.parse(jsonMatch[0]);
+                  parseProductFromState(data, result);
+                } catch (e) {
+                  // Continue searching
+                }
+              }
+              
+              // Also try parsing the whole script if it's JSON
+              if (script.type === 'application/json' || text.trim().startsWith('{')) {
+                try {
+                  const data = JSON.parse(text.trim());
+                  parseProductFromState(data, result);
+                } catch (e) {
+                  // Not valid JSON
+                }
+              }
+            }
+          }
+          
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer A] Features: ${result.features.length}, Specs: ${result.specs.length}`);
+          return result;
+        }
+        
+        // Recursively parse product data from state object
+        function parseProductFromState(obj, result, depth = 0) {
+          if (!obj || typeof obj !== 'object' || depth > 10) return;
+          
+          // Check for features arrays
+          if (Array.isArray(obj.features)) {
+            obj.features.forEach(f => {
+              const text = typeof f === 'string' ? f : f?.text || f?.value || f?.description || '';
+              if (text && text.length > 10 && text.length < 500) {
+                result.features.push(text.trim());
+              }
+            });
+          }
+          if (Array.isArray(obj.featureBullets)) {
+            obj.featureBullets.forEach(f => {
+              const text = typeof f === 'string' ? f : f?.text || '';
+              if (text && text.length > 10) result.features.push(text.trim());
+            });
+          }
+          
+          // Check for specifications
+          if (Array.isArray(obj.specifications)) {
+            obj.specifications.forEach(spec => {
+              if (spec.name && spec.value) {
+                result.specs.push(`${spec.name}: ${spec.value}`);
+              } else if (spec.displayName && spec.value) {
+                result.specs.push(`${spec.displayName}: ${spec.value}`);
+              } else if (spec.label && spec.value) {
+                result.specs.push(`${spec.label}: ${spec.value}`);
+              }
+            });
+          }
+          if (Array.isArray(obj.specs)) {
+            obj.specs.forEach(spec => {
+              if (spec.name && spec.value) {
+                result.specs.push(`${spec.name}: ${spec.value}`);
+              }
+            });
+          }
+          
+          // Check for longDescription (may contain feature HTML)
+          if (typeof obj.longDescription === 'string' && obj.longDescription.length > 50) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = obj.longDescription;
+            tempDiv.querySelectorAll('li').forEach(li => {
+              const text = li.textContent?.trim();
+              if (text && text.length > 10 && text.length < 400) {
+                result.features.push(text);
+              }
+            });
+          }
+          
+          // Check for title/price while we're here
+          if (!result.title && typeof obj.name === 'string' && obj.name.length > 5) {
+            result.title = obj.name;
+          }
+          if (!result.price && (obj.price || obj.regularPrice || obj.currentPrice)) {
+            const p = obj.price || obj.regularPrice || obj.currentPrice;
+            result.price = typeof p === 'number' ? String(p) : String(p).replace(/[^0-9.]/g, '');
+          }
+          
+          // Check for images
+          if (Array.isArray(obj.images)) {
+            obj.images.forEach(img => {
+              const url = typeof img === 'string' ? img : img?.url || img?.src || img?.href || '';
+              if (url && url.includes('http')) result.images.push(url);
+            });
+          }
+          
+          // Recurse into nested objects
+          for (const key of Object.keys(obj)) {
+            if (typeof obj[key] === 'object') {
+              parseProductFromState(obj[key], result, depth + 1);
+            }
+          }
+        }
+
+        // ===== LAYER B: HEADING-DRIVEN DOM EXTRACTION =====
+        
+        function extractByHeadings() {
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Heading-driven DOM extraction...`);
+          const result = { features: [], specs: [] };
+          
+          // Find ALL heading elements (including buttons which Best Buy uses)
+          const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6, button, [role="heading"], [role="button"]');
+          
+          for (const heading of headings) {
+            const text = (heading.textContent || '').toLowerCase().trim();
+            
+            // ===== FEATURES =====
+            if (text === 'features' || text === 'key features' || text === 'highlights' || 
+                (text.includes('features') && text.length < 30)) {
+              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found Features heading: "${text}"`);
+              
+              // Get the container holding the features content
+              const container = findContentContainer(heading);
+              if (container) {
+                // Prefer bullet lists
+                container.querySelectorAll('li').forEach(li => {
+                  const liText = li.textContent?.trim();
+                  if (liText && liText.length > 15 && liText.length < 400 && !isBoilerplate(liText)) {
+                    result.features.push(liText);
+                  }
+                });
                 
-                if (!isSelected) {
-                  console.log(`FB Lister v${EXTENSION_VERSION}: Clicking "${tabName}" tab`);
-                  tab.click();
-                  await new Promise(r => setTimeout(r, 800)); // Wait for content
-                } else {
-                  console.log(`FB Lister v${EXTENSION_VERSION}: "${tabName}" tab already selected`);
+                // Fallback to paragraphs
+                if (result.features.length === 0) {
+                  container.querySelectorAll('p').forEach(p => {
+                    const pText = p.textContent?.trim();
+                    if (pText && pText.length > 20 && pText.length < 400 && !isBoilerplate(pText)) {
+                      result.features.push(pText);
+                    }
+                  });
                 }
-                return true;
+                
+                // Fallback to divs with feature-like content
+                if (result.features.length === 0) {
+                  container.querySelectorAll('div').forEach(div => {
+                    // Only direct children with reasonable text
+                    if (div.children.length === 0 || div.children.length > 3) return;
+                    const divText = div.textContent?.trim();
+                    if (divText && divText.length > 20 && divText.length < 300 && !isBoilerplate(divText)) {
+                      result.features.push(divText);
+                    }
+                  });
+                }
               }
             }
-          }
-          
-          console.log(`FB Lister v${EXTENSION_VERSION}: "${tabName}" tab not found`);
-          return false;
-        }
-
-        // Expand accordions within a container
-        async function expandAccordionsIn(container, keywords) {
-          if (!container) container = document;
-          let expanded = 0;
-          
-          const buttons = container.querySelectorAll('button, [role="button"], [data-testid*="accordion"], [class*="accordion"] > *:first-child');
-          
-          for (const btn of buttons) {
-            const text = (btn.textContent || '').toLowerCase();
-            const matchesKeyword = keywords.some(kw => text.includes(kw.toLowerCase()));
-            const ariaExpanded = btn.getAttribute('aria-expanded');
             
-            if (matchesKeyword && ariaExpanded === 'false') {
-              try {
-                btn.click();
-                expanded++;
-                await new Promise(r => setTimeout(r, 400));
-              } catch (e) {
-                console.log(`FB Lister v${EXTENSION_VERSION}: Could not click accordion`, e);
+            // ===== SPECIFICATIONS =====
+            if (text === 'specifications' || text === 'specs' || text === 'product specifications' ||
+                (text.includes('specifications') && text.length < 35) ||
+                (text.includes('specs') && text.length < 20)) {
+              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found Specifications heading: "${text}"`);
+              
+              const container = findContentContainer(heading);
+              if (container) {
+                // Method 1: dl/dt/dd pairs
+                container.querySelectorAll('dl').forEach(dl => {
+                  const dts = dl.querySelectorAll('dt');
+                  const dds = dl.querySelectorAll('dd');
+                  dts.forEach((dt, i) => {
+                    if (dds[i]) {
+                      const label = dt.textContent?.trim();
+                      const value = dds[i].textContent?.trim();
+                      if (label && value && label !== value) {
+                        result.specs.push(`${label}: ${value}`);
+                      }
+                    }
+                  });
+                });
+                
+                // Method 2: Tables
+                container.querySelectorAll('table tr, [class*="spec-row"], [class*="specification-row"]').forEach(row => {
+                  const cells = row.querySelectorAll('td, th, [class*="name"], [class*="value"]');
+                  if (cells.length >= 2) {
+                    const label = cells[0].textContent?.trim();
+                    const value = cells[1].textContent?.trim();
+                    if (label && value && label !== value && label.length < 100 && value.length < 200) {
+                      result.specs.push(`${label}: ${value}`);
+                    }
+                  }
+                });
+                
+                // Method 3: Two-column div layouts (common on Best Buy)
+                container.querySelectorAll('[class*="spec"] > div, [class*="row"]').forEach(row => {
+                  const children = row.children;
+                  if (children.length === 2) {
+                    const label = children[0].textContent?.trim();
+                    const value = children[1].textContent?.trim();
+                    if (label && value && label !== value && label.length < 100) {
+                      result.specs.push(`${label}: ${value}`);
+                    }
+                  }
+                });
+                
+                // Method 4: List items with clear label/value structure
+                container.querySelectorAll('li').forEach(li => {
+                  const labelEl = li.querySelector('[class*="name"], [class*="label"], strong, b');
+                  const valueEl = li.querySelector('[class*="value"], [class*="detail"]');
+                  if (labelEl && valueEl) {
+                    const label = labelEl.textContent?.trim();
+                    const value = valueEl.textContent?.trim();
+                    if (label && value && label !== value) {
+                      result.specs.push(`${label}: ${value}`);
+                    }
+                  }
+                });
               }
             }
           }
           
-          console.log(`FB Lister v${EXTENSION_VERSION}: Expanded ${expanded} accordions for keywords: ${keywords.join(', ')}`);
-          return expanded;
+          // Deduplicate
+          result.features = [...new Set(result.features)].slice(0, 15);
+          result.specs = [...new Set(result.specs)].slice(0, 25);
+          
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Features: ${result.features.length}, Specs: ${result.specs.length}`);
+          return result;
+        }
+        
+        // Find the content container below a heading
+        function findContentContainer(heading) {
+          // Try direct next sibling
+          let container = heading.nextElementSibling;
+          if (container && container.textContent.length > 50) return container;
+          
+          // Try parent's next sibling
+          const parent = heading.parentElement;
+          if (parent) {
+            container = parent.nextElementSibling;
+            if (container && container.textContent.length > 50) return container;
+          }
+          
+          // Try closest section/div and look for content
+          const section = heading.closest('section, div[class*="section"], div[class*="content"]');
+          if (section) {
+            // Find a content area that's not the heading itself
+            for (const child of section.children) {
+              if (child !== heading && child !== parent && child.textContent.length > 100) {
+                return child;
+              }
+            }
+            return section;
+          }
+          
+          // If heading is a button (accordion), check for expanded panel
+          if (heading.tagName === 'BUTTON') {
+            const ariaControls = heading.getAttribute('aria-controls');
+            if (ariaControls) {
+              const panel = document.getElementById(ariaControls);
+              if (panel) return panel;
+            }
+            // Check next sibling which might be the panel
+            const nextEl = heading.nextElementSibling || heading.parentElement?.nextElementSibling;
+            if (nextEl && nextEl.textContent.length > 50) return nextEl;
+          }
+          
+          return null;
+        }
+        
+        // Check if text is boilerplate
+        function isBoilerplate(text) {
+          const lower = text.toLowerCase();
+          const boilerplatePatterns = [
+            /^see all/i, /^learn more/i, /^view/i, /^click/i, /^add to/i,
+            /^buy now/i, /^save\s/i, /^\$/i, /^shop/i, /^find low/i,
+            /price match/i, /free shipping/i, /pick-?up/i
+          ];
+          return boilerplatePatterns.some(p => p.test(lower));
         }
 
-        // Get the active tab panel content
-        function getActiveTabPanel() {
-          // Look for visible tab panels
-          const panelSelectors = [
-            '[role="tabpanel"]:not([hidden])',
-            '[role="tabpanel"][aria-hidden="false"]',
-            '.tab-panel:not(.hidden)',
-            '[class*="tabpanel"]:not([hidden])',
-            '.shop-product-description'
+        // ===== LAYER C: FILTERED META FALLBACK =====
+        
+        function getFilteredMetaDescription() {
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer C] Checking meta description...`);
+          
+          const metaDesc = 
+            document.querySelector('meta[name="description"]')?.content ||
+            document.querySelector('meta[property="og:description"]')?.content || '';
+          
+          if (!metaDesc) {
+            console.log(`FB Lister v${EXTENSION_VERSION}: [Layer C] No meta description found`);
+            return null;
+          }
+          
+          // Reject if it contains marketing boilerplate
+          const boilerplatePatterns = [
+            /shop.*at best buy/i,
+            /find low everyday prices/i,
+            /price match guarantee/i,
+            /buy online for delivery or in-store/i,
+            /free shipping/i,
+            /^shop\s/i,
+            /save on.*at best buy/i,
+            /get free shipping/i,
+            /pick-?up today/i
           ];
           
-          for (const selector of panelSelectors) {
-            const panel = document.querySelector(selector);
-            if (panel && panel.offsetHeight > 0) {
-              return panel;
-            }
-          }
-          return document;
-        }
-
-        // ===== SPECIFICATIONS EXTRACTION =====
-        
-        function extractSpecificationsFrom(container) {
-          if (!container) container = document;
-          const specs = [];
-          const seen = new Set();
-          
-          const addSpec = (label, value) => {
-            if (!label || !value) return;
-            label = label.trim().replace(/\s+/g, ' ');
-            value = value.trim().replace(/\s+/g, ' ');
-            if (label === value) return;
-            if (label.length > 100 || value.length > 200) return;
-            
-            const key = `${label}:${value}`.toLowerCase();
-            if (seen.has(key)) return;
-            seen.add(key);
-            
-            specs.push(`${label}: ${value}`);
-          };
-          
-          // Method 1: dl/dt/dd pairs
-          container.querySelectorAll('dl').forEach(dl => {
-            const dts = dl.querySelectorAll('dt');
-            const dds = dl.querySelectorAll('dd');
-            dts.forEach((dt, i) => {
-              if (dds[i]) {
-                addSpec(dt.textContent, dds[i].textContent);
-              }
-            });
-          });
-          
-          // Method 2: Table rows (th/td or td/td)
-          container.querySelectorAll('table tr').forEach(tr => {
-            const cells = tr.querySelectorAll('td, th');
-            if (cells.length >= 2) {
-              addSpec(cells[0].textContent, cells[1].textContent);
-            }
-          });
-          
-          // Method 3: Two-column div/span layouts (common on Best Buy)
-          container.querySelectorAll('[class*="spec"] > div, [class*="specification"] > div, [class*="row"]').forEach(row => {
-            const children = row.children;
-            if (children.length >= 2) {
-              const label = children[0].textContent?.trim();
-              const value = children[1].textContent?.trim();
-              addSpec(label, value);
-            }
-          });
-          
-          // Method 4: List items with label:value structure
-          container.querySelectorAll('li').forEach(li => {
-            const label = li.querySelector('[class*="name"], [class*="label"], .row-title, span:first-child, strong, b')?.textContent?.trim();
-            const value = li.querySelector('[class*="value"], .row-value, span:last-child:not(:first-child)')?.textContent?.trim();
-            if (label && value && label !== value) {
-              addSpec(label, value);
-            }
-          });
-          
-          // Method 5: Parse text containing colons
-          container.querySelectorAll('[class*="spec"], [data-testid*="spec"]').forEach(el => {
-            const text = el.textContent?.trim();
-            if (text && text.includes(':') && text.length < 300) {
-              const lines = text.split('\n');
-              lines.forEach(line => {
-                const colonIdx = line.indexOf(':');
-                if (colonIdx > 0 && colonIdx < 80) {
-                  const label = line.substring(0, colonIdx).trim();
-                  const value = line.substring(colonIdx + 1).trim();
-                  addSpec(label, value);
-                }
-              });
-            }
-          });
-          
-          console.log(`FB Lister v${EXTENSION_VERSION}: Extracted ${specs.length} specifications`);
-          return specs.slice(0, 25); // Cap at 25
-        }
-
-        // ===== FEATURES EXTRACTION =====
-        
-        function extractFeaturesFrom(container) {
-          if (!container) container = document;
-          const features = [];
-          const seen = new Set();
-          
-          const addFeature = (text) => {
-            if (!text) return;
-            text = text.trim().replace(/\s+/g, ' ');
-            if (text.length < 15 || text.length > 400) return;
-            
-            // Skip navigation/boilerplate
-            const skipPatterns = [
-              /^see all/i, /^learn more/i, /^view/i, /^click/i,
-              /^add to/i, /^buy now/i, /^save/i, /^\$/
-            ];
-            if (skipPatterns.some(p => p.test(text))) return;
-            
-            const key = text.toLowerCase().substring(0, 50);
-            if (seen.has(key)) return;
-            seen.add(key);
-            
-            features.push(text);
-          };
-          
-          // Method 1: Bullet lists (li elements)
-          const listSelectors = [
-            '[class*="feature"] li',
-            '[class*="highlight"] li',
-            '[class*="about"] li',
-            '.product-description li',
-            '[class*="long-description"] li',
-            '.product-data-value li'
-          ];
-          
-          for (const selector of listSelectors) {
-            container.querySelectorAll(selector).forEach(li => {
-              addFeature(li.textContent);
-            });
-            if (features.length > 0) break;
-          }
-          
-          // Method 2: Paragraphs in feature sections
-          if (features.length === 0) {
-            const paraSelectors = [
-              '[class*="feature"] p',
-              '[class*="description"] p',
-              '[class*="about"] p'
-            ];
-            for (const selector of paraSelectors) {
-              container.querySelectorAll(selector).forEach(p => {
-                addFeature(p.textContent);
-              });
-              if (features.length > 0) break;
+          for (const pattern of boilerplatePatterns) {
+            if (pattern.test(metaDesc)) {
+              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer C] Meta rejected as boilerplate: matches "${pattern}"`);
+              return null;
             }
           }
           
-          console.log(`FB Lister v${EXTENSION_VERSION}: Extracted ${features.length} features`);
-          return features.slice(0, 12); // Cap at 12
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer C] Meta accepted: ${metaDesc.length} chars`);
+          return metaDesc;
         }
 
-        // ===== JSON-LD additionalProperty EXTRACTION =====
+        // ===== JSON-LD additionalProperty EXTRACTION (supplement) =====
         
         function extractSpecsFromJsonLd() {
           const specs = [];
@@ -325,7 +450,6 @@
               const data = JSON.parse(script.textContent);
               const products = [];
               
-              // Navigate to product nodes
               if (Array.isArray(data)) {
                 products.push(...data.filter(d => d['@type'] === 'Product'));
               } else if (data['@graph']) {
@@ -422,7 +546,7 @@
 
         // ===== MAIN EXTRACTION LOGIC =====
 
-        // Step 1: Get title and price from JSON-LD first
+        // Step 1: Get basic info from JSON-LD first (title, price, images)
         let title = '';
         let price = '';
         let jsonLdImages = [];
@@ -479,29 +603,49 @@
           }
         }
 
-        // Step 2: Click Specifications tab and extract specs
-        console.log(`FB Lister v${EXTENSION_VERSION}: === PHASE 1: Specifications ===`);
-        await openBestBuyTab('specifications');
-        await expandAccordionsIn(document, ['specifications', 'specs', 'spec']);
+        // Step 2: LAYER A - Try embedded JSON/state extraction first
+        console.log(`FB Lister v${EXTENSION_VERSION}: === LAYER A: Embedded JSON ===`);
+        const jsonResult = extractFromEmbeddedJson();
         
-        let specs = extractSpecificationsFrom(getActiveTabPanel());
+        let features = jsonResult.features;
+        let specs = jsonResult.specs;
+        let descSource = 'none';
         
-        // Fallback: try JSON-LD additionalProperty
-        if (specs.length === 0) {
-          console.log(`FB Lister v${EXTENSION_VERSION}: DOM specs empty, trying JSON-LD additionalProperty`);
-          specs = extractSpecsFromJsonLd();
+        if (features.length > 0 || specs.length > 0) {
+          descSource = 'JSON';
+          console.log(`FB Lister v${EXTENSION_VERSION}: Layer A SUCCESS - Features: ${features.length}, Specs: ${specs.length}`);
+        }
+        
+        // Step 3: LAYER B - Heading-driven DOM extraction (if Layer A didn't get enough)
+        if (features.length < 3 && specs.length < 3) {
+          console.log(`FB Lister v${EXTENSION_VERSION}: === LAYER B: Heading-Driven DOM ===`);
+          const domResult = extractByHeadings();
+          
+          // Merge results (prefer Layer B if it got more)
+          if (domResult.features.length > features.length) {
+            features = domResult.features;
+          }
+          if (domResult.specs.length > specs.length) {
+            specs = domResult.specs;
+          }
+          
+          if (features.length > 0 || specs.length > 0) {
+            descSource = (descSource === 'JSON') ? 'JSON+DOM' : 'DOM';
+            console.log(`FB Lister v${EXTENSION_VERSION}: Layer B result - Features: ${features.length}, Specs: ${specs.length}`);
+          }
+        }
+        
+        // Step 4: Supplement specs from JSON-LD additionalProperty if still short
+        if (specs.length < 5) {
+          const jsonLdSpecs = extractSpecsFromJsonLd();
+          if (jsonLdSpecs.length > specs.length) {
+            specs = jsonLdSpecs;
+            descSource = descSource ? descSource + '+JSONLD' : 'JSONLD';
+          }
         }
 
-        // Step 3: Click Overview tab and extract features
-        console.log(`FB Lister v${EXTENSION_VERSION}: === PHASE 2: Features ===`);
-        await openBestBuyTab('overview');
-        await expandAccordionsIn(document, ['features', 'feature', 'highlights']);
-        
-        const features = extractFeaturesFrom(getActiveTabPanel());
-
-        // Step 4: Build description - FEATURES + SPECS ONLY (NO MARKETING FALLBACK)
+        // Step 5: Build description - FEATURES + SPECS ONLY
         let description = '';
-        let descSource = 'none';
         
         if (features.length > 0) {
           description += 'FEATURES:\n';
@@ -509,7 +653,6 @@
             description += `• ${f}\n`;
           });
           description += '\n';
-          descSource = 'features';
         }
         
         if (specs.length > 0) {
@@ -517,14 +660,24 @@
           specs.forEach(s => {
             description += `• ${s}\n`;
           });
-          descSource = descSource === 'features' ? 'features+specs' : 'specs';
         }
         
         description = description.trim();
         
-        // NO META FALLBACK - fail loudly if we have nothing
+        // Step 6: LAYER C - Filtered meta fallback (ONLY if we have nothing)
         if (description.length === 0) {
-          console.error(`FB Lister v${EXTENSION_VERSION}: FAILED - No features or specifications found!`);
+          console.log(`FB Lister v${EXTENSION_VERSION}: === LAYER C: Filtered Meta ===`);
+          const metaDesc = getFilteredMetaDescription();
+          if (metaDesc && metaDesc.length > 50) {
+            description = metaDesc;
+            descSource = 'META';
+            console.log(`FB Lister v${EXTENSION_VERSION}: Using filtered meta description`);
+          }
+        }
+        
+        // Final: If still nothing, mark as FAILED
+        if (description.length === 0) {
+          console.error(`FB Lister v${EXTENSION_VERSION}: FAILED - No features, specifications, or valid meta found!`);
           descSource = 'FAILED';
         }
         
@@ -533,7 +686,7 @@
           description = description.substring(0, 1997) + '...';
         }
 
-        // Step 5: Collect images
+        // Step 7: Collect images
         const images = collectImages(jsonLdImages);
 
         // Log final result
@@ -546,7 +699,13 @@
         console.log(`FB Lister v${EXTENSION_VERSION}: Description length: ${description.length}`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Images: ${images.length}`);
 
-        return { title, price, description, images };
+        return { 
+          title, 
+          price, 
+          description, 
+          images,
+          _debug: { featuresCount: features.length, specsCount: specs.length, descSource }
+        };
       }
     },
     target: {
@@ -642,7 +801,7 @@
       </div>
       ${isFailed ? `
       <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
-        ⚠️ Try: Scroll to Specifications tab, click it, then retry
+        ⚠️ Could not extract Features/Specifications. The page structure may have changed.
       </div>
       ` : ''}
       <div style="margin-top: 8px; font-size: 11px; opacity: 0.7;">
@@ -691,17 +850,26 @@
         throw new Error('Could not extract product data');
       }
 
-      // Count features/specs for diagnostic
-      const featuresMatch = productData.description.match(/FEATURES:\n((?:• [^\n]+\n?)+)/);
-      const specsMatch = productData.description.match(/SPECIFICATIONS:\n((?:• [^\n]+\n?)+)/);
-      const featuresCount = featuresMatch ? (featuresMatch[1].match(/•/g) || []).length : 0;
-      const specsCount = specsMatch ? (specsMatch[1].match(/•/g) || []).length : 0;
+      // Get debug info from extraction (if available)
+      const debugInfo = productData._debug || {};
       
-      let descSource = 'none';
-      if (featuresCount > 0 && specsCount > 0) descSource = 'features+specs';
-      else if (featuresCount > 0) descSource = 'features';
-      else if (specsCount > 0) descSource = 'specs';
-      else if (productData.description.length === 0) descSource = 'FAILED';
+      // Count features/specs for diagnostic (fallback if not in _debug)
+      let featuresCount = debugInfo.featuresCount;
+      let specsCount = debugInfo.specsCount;
+      let descSource = debugInfo.descSource;
+      
+      if (featuresCount === undefined) {
+        const featuresMatch = productData.description.match(/FEATURES:\n((?:• [^\n]+\n?)+)/);
+        const specsMatch = productData.description.match(/SPECIFICATIONS:\n((?:• [^\n]+\n?)+)/);
+        featuresCount = featuresMatch ? (featuresMatch[1].match(/•/g) || []).length : 0;
+        specsCount = specsMatch ? (specsMatch[1].match(/•/g) || []).length : 0;
+        
+        descSource = 'none';
+        if (featuresCount > 0 && specsCount > 0) descSource = 'features+specs';
+        else if (featuresCount > 0) descSource = 'features';
+        else if (specsCount > 0) descSource = 'specs';
+        else if (productData.description.length === 0) descSource = 'FAILED';
+      }
 
       const marketplaceData = {
         title: formatTitle(productData.title),

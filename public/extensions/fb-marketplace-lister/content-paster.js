@@ -1,9 +1,11 @@
 // FB Marketplace Lister - Content Script for Facebook Marketplace Create Page
-// Version 1.4.2 - Fixed duplicate function, improved description detection + debug toast
+// Version 1.4.5 - Deferred paste for Category step + enhanced debug
 (function() {
   'use strict';
 
+  const EXTENSION_VERSION = '1.4.5';
   let pendingListing = null;
+  let deferredPasteInterval = null;
 
   // Create paste button and image panel
   function createPasteButton() {
@@ -28,37 +30,50 @@
 
     const toast = document.createElement('div');
     toast.id = 'fb-lister-debug-toast';
+    
+    const isWaiting = info.waitingForField;
+    const bgColor = isWaiting ? '#ff9800' : (info.descInsertResult ? '#1a1a2e' : '#c62828');
+    
     toast.style.cssText = `
       position: fixed;
       bottom: 80px;
       left: 20px;
       z-index: 999999;
-      background: #1a1a2e;
+      background: ${bgColor};
       color: #eee;
       padding: 14px 18px;
       border-radius: 10px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 12px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-      max-width: 300px;
+      max-width: 320px;
       line-height: 1.6;
     `;
 
+    const statusEmoji = isWaiting ? '⏳' : (info.descInsertResult ? '✅' : '❌');
+    const statusText = isWaiting ? 'Waiting for form...' : (info.descInsertResult ? 'Pasted!' : 'Issues detected');
+
     toast.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 6px; color: #4fc3f7;">
-        FB Lister v1.4.2 Debug
+      <div style="font-weight: 600; margin-bottom: 6px; color: ${isWaiting ? '#fff' : '#4fc3f7'};">
+        FB Lister v${EXTENSION_VERSION} - ${statusText}
       </div>
       <div>
         <div>📝 Pending desc: ${info.descLen} chars</div>
         <div>🖼️ Pending images: ${info.imageCount}</div>
         <div>🔍 Desc field found: ${info.descFieldFound ? '✅ yes' : '❌ no'}</div>
-        <div>✏️ Desc insert: ${info.descInsertResult ? '✅ success' : '❌ failed'}</div>
+        <div>✏️ Desc insert: ${info.descInsertResult ? '✅ success' : (isWaiting ? '⏳ waiting' : '❌ failed')}</div>
         ${info.descFieldTag ? `<div style="opacity:0.7">Field: ${info.descFieldTag}</div>` : ''}
+        ${isWaiting ? `<div style="margin-top:8px;font-size:11px;">👆 Choose a category, then click Next. Description will auto-fill.</div>` : ''}
+        ${info.timeout ? `<div style="margin-top:8px;color:#ffcdd2;">⚠️ Timeout waiting for description field</div>` : ''}
       </div>
     `;
 
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 8000);
+    
+    // Keep visible longer if waiting
+    if (!isWaiting) {
+      setTimeout(() => toast.remove(), 8000);
+    }
   }
 
   // Fetch image as blob via background script (to handle CORS)
@@ -520,7 +535,7 @@
     return null;
   }
 
-  // Unified field finder and filler (SINGLE DEFINITION - no duplicates!)
+  // Unified field finder and filler
   function findAndFillField(labelText, value, isTextarea = false) {
     if (!value) return false;
     
@@ -552,6 +567,73 @@
     return false;
   }
 
+  // Start deferred paste - poll for description field
+  function startDeferredPaste(descValue, debugInfo) {
+    console.log('FB Lister: Starting deferred paste, will wait up to 45s for description field...');
+    
+    // Clear any existing interval
+    if (deferredPasteInterval) {
+      clearInterval(deferredPasteInterval);
+    }
+    
+    let attempts = 0;
+    const maxAttempts = 45; // 45 seconds timeout
+    
+    // Update toast to show waiting state
+    showDebugToast({
+      ...debugInfo,
+      waitingForField: true,
+      descFieldFound: false,
+      descInsertResult: false
+    });
+    
+    deferredPasteInterval = setInterval(() => {
+      attempts++;
+      console.log(`FB Lister: Deferred paste attempt ${attempts}/${maxAttempts}`);
+      
+      const descField = findDescriptionField();
+      
+      if (descField) {
+        clearInterval(deferredPasteInterval);
+        deferredPasteInterval = null;
+        
+        console.log('FB Lister: Description field appeared! Inserting...');
+        
+        // Small delay to let the field fully initialize
+        setTimeout(() => {
+          const success = fillContentEditable(descField, descValue) || 
+                          findAndFillField('Description', descValue, true);
+          
+          showDebugToast({
+            ...debugInfo,
+            descLen: descValue.length,
+            descFieldFound: true,
+            descInsertResult: success,
+            waitingForField: false,
+            descFieldTag: descField.tagName + 
+              (descField.getAttribute('role') ? '[role=' + descField.getAttribute('role') + ']' : '') +
+              (descField.getAttribute('contenteditable') ? '[contenteditable]' : '')
+          });
+          
+          console.log('FB Lister: Deferred paste result:', success);
+        }, 500);
+        
+      } else if (attempts >= maxAttempts) {
+        clearInterval(deferredPasteInterval);
+        deferredPasteInterval = null;
+        
+        console.log('FB Lister: Timeout waiting for description field');
+        showDebugToast({
+          ...debugInfo,
+          descFieldFound: false,
+          descInsertResult: false,
+          waitingForField: false,
+          timeout: true
+        });
+      }
+    }, 1000);
+  }
+
   // Handle paste button click
   async function handlePaste() {
     const button = document.querySelector('#fb-lister-paste-btn');
@@ -575,7 +657,8 @@
       imageCount: (pendingListing.images || []).length,
       descFieldFound: false,
       descInsertResult: false,
-      descFieldTag: ''
+      descFieldTag: '',
+      waitingForField: false
     };
 
     try {
@@ -599,7 +682,7 @@
       let filledPrice = findAndFillField('Price', pendingListing.price);
       await new Promise(function(resolve) { setTimeout(resolve, 400); });
       
-      // Fill description - check if field exists first for debug
+      // Fill description - check if field exists first
       let filledDesc = false;
       const descValue = pendingListing.description ? pendingListing.description.substring(0, 2000) : '';
       
@@ -607,19 +690,33 @@
         // Pre-check: can we find the field?
         const descField = findDescriptionField();
         debugInfo.descFieldFound = !!descField;
+        
         if (descField) {
           debugInfo.descFieldTag = descField.tagName + 
             (descField.getAttribute('role') ? '[role=' + descField.getAttribute('role') + ']' : '') +
             (descField.getAttribute('contenteditable') ? '[contenteditable]' : '');
-        }
-        
-        filledDesc = findAndFillField('Description', descValue, true);
-        debugInfo.descInsertResult = filledDesc;
-        
-        if (!filledDesc) {
-          await new Promise(function(resolve) { setTimeout(resolve, 500); });
-          filledDesc = findAndFillField('Describe', descValue, true);
+          
+          filledDesc = findAndFillField('Description', descValue, true);
           debugInfo.descInsertResult = filledDesc;
+          
+          if (!filledDesc) {
+            await new Promise(function(resolve) { setTimeout(resolve, 500); });
+            filledDesc = findAndFillField('Describe', descValue, true);
+            debugInfo.descInsertResult = filledDesc;
+          }
+        } else {
+          // Description field not found - likely on Category step
+          // Start deferred paste
+          console.log('FB Lister: Description field not found, starting deferred paste...');
+          startDeferredPaste(descValue, debugInfo);
+          
+          // Update button to show waiting state
+          button.innerHTML = 'Waiting for form...';
+          button.classList.remove('loading');
+          button.classList.add('waiting');
+          
+          // Don't clear pending data yet - we need it for deferred paste
+          return;
         }
       }
 
@@ -637,7 +734,7 @@
       button.classList.remove('loading');
       button.classList.add('success');
 
-      console.log('=== FB Lister v1.4.2: Product Data ===');
+      console.log(`=== FB Lister v${EXTENSION_VERSION}: Product Data ===`);
       console.log('Title:', pendingListing.title);
       console.log('Price:', pendingListing.price);
       console.log('Description length:', (pendingListing.description || '').length);
@@ -670,7 +767,7 @@
   // Initialize when on marketplace create page
   function init() {
     if (window.location.href.includes('facebook.com/marketplace/create')) {
-      console.log('FB Lister v1.4.2: Detected marketplace create page, adding paste button...');
+      console.log(`FB Lister v${EXTENSION_VERSION}: Detected marketplace create page, adding paste button...`);
       setTimeout(createPasteButton, 2000);
     }
   }
@@ -683,6 +780,11 @@
   new MutationObserver(function() {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
+      // Clear any pending deferred paste when navigating away
+      if (deferredPasteInterval) {
+        clearInterval(deferredPasteInterval);
+        deferredPasteInterval = null;
+      }
       setTimeout(init, 1500);
     }
   }).observe(document.body, { subtree: true, childList: true });
