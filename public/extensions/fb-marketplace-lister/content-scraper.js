@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.2.0 - Added diagnostics toast
+// Version 1.4.2 - Improved Best Buy image filtering + deduplication
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.0';
+  const EXTENSION_VERSION = '1.4.2';
 
   // Product data extractors for different sites
   const extractors = {
@@ -83,18 +83,60 @@
       extract: () => {
         console.log(`FB Lister v${EXTENSION_VERSION}: Extracting Best Buy product data...`);
 
+        // Normalize Best Buy image URL for consistent deduplication
+        function normalizeImageUrl(url) {
+          if (!url) return null;
+          
+          // Remove query params
+          let normalized = url.split('?')[0];
+          
+          // Normalize size params to high-res
+          normalized = normalized.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200');
+          
+          // If no size params, add them
+          if (!normalized.includes(';maxHeight=')) {
+            normalized = normalized.replace(/\.jpg$/, ';maxHeight=1200;maxWidth=1200.jpg');
+          }
+          
+          return normalized;
+        }
+
+        // Check if URL is a product image (not video thumbnail)
+        function isProductImage(url) {
+          if (!url) return false;
+          
+          // Exclude video thumbnails
+          if (url.includes('/images/videos/')) return false;
+          if (url.includes('/prescaled/')) return false;
+          if (url.includes('videoThumbnail')) return false;
+          if (url.includes('/video/')) return false;
+          
+          // Must be from Best Buy's image CDN
+          if (!url.includes('pisces.bbystatic.com') && !url.includes('bestbuy.com/images')) {
+            return false;
+          }
+          
+          // Prefer product images
+          if (url.includes('/images/products/')) return true;
+          
+          return true;
+        }
+
+        // Extract unique ID from image URL for deduplication
+        function getImageKey(url) {
+          // Extract the product image UUID/filename
+          const match = url.match(/\/([a-f0-9-]{20,}|[\w-]+)\.(jpg|png|webp)/i);
+          if (match) return match[1].toLowerCase();
+          
+          // Fallback: use last path segment
+          const parts = url.split('/');
+          const filename = parts[parts.length - 1].split('?')[0].split(';')[0];
+          return filename.toLowerCase();
+        }
+
         // Extract Specifications from DOM
         function extractSpecifications() {
           const specs = [];
-          
-          // Try multiple selectors for specs section
-          const specSelectors = [
-            '[class*="specifications"] [class*="row"]',
-            '[data-testid*="spec"] [class*="row"]',
-            '.specifications-content li',
-            '[class*="spec-definitions"] [class*="row"]',
-            '[class*="product-data-value"]'
-          ];
           
           // Look for spec tables with label-value pairs
           const specRows = document.querySelectorAll('[class*="specifications"] li, [class*="spec"] li');
@@ -171,6 +213,52 @@
           return features.slice(0, 8); // Limit to 8 key features
         }
 
+        // Collect and deduplicate images
+        function collectImages(jsonLdImages) {
+          const imageMap = new Map(); // key -> normalized URL
+          
+          // Add JSON-LD images first (higher priority)
+          if (Array.isArray(jsonLdImages)) {
+            jsonLdImages.forEach(url => {
+              if (isProductImage(url)) {
+                const normalized = normalizeImageUrl(url);
+                const key = getImageKey(url);
+                if (normalized && key && !imageMap.has(key)) {
+                  imageMap.set(key, normalized);
+                }
+              }
+            });
+          }
+          
+          // Add DOM gallery images
+          document.querySelectorAll('img[src*="pisces.bbystatic.com"], img[src*="bestbuy.com/images"]').forEach(img => {
+            const src = img.src || '';
+            if (isProductImage(src)) {
+              const normalized = normalizeImageUrl(src);
+              const key = getImageKey(src);
+              if (normalized && key && !imageMap.has(key)) {
+                imageMap.set(key, normalized);
+              }
+            }
+          });
+          
+          // Also check data-src for lazy-loaded images
+          document.querySelectorAll('img[data-src*="pisces.bbystatic.com"]').forEach(img => {
+            const src = img.getAttribute('data-src') || '';
+            if (isProductImage(src)) {
+              const normalized = normalizeImageUrl(src);
+              const key = getImageKey(src);
+              if (normalized && key && !imageMap.has(key)) {
+                imageMap.set(key, normalized);
+              }
+            }
+          });
+          
+          const images = Array.from(imageMap.values()).slice(0, 10);
+          console.log(`FB Lister v${EXTENSION_VERSION}: Collected ${images.length} unique product images`);
+          return images;
+        }
+
         // Prefer JSON-LD (much more stable than DOM selectors on BestBuy)
         const jsonLdResult = (() => {
           try {
@@ -205,14 +293,13 @@
             const rawPrice = offer?.price ?? offer?.lowPrice ?? '';
             const price = rawPrice ? String(rawPrice).replace(/[^0-9.]/g, '') : '';
 
-            let images = [];
-            if (Array.isArray(productNode.image)) images = productNode.image;
-            else if (typeof productNode.image === 'string') images = [productNode.image];
+            // Get JSON-LD images for combining with DOM images
+            let jsonLdImages = [];
+            if (Array.isArray(productNode.image)) jsonLdImages = productNode.image;
+            else if (typeof productNode.image === 'string') jsonLdImages = [productNode.image];
 
-            images = images
-              .map((u) => String(u))
-              .filter(Boolean)
-              .map((u) => u.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200'));
+            // Collect and dedupe all images
+            const images = collectImages(jsonLdImages);
 
             if (!title) return null;
 
@@ -311,16 +398,8 @@
           description = description.substring(0, 1997) + '...';
         }
 
-        // Images - Best Buy uses pisces.bbystatic.com for images
-        const images = [];
-        document.querySelectorAll('img[src*="pisces.bbystatic.com"], img[src*="bestbuy.com/images"]').forEach((img) => {
-          let src = img.src || '';
-          if (src && !images.includes(src)) {
-            src = src.replace(/;maxHeight=\d+;maxWidth=\d+/, ';maxHeight=1200;maxWidth=1200');
-            src = src.replace(/\?format=webp/, '');
-            images.push(src);
-          }
-        });
+        // Collect images with deduplication
+        const images = collectImages([]);
 
         return { title, price, description, images };
       }

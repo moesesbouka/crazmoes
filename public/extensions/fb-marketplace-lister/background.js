@@ -46,16 +46,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Fetch image and convert to data URL
 async function fetchImageAsDataUrl(url) {
   try {
+    console.log('FB Lister BG: Fetching image:', url.substring(0, 80));
+    
     const response = await fetch(url, {
       mode: 'cors',
       credentials: 'omit'
     });
     
-    if (!response.ok) {
+    // Tolerate opaque responses (some CDNs)
+    if (!response.ok && response.type !== 'opaque' && response.status !== 0) {
       throw new Error('Failed to fetch image: ' + response.status);
     }
     
     const blob = await response.blob();
+    
+    if (blob.size === 0) {
+      throw new Error('Empty blob received');
+    }
+    
+    console.log('FB Lister BG: Image fetched, size:', blob.size, 'type:', blob.type);
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -64,7 +73,7 @@ async function fetchImageAsDataUrl(url) {
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error('fetchImageAsDataUrl error:', error);
+    console.error('FB Lister BG: fetchImageAsDataUrl error:', error.message);
     throw error;
   }
 }
