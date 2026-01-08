@@ -3,7 +3,7 @@
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.3.0';
+  const EXTENSION_VERSION = '1.4.0';
 
   // Product data extractors for different sites
   const extractors = {
@@ -83,6 +83,94 @@
       extract: () => {
         console.log(`FB Lister v${EXTENSION_VERSION}: Extracting Best Buy product data...`);
 
+        // Extract Specifications from DOM
+        function extractSpecifications() {
+          const specs = [];
+          
+          // Try multiple selectors for specs section
+          const specSelectors = [
+            '[class*="specifications"] [class*="row"]',
+            '[data-testid*="spec"] [class*="row"]',
+            '.specifications-content li',
+            '[class*="spec-definitions"] [class*="row"]',
+            '[class*="product-data-value"]'
+          ];
+          
+          // Look for spec tables with label-value pairs
+          const specRows = document.querySelectorAll('[class*="specifications"] li, [class*="spec"] li');
+          specRows.forEach(row => {
+            const label = row.querySelector('[class*="name"], [class*="label"], dt, .spec-name')?.textContent?.trim();
+            const value = row.querySelector('[class*="value"], dd, .spec-value')?.textContent?.trim();
+            if (label && value) {
+              specs.push(`${label}: ${value}`);
+            }
+          });
+
+          // Alternative: look for definition lists
+          if (specs.length === 0) {
+            const dlPairs = document.querySelectorAll('dl[class*="spec"] dt');
+            dlPairs.forEach(dt => {
+              const dd = dt.nextElementSibling;
+              if (dd && dd.tagName === 'DD') {
+                specs.push(`${dt.textContent?.trim()}: ${dd.textContent?.trim()}`);
+              }
+            });
+          }
+
+          // Alternative: look for spec detail sections
+          if (specs.length === 0) {
+            document.querySelectorAll('[class*="specifications"] [class*="detail"], [class*="spec-group"]').forEach(el => {
+              const text = el.textContent?.trim();
+              if (text && text.includes(':')) {
+                specs.push(text);
+              }
+            });
+          }
+
+          console.log(`FB Lister v${EXTENSION_VERSION}: Found ${specs.length} specifications`);
+          return specs.slice(0, 15); // Limit to 15 key specs
+        }
+
+        // Extract Features from DOM
+        function extractFeatures() {
+          const features = [];
+          
+          // Try multiple selectors for features section
+          const featureSelectors = [
+            '[class*="features"] li',
+            '[class*="feature-list"] li',
+            '[data-testid*="feature"] li',
+            '.features-content li',
+            '[class*="product-feature"] li'
+          ];
+          
+          for (const selector of featureSelectors) {
+            const items = document.querySelectorAll(selector);
+            if (items.length > 0) {
+              items.forEach(item => {
+                const text = item.textContent?.trim();
+                if (text && text.length > 10 && text.length < 500) {
+                  features.push(text);
+                }
+              });
+              if (features.length > 0) break;
+            }
+          }
+
+          // Alternative: look for feature paragraphs
+          if (features.length === 0) {
+            document.querySelectorAll('[class*="features"] p, [class*="feature-description"] p').forEach(p => {
+              const text = p.textContent?.trim();
+              if (text && text.length > 20) {
+                features.push(text);
+              }
+            });
+          }
+
+          console.log(`FB Lister v${EXTENSION_VERSION}: Found ${features.length} features`);
+          return features.slice(0, 8); // Limit to 8 key features
+        }
+
         // Prefer JSON-LD (much more stable than DOM selectors on BestBuy)
         const jsonLdResult = (() => {
           try {
@@ -110,7 +198,7 @@
             if (!productNode) return null;
 
             const title = (productNode.name || '').toString().trim();
-            const description = (productNode.description || '').toString().trim();
+            const jsonLdDescription = (productNode.description || '').toString().trim();
 
             const offers = productNode.offers;
             const offer = Array.isArray(offers) ? offers[0] : offers;
@@ -128,11 +216,48 @@
 
             if (!title) return null;
 
+            // Now enhance description with DOM-scraped specs and features
+            const specs = extractSpecifications();
+            const features = extractFeatures();
+            
+            let description = '';
+            
+            // Start with JSON-LD description if available
+            if (jsonLdDescription) {
+              description = jsonLdDescription + '\n\n';
+            }
+            
+            // Add features section
+            if (features.length > 0) {
+              description += 'FEATURES:\n';
+              features.forEach(f => {
+                description += `• ${f}\n`;
+              });
+              description += '\n';
+            }
+            
+            // Add specifications section
+            if (specs.length > 0) {
+              description += 'SPECIFICATIONS:\n';
+              specs.forEach(s => {
+                description += `• ${s}\n`;
+              });
+            }
+            
+            description = description.trim();
+            
+            // Limit to ~2000 chars for FB Marketplace
+            if (description.length > 2000) {
+              description = description.substring(0, 1997) + '...';
+            }
+
             console.log(`FB Lister v${EXTENSION_VERSION}: BestBuy JSON-LD extracted`, {
               title,
               price,
               descriptionLen: description.length,
               images: images.length,
+              specsCount: specs.length,
+              featuresCount: features.length
             });
 
             return { title, price, description, images };
@@ -162,11 +287,28 @@
           }
         }
 
-        // Description
+        // Description - combine specs and features
+        const specs = extractSpecifications();
+        const features = extractFeatures();
+        
         let description = '';
-        const specsSection = document.querySelector('[class*="specifications"], [class*="features"], .shop-product-description');
-        if (specsSection) {
-          description = specsSection.textContent?.trim().substring(0, 500) || '';
+        if (features.length > 0) {
+          description += 'FEATURES:\n';
+          features.forEach(f => {
+            description += `• ${f}\n`;
+          });
+          description += '\n';
+        }
+        if (specs.length > 0) {
+          description += 'SPECIFICATIONS:\n';
+          specs.forEach(s => {
+            description += `• ${s}\n`;
+          });
+        }
+        description = description.trim();
+        
+        if (description.length > 2000) {
+          description = description.substring(0, 1997) + '...';
         }
 
         // Images - Best Buy uses pisces.bbystatic.com for images
