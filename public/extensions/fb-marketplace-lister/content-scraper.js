@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.4.8 - Improved aria-first container detection & text walking
+// Version 1.4.9 - Overview fallback + specs-section disambiguation
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.8';
+  const EXTENSION_VERSION = '1.4.9';
 
   // Product data extractors for different sites
   const extractors = {
@@ -339,12 +339,35 @@
             if (text === 'features' || text === 'key features' || text === 'highlights' || 
                 (text.includes('features') && text.length < 30)) {
               
+              // CRITICAL: Skip if this "Features" heading is inside the Specs/Specifications module
+              // (On some Best Buy pages, "Features" is only a spec-category heading.)
+              let isInSpecsModule = false;
+              {
+                let el = heading;
+                for (let i = 0; i < 7 && el && el.parentElement; i++) {
+                  el = el.parentElement;
+                  const textLen = el.textContent?.length || 0;
+                  if (textLen > 200 && textLen < 12000) {
+                    const t = (el.textContent || '').toLowerCase();
+                    if (t.includes('key specs') || t.includes('specifications')) {
+                      isInSpecsModule = true;
+                      break;
+                    }
+                  }
+                }
+              }
+              if (isInSpecsModule) {
+                console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] SKIPPED "Features" heading (inside Specs module)`);
+                continue;
+              }
+              
               // DIAGNOSTIC: Enhanced logging per ChatGPT recommendations
               const headingPath = `${heading.tagName} > ${heading.parentElement?.className?.substring(0, 50) || 'no-class'}`;
               console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] === FEATURES HEADING DETECTED ===`);
               console.log(`  featuresHeadingText: "${text}"`);
               console.log(`  featuresHeadingHTML: ${heading.outerHTML?.slice(0, 150)}`);
               console.log(`  featuresHeadingPath: ${headingPath}`);
+              console.log(`  featuresSource: HEADING`);
               
               // Get the container holding the features content (using aria-first approach)
               const container = findContentContainer(heading);
@@ -581,6 +604,61 @@
           ];
           return boilerplatePatterns.some(p => p.test(lower));
         }
+        
+        // Extract product overview/short description as Features fallback
+        function extractOverviewAsFeatures() {
+          console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Attempting overview extraction as Features fallback...`);
+          
+          // Best Buy commonly uses these patterns for marketing description
+          const overviewSelectors = [
+            '[data-testid*="summary" i]',
+            '[data-testid*="description" i]',
+            '[class*="shortDescription" i]',
+            '[class*="longDescription" i]',
+            '[class*="overview" i]',
+            '[class*="product-overview" i]'
+          ];
+          
+          for (const selector of overviewSelectors) {
+            try {
+              const element = document.querySelector(selector);
+              if (element) {
+                const text = element.textContent?.trim();
+                if (text && text.length > 100 && text.length < 1500 && !isBoilerplate(text)) {
+                  console.log(`  ✅ Overview found via: ${selector} (${text.length} chars)`);
+                  console.log(`  featuresSource: OVERVIEW`);
+                  return [text];
+                }
+              }
+            } catch (e) {
+              // Invalid selector
+            }
+          }
+          
+          // Fallback: Find paragraph near title block (within reasonable bounds)
+          const titleEl = document.querySelector('h1.heading-5, h1[class*="heading"], h1');
+          if (titleEl) {
+            const titleContainer = titleEl.closest('[class*="product"], section, [role="main"], main');
+            if (titleContainer) {
+              const paragraphs = titleContainer.querySelectorAll('p');
+              for (const p of paragraphs) {
+                const text = p.textContent?.trim();
+                // Must be near title, substantial, not boilerplate, not reviews/Q&A
+                if (text && text.length > 100 && text.length < 1000 && 
+                    !isBoilerplate(text) && 
+                    !text.toLowerCase().includes('review') &&
+                    !text.toLowerCase().includes('question')) {
+                  console.log(`  ✅ Overview found via paragraph near title (${text.length} chars)`);
+                  console.log(`  featuresSource: OVERVIEW`);
+                  return [text];
+                }
+              }
+            }
+          }
+          
+          console.log(`  ❌ No suitable overview paragraph found`);
+          return [];
+        }
 
         // ===== LAYER C: FILTERED META FALLBACK =====
         
@@ -790,9 +868,11 @@
         let features = jsonResult.features;
         let specs = jsonResult.specs;
         let descSource = 'none';
-        
+        let featuresSource = features.length > 0 ? 'STATE' : 'none';
+
         if (features.length > 0 || specs.length > 0) {
           descSource = 'JSON';
+          if (features.length > 0) featuresSource = 'STATE';
           console.log(`FB Lister v${EXTENSION_VERSION}: Layer A SUCCESS - Features: ${features.length}, Specs: ${specs.length}`);
         }
         
@@ -804,6 +884,7 @@
           // Merge results (prefer Layer B if it got more)
           if (domResult.features.length > features.length) {
             features = domResult.features;
+            if (features.length > 0) featuresSource = 'FEATURES_HEADING';
           }
           if (domResult.specs.length > specs.length) {
             specs = domResult.specs;
@@ -812,6 +893,18 @@
           if (features.length > 0 || specs.length > 0) {
             descSource = (descSource === 'JSON') ? 'JSON+DOM' : 'DOM';
             console.log(`FB Lister v${EXTENSION_VERSION}: Layer B result - Features: ${features.length}, Specs: ${specs.length}`);
+          }
+        }
+        
+        // Step 3b: OVERVIEW FALLBACK - If features still empty, use product overview paragraph
+        if (features.length === 0) {
+          console.log(`FB Lister v${EXTENSION_VERSION}: === OVERVIEW FALLBACK (no Features found) ===`);
+          const overviewFeatures = extractOverviewAsFeatures();
+          if (overviewFeatures.length > 0) {
+            features = overviewFeatures;
+            featuresSource = 'OVERVIEW_FALLBACK';
+            descSource = (descSource === 'JSON' || descSource === 'JSON+DOM') ? descSource + '+OVERVIEW' : 'OVERVIEW';
+            console.log(`FB Lister v${EXTENSION_VERSION}: Overview fallback SUCCESS - ${features.length} paragraph(s)`);
           }
         }
         
@@ -869,11 +962,16 @@
         // Step 7: Collect images
         const images = collectImages(jsonLdImages);
 
+        const featuresSample = features?.[0]
+          ? features[0].replace(/\s+/g, ' ').trim().slice(0, 80)
+          : '';
+
         // Log final result
         console.log(`FB Lister v${EXTENSION_VERSION}: === EXTRACTION COMPLETE ===`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Title: ${title ? 'YES' : 'NO'} (${title.length} chars)`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Price: ${price || 'none'}`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Description source: ${descSource}`);
+        console.log(`FB Lister v${EXTENSION_VERSION}: Features source: ${featuresSource}`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Features count: ${features.length}`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Specs count: ${specs.length}`);
         console.log(`FB Lister v${EXTENSION_VERSION}: Description length: ${description.length}`);
@@ -884,7 +982,13 @@
           price, 
           description, 
           images,
-          _debug: { featuresCount: features.length, specsCount: specs.length, descSource }
+          _debug: { 
+            featuresCount: features.length,
+            specsCount: specs.length,
+            descSource,
+            featuresSource,
+            featuresSample,
+          }
         };
       }
     },
@@ -973,7 +1077,8 @@
       <div style="opacity: 0.9;">
         <div>${statusIcon} Title: ${data.title ? 'yes' : 'NO'}</div>
         <div>${statusIcon} Price: ${data.originalPrice || '(none)'} → ${data.price || '(none)'}</div>
-        <div>${statusIcon} Features: ${data.featuresCount || 0}</div>
+        <div>${statusIcon} Features: ${data.featuresCount || 0}${data.featuresSource ? ` (${data.featuresSource})` : ''}</div>
+        ${data.featuresSample ? `<div style="opacity:0.75;font-size:11px;">Features sample: "${data.featuresSample}"</div>` : ''}
         <div>${statusIcon} Specs: ${data.specsCount || 0}</div>
         <div>${statusIcon} Description: ${data.description ? data.description.length + ' chars' : '(none)'}</div>
         <div>${statusIcon} Source: ${data.descSource || 'unknown'}</div>
@@ -1037,18 +1142,26 @@
       let featuresCount = debugInfo.featuresCount;
       let specsCount = debugInfo.specsCount;
       let descSource = debugInfo.descSource;
+      let featuresSource = debugInfo.featuresSource;
+      let featuresSample = debugInfo.featuresSample;
       
       if (featuresCount === undefined) {
         const featuresMatch = productData.description.match(/FEATURES:\n((?:• [^\n]+\n?)+)/);
         const specsMatch = productData.description.match(/SPECIFICATIONS:\n((?:• [^\n]+\n?)+)/);
         featuresCount = featuresMatch ? (featuresMatch[1].match(/•/g) || []).length : 0;
         specsCount = specsMatch ? (specsMatch[1].match(/•/g) || []).length : 0;
-        
+
+        // Keep existing descSource inference
         descSource = 'none';
         if (featuresCount > 0 && specsCount > 0) descSource = 'features+specs';
         else if (featuresCount > 0) descSource = 'features';
         else if (specsCount > 0) descSource = 'specs';
         else if (productData.description.length === 0) descSource = 'FAILED';
+
+        // Fallback inference for Features source/sample
+        featuresSource = featuresCount > 0 ? 'unknown' : 'none';
+        const firstLine = (productData.description.match(/FEATURES:\n• ([^\n]+)/)?.[1] || '').trim();
+        featuresSample = firstLine ? firstLine.slice(0, 80) : '';
       }
 
       const marketplaceData = {
@@ -1063,7 +1176,9 @@
         extensionVersion: EXTENSION_VERSION,
         featuresCount,
         specsCount,
-        descSource
+        descSource,
+        featuresSource,
+        featuresSample
       };
 
       await chrome.storage.local.set({ pendingListing: marketplaceData });
