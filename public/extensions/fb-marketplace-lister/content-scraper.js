@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.4.9 - Overview fallback + specs-section disambiguation
+// Version 1.4.10 - Best Buy container scoring + looser overview fallback
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.9';
+  const EXTENSION_VERSION = '1.4.10';
 
   // Product data extractors for different sites
   const extractors = {
@@ -264,8 +264,21 @@
         
         // Find the main product-details container first (prevents false positives)
         function findProductDetailsContainer() {
-          // Best Buy-specific selectors for the main product content area
+          // IMPORTANT: Best Buy pages often contain "pdp-*" classes inside carousels/recommendations.
+          // We score candidates and explicitly penalize/skip "related/carousel" wrappers.
+
+          const titleText = (document.querySelector('h1')?.textContent || '').trim();
+          const badContainerPattern = /(related|carousel|recommend|recommended|similar|sponsored|flex-carousel|wrapper)/i;
+
           const productSelectors = [
+            // Prefer main content anchors first
+            'main',
+            '[role="main"]',
+            '[data-testid="pdp-content"]',
+            '[data-testid*="pdp" i]',
+            '[data-testid*="product" i]',
+
+            // Then product modules
             '[data-testid="product-details"]',
             '[class*="product-details"]',
             '[class*="productDetails"]',
@@ -274,44 +287,90 @@
             '.shop-pdp-container',
             '#shop-product-content',
             '[class*="product-page"]',
-            '[class*="pdp-"]',
-            '[role="main"]',
-            'main',
             '#main-content'
           ];
-          
+
+          const candidates = new Set();
           for (const selector of productSelectors) {
             try {
-              const container = document.querySelector(selector);
-              if (container && container.textContent.length > 500) {
-                console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Product container found via: ${selector}`);
-                return container;
-              }
-            } catch (e) {
+              document.querySelectorAll(selector).forEach((el) => candidates.add(el));
+            } catch {
               // Invalid selector, skip
             }
           }
-          
-          // Fallback: find the largest content div that contains product info
-          const candidates = document.querySelectorAll('div[class*="content"], div[class*="product"], section');
+
+          const scoreContainer = (el) => {
+            const text = el?.textContent || '';
+            const classId = `${el?.id || ''} ${el?.className || ''}`;
+            const classIdLower = classId.toLowerCase();
+
+            let score = 0;
+
+            // Penalize obvious non-product wrappers
+            if (badContainerPattern.test(classIdLower)) score -= 10;
+
+            // Reward presence of expected signals
+            const textLower = text.toLowerCase();
+            if (titleText && text.includes(titleText)) score += 5;
+            if (textLower.includes('specifications') || textLower.includes('key specs')) score += 5;
+            if (/\$\s*\d/.test(text)) score += 3;
+
+            // Prefer substantial containers
+            if (text.length > 800) score += 2;
+            if (text.length > 3000) score += 2;
+
+            return score;
+          };
+
           let best = null;
-          let bestScore = 0;
-          
-          for (const c of candidates) {
-            const hasProductInfo = c.textContent.includes('Add to Cart') || 
-                                   c.textContent.includes('Price') ||
-                                   c.querySelector('[class*="price"]');
-            const score = hasProductInfo ? c.textContent.length : 0;
+          let bestScore = -Infinity;
+
+          for (const el of candidates) {
+            if (!el || !el.textContent || el.textContent.length < 500) continue;
+
+            const classIdLower = `${el.id || ''} ${el.className || ''}`.toLowerCase();
+
+            // Hard reject: small related/recommendation carousels are common false positives
+            if (badContainerPattern.test(classIdLower) && el.textContent.length < 8000) continue;
+
+            const score = scoreContainer(el);
             if (score > bestScore) {
               bestScore = score;
-              best = c;
+              best = el;
             }
           }
-          
+
           if (best) {
+            console.log(
+              `FB Lister v${EXTENSION_VERSION}: [Layer B] Product container chosen (score=${bestScore}): ${best.tagName} ${(best.id ? '#' + best.id : '')} ${(best.className ? '.' + String(best.className).trim().split(/\s+/).slice(0, 3).join('.') : '')}`
+            );
+            return best;
+          }
+
+          // Fallback: find the largest content div that contains product info
+          const fallbackCandidates = document.querySelectorAll('div[class*="content"], div[class*="product"], section');
+          let fallbackBest = null;
+          let fallbackBestScore = 0;
+
+          for (const c of fallbackCandidates) {
+            const classIdLower = `${c.id || ''} ${c.className || ''}`.toLowerCase();
+            if (badContainerPattern.test(classIdLower) && c.textContent.length < 8000) continue;
+
+            const hasProductInfo = c.textContent.includes('Add to Cart') ||
+              c.textContent.includes('Price') ||
+              c.querySelector('[class*="price"], [data-testid*="price"]');
+
+            const score = hasProductInfo ? c.textContent.length : 0;
+            if (score > fallbackBestScore) {
+              fallbackBestScore = score;
+              fallbackBest = c;
+            }
+          }
+
+          if (fallbackBest) {
             console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Product container found via fallback heuristic`);
           }
-          return best;
+          return fallbackBest;
         }
         
         function extractByHeadings() {
@@ -608,54 +667,67 @@
         // Extract product overview/short description as Features fallback
         function extractOverviewAsFeatures() {
           console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Attempting overview extraction as Features fallback...`);
-          
+
           // Best Buy commonly uses these patterns for marketing description
           const overviewSelectors = [
             '[data-testid*="summary" i]',
             '[data-testid*="description" i]',
+            '[data-testid*="overview" i]',
             '[class*="shortDescription" i]',
             '[class*="longDescription" i]',
             '[class*="overview" i]',
             '[class*="product-overview" i]'
           ];
-          
+
           for (const selector of overviewSelectors) {
             try {
               const element = document.querySelector(selector);
-              if (element) {
-                const text = element.textContent?.trim();
-                if (text && text.length > 100 && text.length < 1500 && !isBoilerplate(text)) {
-                  console.log(`  ✅ Overview found via: ${selector} (${text.length} chars)`);
-                  console.log(`  featuresSource: OVERVIEW`);
-                  return [text];
-                }
+              if (!element) continue;
+
+              const text = element.textContent?.trim();
+              if (text && text.length >= 80 && text.length <= 2000 && !isBoilerplate(text)) {
+                console.log(`  ✅ Overview found via: ${selector} (${text.length} chars)`);
+                console.log(`  featuresSource: OVERVIEW`);
+                return [text];
               }
-            } catch (e) {
+            } catch {
               // Invalid selector
             }
           }
-          
-          // Fallback: Find paragraph near title block (within reasonable bounds)
+
+          // Fallback: Find the first meaningful text block after the title
           const titleEl = document.querySelector('h1.heading-5, h1[class*="heading"], h1');
           if (titleEl) {
-            const titleContainer = titleEl.closest('[class*="product"], section, [role="main"], main');
-            if (titleContainer) {
-              const paragraphs = titleContainer.querySelectorAll('p');
-              for (const p of paragraphs) {
-                const text = p.textContent?.trim();
-                // Must be near title, substantial, not boilerplate, not reviews/Q&A
-                if (text && text.length > 100 && text.length < 1000 && 
-                    !isBoilerplate(text) && 
-                    !text.toLowerCase().includes('review') &&
-                    !text.toLowerCase().includes('question')) {
-                  console.log(`  ✅ Overview found via paragraph near title (${text.length} chars)`);
-                  console.log(`  featuresSource: OVERVIEW`);
-                  return [text];
-                }
+            const titleContainer = titleEl.closest('main, [role="main"], [class*="product"], section') || document.querySelector('main') || document.body;
+
+            const blocks = titleContainer.querySelectorAll('p, div, span');
+            for (const el of blocks) {
+              // Only consider blocks that come AFTER the title in the DOM
+              if (!(titleEl.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+
+              const text = el.textContent?.trim();
+              if (!text) continue;
+
+              const lower = text.toLowerCase();
+              const looksLikeJunk = lower.includes('review') || lower.includes('question') || lower.includes('q&a');
+
+              // Avoid huge containers; prefer simple blocks
+              const tooComplex = (el.children?.length || 0) > 6;
+
+              if (
+                text.length >= 80 &&
+                text.length <= 1200 &&
+                !looksLikeJunk &&
+                !tooComplex &&
+                !isBoilerplate(text)
+              ) {
+                console.log(`  ✅ Overview found via first block after title (${text.length} chars)`);
+                console.log(`  featuresSource: OVERVIEW`);
+                return [text];
               }
             }
           }
-          
+
           console.log(`  ❌ No suitable overview paragraph found`);
           return [];
         }
