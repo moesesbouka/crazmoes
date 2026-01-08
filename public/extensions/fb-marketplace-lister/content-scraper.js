@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.4.5 - 3-Layer extraction: Embedded JSON → Heading-Driven DOM → Filtered Meta
+// Version 1.4.8 - Improved aria-first container detection & text walking
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.7';
+  const EXTENSION_VERSION = '1.4.8';
 
   // Product data extractors for different sites
   const extractors = {
@@ -339,76 +339,89 @@
             if (text === 'features' || text === 'key features' || text === 'highlights' || 
                 (text.includes('features') && text.length < 30)) {
               
-              // DIAGNOSTIC: Log exactly which heading we're considering
-              const headingPath = `${heading.tagName} > ${heading.parentElement?.className?.substring(0, 40) || 'no-class'}`;
-              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Evaluating Features heading:`);
-              console.log(`  - Text: "${text}"`);
-              console.log(`  - Path: ${headingPath}`);
+              // DIAGNOSTIC: Enhanced logging per ChatGPT recommendations
+              const headingPath = `${heading.tagName} > ${heading.parentElement?.className?.substring(0, 50) || 'no-class'}`;
+              console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] === FEATURES HEADING DETECTED ===`);
+              console.log(`  featuresHeadingText: "${text}"`);
+              console.log(`  featuresHeadingHTML: ${heading.outerHTML?.slice(0, 150)}`);
+              console.log(`  featuresHeadingPath: ${headingPath}`);
               
-              // Get the container holding the features content
+              // Get the container holding the features content (using aria-first approach)
               const container = findContentContainer(heading);
               if (container) {
-                const containerSample = container.textContent?.trim().substring(0, 120) || '';
-                console.log(`  - Container Sample: "${containerSample}..."`);
-                console.log(`  - Container Length: ${container.textContent.length} chars`);
+                const containerSample = container.textContent?.trim().substring(0, 150) || '';
+                console.log(`  featuresContainerSample: "${containerSample}..."`);
+                console.log(`  featuresContainerClass: ${container.className}`);
+                console.log(`  featuresContainerTag: ${container.tagName}`);
+                console.log(`  featuresContainerLength: ${container.textContent.length} chars`);
                 
-                // Method 1: Prefer bullet lists (li elements)
-                const bullets = [];
-                container.querySelectorAll('li').forEach(li => {
-                  const liText = li.textContent?.trim();
-                  if (liText && liText.length > 15 && liText.length < 500 && !isBoilerplate(liText)) {
-                    bullets.push(liText);
+                // CRITICAL CHECK: Are we accidentally in specs territory?
+                const lowerSample = containerSample.toLowerCase();
+                if (lowerSample.includes('key specs') || lowerSample.includes('general') || 
+                    lowerSample.includes('ports') || lowerSample.includes('dimensions')) {
+                  console.log(`  ⚠️ WARNING: Container looks like SPECS, not Features. Trying text-walking approach...`);
+                  
+                  // Use text-walking approach instead
+                  const walkedText = extractTextUntilNextHeading(heading);
+                  if (walkedText && walkedText.length > 50) {
+                    console.log(`  ✅ Text-walking found ${walkedText.length} chars of features`);
+                    result.features.push(walkedText);
                   }
-                });
-                
-                if (bullets.length > 0) {
-                  console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${bullets.length} bullet features`);
-                  result.features.push(...bullets);
                 } else {
-                  // Method 2: Extract paragraph/text blocks until next section heading
-                  console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] No bullets, trying paragraph/block extraction...`);
+                  // Method 1: Prefer bullet lists (li elements)
+                  const bullets = [];
+                  container.querySelectorAll('li').forEach(li => {
+                    const liText = li.textContent?.trim();
+                    if (liText && liText.length > 15 && liText.length < 500 && !isBoilerplate(liText)) {
+                      bullets.push(liText);
+                    }
+                  });
                   
-                  const textBlocks = [];
-                  
-                  // Walk through child nodes, collecting text until we hit another major heading
-                  const collectTextFromContainer = (node) => {
-                    if (!node) return;
+                  if (bullets.length > 0) {
+                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${bullets.length} bullet features`);
+                    result.features.push(...bullets);
+                  } else {
+                    // Method 2: Use text-walking approach (extractTextUntilNextHeading)
+                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] No bullets, using text-walking extraction...`);
                     
-                    // Check all child elements
-                    const children = node.querySelectorAll('p, div, span');
-                    for (const child of children) {
-                      // Stop if we hit another section heading
-                      const childText = child.textContent?.toLowerCase() || '';
-                      if (childText.includes('specifications') || childText.includes('reviews') || 
-                          childText.includes('questions') || childText.includes('compare')) {
-                        if (child.tagName === 'H2' || child.tagName === 'H3' || child.tagName === 'H4' ||
-                            child.tagName === 'BUTTON') {
-                          break;
+                    const walkedText = extractTextUntilNextHeading(heading);
+                    if (walkedText && walkedText.length > 50) {
+                      console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Text-walking found ${walkedText.length} chars`);
+                      result.features.push(walkedText);
+                    } else {
+                      // Method 3: Fallback to container text blocks
+                      console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Text-walking insufficient, trying container blocks...`);
+                      
+                      const textBlocks = [];
+                      const children = container.querySelectorAll('p, div, span');
+                      for (const child of children) {
+                        const childText = child.textContent?.toLowerCase() || '';
+                        if (childText.includes('specifications') || childText.includes('reviews')) break;
+                        
+                        const blockText = child.textContent?.trim();
+                        if (blockText && blockText.length > 30 && blockText.length < 1000 && 
+                            !isBoilerplate(blockText) && child.children.length <= 2) {
+                          textBlocks.push(blockText);
                         }
                       }
                       
-                      // Only collect from leaf-ish elements
-                      const text = child.textContent?.trim();
-                      if (text && text.length > 30 && text.length < 1000 && !isBoilerplate(text)) {
-                        // Check if this is actual content (not just wrapper element)
-                        if (child.children.length <= 2) {
-                          textBlocks.push(text);
-                        }
+                      const uniqueBlocks = [...new Set(textBlocks)];
+                      if (uniqueBlocks.length > 0) {
+                        console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${uniqueBlocks.length} text blocks`);
+                        result.features.push(...uniqueBlocks.slice(0, 5));
                       }
                     }
-                  };
-                  
-                  collectTextFromContainer(container);
-                  
-                  // Dedupe and use
-                  const uniqueBlocks = [...new Set(textBlocks)];
-                  if (uniqueBlocks.length > 0) {
-                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${uniqueBlocks.length} text blocks for features`);
-                    result.features.push(...uniqueBlocks.slice(0, 5));
                   }
                 }
               } else {
-                console.log(`  - Container: NOT FOUND`);
+                console.log(`  featuresContainer: NOT FOUND - trying text-walking from heading`);
+                
+                // No container found, try text-walking approach directly
+                const walkedText = extractTextUntilNextHeading(heading);
+                if (walkedText && walkedText.length > 50) {
+                  console.log(`  ✅ Text-walking (no container) found ${walkedText.length} chars`);
+                  result.features.push(walkedText);
+                }
               }
             }
             
@@ -483,44 +496,79 @@
           return result;
         }
         
-        // Find the content container below a heading
+        // Find the content container below a heading (aria-first approach)
         function findContentContainer(heading) {
-          // Try direct next sibling
+          // 0) If heading is inside a button, treat the button as the controller
+          const btn = heading.closest('button[aria-controls], button[aria-expanded]');
+          if (btn) {
+            const id = btn.getAttribute('aria-controls');
+            if (id) {
+              const panel = document.getElementById(id);
+              if (panel && panel.textContent.trim().length > 50) return panel;
+            }
+            // sometimes panel is next sibling of button wrapper
+            const maybePanel = btn.parentElement?.nextElementSibling || btn.nextElementSibling;
+            if (maybePanel && maybePanel.textContent.trim().length > 50) return maybePanel;
+          }
+
+          // 1) aria-labelledby relationship (super common in React UIs)
+          const hid = heading.getAttribute('id');
+          if (hid) {
+            const labelled = document.querySelector(`[aria-labelledby="${CSS.escape(hid)}"]`);
+            if (labelled && labelled.textContent.trim().length > 50) return labelled;
+          }
+
+          // 2) tabpanel containment (if features is inside a tab/accordion)
+          const tabPanel = heading.closest('[role="tabpanel"], [data-testid*="tabpanel"], [class*="tabpanel"]');
+          if (tabPanel && tabPanel.textContent.trim().length > 100) return tabPanel;
+
+          // 3) fallback: nearest reasonable section wrapper
+          const section = heading.closest('section, [data-testid*="section"], [class*="section"], [class*="content"]');
+          if (section && section.textContent.trim().length > 150) return section;
+
+          // 4) last resort: sibling heuristics
           let container = heading.nextElementSibling;
-          if (container && container.textContent.length > 50) return container;
-          
-          // Try parent's next sibling
+          if (container && container.textContent.trim().length > 50) return container;
+
           const parent = heading.parentElement;
           if (parent) {
             container = parent.nextElementSibling;
-            if (container && container.textContent.length > 50) return container;
+            if (container && container.textContent.trim().length > 50) return container;
           }
-          
-          // Try closest section/div and look for content
-          const section = heading.closest('section, div[class*="section"], div[class*="content"]');
-          if (section) {
-            // Find a content area that's not the heading itself
-            for (const child of section.children) {
-              if (child !== heading && child !== parent && child.textContent.length > 100) {
-                return child;
-              }
-            }
-            return section;
-          }
-          
-          // If heading is a button (accordion), check for expanded panel
-          if (heading.tagName === 'BUTTON') {
-            const ariaControls = heading.getAttribute('aria-controls');
-            if (ariaControls) {
-              const panel = document.getElementById(ariaControls);
-              if (panel) return panel;
-            }
-            // Check next sibling which might be the panel
-            const nextEl = heading.nextElementSibling || heading.parentElement?.nextElementSibling;
-            if (nextEl && nextEl.textContent.length > 50) return nextEl;
-          }
-          
+
           return null;
+        }
+        
+        // Extract text by walking forward until the next section heading
+        function extractTextUntilNextHeading(heading) {
+          const parts = [];
+          const stopTags = new Set(['H1','H2','H3','H4','H5','H6']);
+          const stopPatterns = /specifications|reviews|warranty|support|related|compare|q&a|questions/i;
+
+          let node = heading.nextSibling;
+
+          // If heading has no siblings, start from parent's next nodes
+          if (!node) node = heading.parentElement?.nextSibling;
+
+          while (node) {
+            if (node.nodeType === 1) { // element
+              const tag = node.tagName;
+              // Stop when we hit the next heading-ish block
+              if (stopTags.has(tag)) break;
+              
+              // Stop if this node contains a stop-pattern heading
+              const innerHeading = node.querySelector?.('h1,h2,h3,h4,h5,h6');
+              if (innerHeading && stopPatterns.test(innerHeading.textContent)) break;
+
+              // Collect meaningful text
+              const text = node.textContent?.trim();
+              if (text && text.length > 60 && !isBoilerplate(text)) parts.push(text);
+            }
+            node = node.nextSibling;
+          }
+
+          // Dedupe
+          return [...new Set(parts)].join('\n\n').trim();
         }
         
         // Check if text is boilerplate
