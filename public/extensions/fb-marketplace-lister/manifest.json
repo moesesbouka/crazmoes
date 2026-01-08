@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FB Marketplace Lister - Crazy Moe's",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Copy product data from any shopping site and create Facebook Marketplace listings with one click",
   "permissions": [
     "activeTab",
