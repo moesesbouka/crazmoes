@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.4.2 - Improved Best Buy image filtering + deduplication
+// Version 1.4.3 - Fixed Best Buy description extraction with 3-tier fallback
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.2';
+  const EXTENSION_VERSION = '1.4.3';
 
   // Product data extractors for different sites
   const extractors = {
@@ -80,8 +80,8 @@
     },
     bestbuy: {
       match: /bestbuy\.com/,
-      extract: () => {
-        console.log(`FB Lister v${EXTENSION_VERSION}: Extracting Best Buy product data...`);
+      extract: async () => {
+        console.log(`FB Lister v${EXTENSION_VERSION}: Extracting Best Buy product data (async)...`);
 
         // Normalize Best Buy image URL for consistent deduplication
         function normalizeImageUrl(url) {
@@ -134,37 +134,103 @@
           return filename.toLowerCase();
         }
 
-        // Extract Specifications from DOM
+        // TIER 1: Try to expand collapsed accordions first
+        async function expandAccordions() {
+          const buttons = document.querySelectorAll('button, [role="button"], [data-testid*="accordion"]');
+          let expanded = 0;
+          
+          for (const btn of buttons) {
+            const text = (btn.textContent || '').toLowerCase();
+            const ariaExpanded = btn.getAttribute('aria-expanded');
+            
+            // Only click if it's a features/specs accordion that's collapsed
+            if ((text.includes('features') || text.includes('specifications') || text.includes('specs')) 
+                && ariaExpanded === 'false') {
+              try {
+                btn.click();
+                expanded++;
+                await new Promise(r => setTimeout(r, 300)); // Wait for content to load
+              } catch (e) {
+                console.log(`FB Lister v${EXTENSION_VERSION}: Could not click accordion`, e);
+              }
+            }
+          }
+          
+          console.log(`FB Lister v${EXTENSION_VERSION}: Expanded ${expanded} accordions`);
+          return expanded;
+        }
+
+        // Extract Specifications from DOM - TIER 2: Enhanced selectors
         function extractSpecifications() {
           const specs = [];
           
-          // Look for spec tables with label-value pairs
-          const specRows = document.querySelectorAll('[class*="specifications"] li, [class*="spec"] li');
-          specRows.forEach(row => {
-            const label = row.querySelector('[class*="name"], [class*="label"], dt, .spec-name')?.textContent?.trim();
-            const value = row.querySelector('[class*="value"], dd, .spec-value')?.textContent?.trim();
-            if (label && value) {
-              specs.push(`${label}: ${value}`);
+          // Best Buy specific: Look for spec rows in accordion content
+          const bbSpecSelectors = [
+            // Accordion-based specs (new Best Buy layout)
+            '[class*="accordion"] [class*="specification"] li',
+            '[class*="accordion"] dl dt',
+            '[data-testid*="spec"] li',
+            // Table-based specs
+            'table[class*="spec"] tr',
+            '[class*="specifications-table"] tr',
+            // List-based specs
+            '[class*="specifications"] li',
+            '[class*="spec-list"] li',
+            'ul[class*="spec"] li'
+          ];
+          
+          for (const selector of bbSpecSelectors) {
+            const items = document.querySelectorAll(selector);
+            if (items.length > 0) {
+              items.forEach(item => {
+                // Handle table rows
+                if (item.tagName === 'TR') {
+                  const cells = item.querySelectorAll('td, th');
+                  if (cells.length >= 2) {
+                    const label = cells[0].textContent?.trim();
+                    const value = cells[1].textContent?.trim();
+                    if (label && value && label !== value) {
+                      specs.push(`${label}: ${value}`);
+                    }
+                  }
+                }
+                // Handle dt/dd pairs
+                else if (item.tagName === 'DT') {
+                  const dd = item.nextElementSibling;
+                  if (dd && dd.tagName === 'DD') {
+                    specs.push(`${item.textContent?.trim()}: ${dd.textContent?.trim()}`);
+                  }
+                }
+                // Handle list items with label/value structure
+                else {
+                  const label = item.querySelector('[class*="name"], [class*="label"], .row-title, span:first-child')?.textContent?.trim();
+                  const value = item.querySelector('[class*="value"], .row-value, span:last-child')?.textContent?.trim();
+                  if (label && value && label !== value) {
+                    specs.push(`${label}: ${value}`);
+                  } else {
+                    // Fallback: check if text contains colon separator
+                    const text = item.textContent?.trim();
+                    if (text && text.includes(':') && text.length < 200) {
+                      specs.push(text);
+                    }
+                  }
+                }
+              });
+              if (specs.length > 0) break;
             }
-          });
-
-          // Alternative: look for definition lists
-          if (specs.length === 0) {
-            const dlPairs = document.querySelectorAll('dl[class*="spec"] dt');
-            dlPairs.forEach(dt => {
-              const dd = dt.nextElementSibling;
-              if (dd && dd.tagName === 'DD') {
-                specs.push(`${dt.textContent?.trim()}: ${dd.textContent?.trim()}`);
-              }
-            });
           }
 
-          // Alternative: look for spec detail sections
+          // Fallback: look for any visible text that looks like specs
           if (specs.length === 0) {
-            document.querySelectorAll('[class*="specifications"] [class*="detail"], [class*="spec-group"]').forEach(el => {
+            document.querySelectorAll('[class*="spec"], [data-testid*="spec"]').forEach(el => {
               const text = el.textContent?.trim();
-              if (text && text.includes(':')) {
-                specs.push(text);
+              if (text && text.includes(':') && text.length < 300 && text.length > 5) {
+                const lines = text.split('\n').filter(l => l.includes(':'));
+                lines.forEach(line => {
+                  if (line.trim().length > 5 && line.trim().length < 150) {
+                    specs.push(line.trim());
+                  }
+                });
               }
             });
           }
@@ -173,25 +239,56 @@
           return specs.slice(0, 15); // Limit to 15 key specs
         }
 
-        // Extract Features from DOM
+        // Extract Features from DOM - TIER 2: Enhanced selectors
         function extractFeatures() {
           const features = [];
           
-          // Try multiple selectors for features section
-          const featureSelectors = [
+          // Best Buy specific: Look for features in accordion content and various containers
+          const bbFeatureSelectors = [
+            // Accordion-based features (new Best Buy layout)
+            '[class*="accordion"] [class*="feature"] li',
+            '[data-testid*="feature"] li',
+            // Product highlights/bullets
+            '[class*="product-description"] li',
+            '[class*="long-description"] li',
+            '.product-data-value li',
+            // Generic feature lists
             '[class*="features"] li',
             '[class*="feature-list"] li',
-            '[data-testid*="feature"] li',
-            '.features-content li',
-            '[class*="product-feature"] li'
+            '[class*="highlights"] li',
+            // About this item sections
+            '[class*="about"] li',
+            '.about-this-item li'
           ];
           
-          for (const selector of featureSelectors) {
+          for (const selector of bbFeatureSelectors) {
             const items = document.querySelectorAll(selector);
             if (items.length > 0) {
               items.forEach(item => {
                 const text = item.textContent?.trim();
                 if (text && text.length > 10 && text.length < 500) {
+                  // Avoid duplicates
+                  if (!features.some(f => f === text)) {
+                    features.push(text);
+                  }
+                }
+              });
+              if (features.length > 0) break;
+            }
+          }
+
+          // Fallback: look for any descriptive paragraphs
+          if (features.length === 0) {
+            const paraSelectors = [
+              '[class*="product-description"] p',
+              '[class*="long-description"] p',
+              '[class*="features"] p',
+              '.shop-product-description p'
+            ];
+            for (const selector of paraSelectors) {
+              document.querySelectorAll(selector).forEach(p => {
+                const text = p.textContent?.trim();
+                if (text && text.length > 20 && text.length < 600) {
                   features.push(text);
                 }
               });
@@ -199,18 +296,18 @@
             }
           }
 
-          // Alternative: look for feature paragraphs
-          if (features.length === 0) {
-            document.querySelectorAll('[class*="features"] p, [class*="feature-description"] p').forEach(p => {
-              const text = p.textContent?.trim();
-              if (text && text.length > 20) {
-                features.push(text);
-              }
-            });
-          }
-
           console.log(`FB Lister v${EXTENSION_VERSION}: Found ${features.length} features`);
           return features.slice(0, 8); // Limit to 8 key features
+        }
+
+        // TIER 3: Get meta description as guaranteed fallback
+        function getMetaDescription() {
+          const metaDesc = 
+            document.querySelector('meta[name="description"]')?.getAttribute('content') ||
+            document.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+            '';
+          console.log(`FB Lister v${EXTENSION_VERSION}: Meta description length: ${metaDesc.length}`);
+          return metaDesc.trim();
         }
 
         // Collect and deduplicate images
@@ -259,8 +356,11 @@
           return images;
         }
 
+        // TIER 1: First try to expand accordions to reveal Features/Specs content
+        await expandAccordions();
+
         // Prefer JSON-LD (much more stable than DOM selectors on BestBuy)
-        const jsonLdResult = (() => {
+        const jsonLdResult = await (async () => {
           try {
             const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
             const nodes = [];
@@ -308,10 +408,12 @@
             const features = extractFeatures();
             
             let description = '';
+            let descSource = 'none';
             
             // Start with JSON-LD description if available
             if (jsonLdDescription) {
               description = jsonLdDescription + '\n\n';
+              descSource = 'jsonld';
             }
             
             // Add features section
@@ -321,6 +423,7 @@
                 description += `• ${f}\n`;
               });
               description += '\n';
+              descSource = descSource === 'jsonld' ? 'jsonld+dom' : 'dom';
             }
             
             // Add specifications section
@@ -329,19 +432,31 @@
               specs.forEach(s => {
                 description += `• ${s}\n`;
               });
+              descSource = descSource.includes('dom') ? descSource : (descSource === 'jsonld' ? 'jsonld+dom' : 'dom');
             }
             
             description = description.trim();
+            
+            // TIER 3: If description is still empty or very short, use meta fallback
+            if (description.length < 50) {
+              const metaDesc = getMetaDescription();
+              if (metaDesc) {
+                description = metaDesc;
+                descSource = 'meta';
+                console.log(`FB Lister v${EXTENSION_VERSION}: Using meta description fallback`);
+              }
+            }
             
             // Limit to ~2000 chars for FB Marketplace
             if (description.length > 2000) {
               description = description.substring(0, 1997) + '...';
             }
 
-            console.log(`FB Lister v${EXTENSION_VERSION}: BestBuy JSON-LD extracted`, {
+            console.log(`FB Lister v${EXTENSION_VERSION}: BestBuy extracted`, {
               title,
               price,
               descriptionLen: description.length,
+              descSource,
               images: images.length,
               specsCount: specs.length,
               featuresCount: features.length
@@ -394,12 +509,30 @@
         }
         description = description.trim();
         
+        // TIER 3: If description is still empty, use meta fallback
+        if (description.length < 50) {
+          const metaDesc = getMetaDescription();
+          if (metaDesc) {
+            description = metaDesc;
+            console.log(`FB Lister v${EXTENSION_VERSION}: DOM fallback using meta description`);
+          }
+        }
+        
         if (description.length > 2000) {
           description = description.substring(0, 1997) + '...';
         }
 
         // Collect images with deduplication
         const images = collectImages([]);
+
+        console.log(`FB Lister v${EXTENSION_VERSION}: BestBuy DOM fallback extracted`, {
+          title,
+          price,
+          descriptionLen: description.length,
+          images: images.length,
+          specsCount: specs.length,
+          featuresCount: features.length
+        });
 
         return { title, price, description, images };
       }
@@ -528,7 +661,8 @@
       let productData = null;
       for (const [site, extractor] of Object.entries(extractors)) {
         if (extractor.match.test(window.location.href)) {
-          productData = extractor.extract();
+          // Handle both sync and async extractors
+          productData = await Promise.resolve(extractor.extract());
           break;
         }
       }
