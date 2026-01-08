@@ -1,4 +1,5 @@
 // FB Marketplace Lister - Content Script for Facebook Marketplace Create Page
+// Version 1.4.2 - Fixed duplicate function, improved description detection + debug toast
 (function() {
   'use strict';
 
@@ -20,6 +21,46 @@
     checkForPendingData();
   }
 
+  // Show debug toast on Facebook page
+  function showDebugToast(info) {
+    const existing = document.querySelector('#fb-lister-debug-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'fb-lister-debug-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 80px;
+      left: 20px;
+      z-index: 999999;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      max-width: 300px;
+      line-height: 1.6;
+    `;
+
+    toast.innerHTML = `
+      <div style="font-weight: 600; margin-bottom: 6px; color: #4fc3f7;">
+        FB Lister v1.4.2 Debug
+      </div>
+      <div>
+        <div>📝 Pending desc: ${info.descLen} chars</div>
+        <div>🖼️ Pending images: ${info.imageCount}</div>
+        <div>🔍 Desc field found: ${info.descFieldFound ? '✅ yes' : '❌ no'}</div>
+        <div>✏️ Desc insert: ${info.descInsertResult ? '✅ success' : '❌ failed'}</div>
+        ${info.descFieldTag ? `<div style="opacity:0.7">Field: ${info.descFieldTag}</div>` : ''}
+      </div>
+    `;
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 8000);
+  }
+
   // Fetch image as blob via background script (to handle CORS)
   async function fetchImageAsBlob(url) {
     return new Promise((resolve) => {
@@ -31,6 +72,7 @@
             .then(blob => resolve(blob))
             .catch(() => resolve(null));
         } else {
+          console.log('FB Lister: Image fetch failed for', url, response?.error);
           resolve(null);
         }
       });
@@ -83,7 +125,7 @@
     const files = [];
     for (let i = 0; i < Math.min(images.length, 10); i++) {
       const url = images[i];
-      console.log('FB Lister: Fetching image', i + 1, ':', url);
+      console.log('FB Lister: Fetching image', i + 1, ':', url.substring(0, 80));
       
       const blob = await fetchImageAsBlob(url);
       if (blob) {
@@ -91,7 +133,7 @@
         const fileName = 'product-image-' + (i + 1) + '.' + extension;
         const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
         files.push(file);
-        console.log('FB Lister: Created file:', fileName, 'size:', file.size, 'type:', file.type);
+        console.log('FB Lister: Created file:', fileName, 'size:', file.size);
       }
     }
 
@@ -256,34 +298,68 @@
   function fillContentEditable(element, value) {
     if (!element || !value) return false;
     
-    console.log('FB Lister: Filling contentEditable element');
+    console.log('FB Lister: Filling contentEditable element', element.tagName, element.className);
     
-    // Focus and clear
-    element.focus();
+    // Find the actual editable node (Facebook nests these)
+    let editableNode = element;
     
-    // Try using execCommand first (more reliable for React)
+    // If element has role="textbox" but isn't contenteditable, find the real editable child
+    if (element.getAttribute('contenteditable') !== 'true') {
+      const innerEditable = element.querySelector('[contenteditable="true"]') || 
+                           element.querySelector('[data-contents="true"]') ||
+                           element.querySelector('div[data-text="true"]');
+      if (innerEditable) {
+        editableNode = innerEditable;
+        console.log('FB Lister: Found inner editable node');
+      }
+    }
+    
+    // Focus the element
+    editableNode.focus();
+    
+    // Try using execCommand first (more reliable for React/Draft.js)
+    let success = false;
     try {
       document.execCommand('selectAll', false, null);
-      document.execCommand('insertText', false, value);
-      console.log('FB Lister: Used execCommand to fill contentEditable');
+      success = document.execCommand('insertText', false, value);
+      console.log('FB Lister: execCommand insertText result:', success);
     } catch (e) {
-      // Fallback to direct manipulation
-      element.textContent = value;
-      element.innerHTML = value.replace(/\n/g, '<br>');
+      console.log('FB Lister: execCommand failed:', e);
+    }
+    
+    // Verify insertion worked
+    const insertedText = editableNode.textContent || editableNode.innerText || '';
+    if (insertedText.length < 10) {
+      console.log('FB Lister: execCommand didnt work, trying fallback');
+      // Fallback: direct text manipulation
+      try {
+        editableNode.textContent = value;
+        editableNode.dispatchEvent(new InputEvent('input', { 
+          bubbles: true, 
+          cancelable: true,
+          inputType: 'insertFromPaste',
+          data: value 
+        }));
+        success = true;
+      } catch (e2) {
+        console.log('FB Lister: textContent fallback failed:', e2);
+      }
+    } else {
+      success = true;
     }
     
     // Fire all possible events
-    element.dispatchEvent(new Event('focus', { bubbles: true }));
-    element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-    element.dispatchEvent(new Event('blur', { bubbles: true }));
+    editableNode.dispatchEvent(new Event('focus', { bubbles: true }));
+    editableNode.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+    editableNode.dispatchEvent(new Event('change', { bubbles: true }));
+    editableNode.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    editableNode.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    editableNode.dispatchEvent(new Event('blur', { bubbles: true }));
     
-    return true;
+    return success;
   }
 
-  // Find and fill a specific field type
+  // Find title field
   function findTitleField() {
     const selectors = [
       'input[aria-label*="Title" i]',
@@ -314,6 +390,7 @@
     return null;
   }
 
+  // Find price field
   function findPriceField() {
     const selectors = [
       'input[aria-label*="Price" i]',
@@ -344,17 +421,16 @@
     return null;
   }
 
+  // Find description field - improved for Facebook's Draft.js editor
   function findDescriptionField() {
     console.log('FB Lister: Searching for description field...');
     
-    // Strategy 1: Direct selectors
+    // Strategy 1: Direct selectors for contenteditable with description labels
     const directSelectors = [
       '[aria-label*="Description" i][contenteditable="true"]',
       '[aria-label*="Describe" i][contenteditable="true"]',
       'textarea[aria-label*="Description" i]',
       'textarea[aria-label*="Describe" i]',
-      '[role="textbox"][aria-label*="Description" i]',
-      '[role="textbox"][aria-label*="Describe" i]',
       'textarea[placeholder*="Description" i]',
       'textarea[placeholder*="Describe" i]'
     ];
@@ -363,51 +439,77 @@
       try {
         const el = document.querySelector(sel);
         if (el) {
-          console.log('FB Lister: Found description via selector:', sel);
+          console.log('FB Lister: Found description via direct selector:', sel);
           return el;
         }
       } catch (e) {}
     }
     
-    // Strategy 2: Find all textboxes and check context
-    const textboxes = document.querySelectorAll('[role="textbox"], [contenteditable="true"], textarea');
+    // Strategy 2: Find role="textbox" with description context
+    // Facebook uses role="textbox" wrappers that contain the actual editable div
+    const textboxes = document.querySelectorAll('[role="textbox"]');
     console.log('FB Lister: Found', textboxes.length, 'textbox elements');
     
     for (const tb of textboxes) {
       const ariaLabel = (tb.getAttribute('aria-label') || '').toLowerCase();
       const placeholder = (tb.getAttribute('placeholder') || '').toLowerCase();
       
-      // Check the element itself
       if (ariaLabel.includes('description') || ariaLabel.includes('describe') ||
           placeholder.includes('description') || placeholder.includes('describe')) {
-        console.log('FB Lister: Found description via aria-label/placeholder');
+        console.log('FB Lister: Found description textbox via aria-label');
         return tb;
       }
       
-      // Check parent containers for description label
-      const parent = tb.closest('div[role="group"], label, div');
-      if (parent) {
-        const parentText = parent.textContent.toLowerCase();
-        if ((parentText.includes('description') || parentText.includes('describe')) && 
-            !parentText.includes('title') && !parentText.includes('price')) {
-          console.log('FB Lister: Found description via parent text');
+      // Check parent/ancestor for description label
+      const container = tb.closest('div[role="group"]') || tb.closest('label') || tb.parentElement?.parentElement;
+      if (container) {
+        const containerText = container.textContent?.toLowerCase() || '';
+        // Make sure it's the description field, not title or price
+        if ((containerText.includes('description') || containerText.includes('describe')) && 
+            !containerText.includes('title') && 
+            containerText.length < 500) {
+          console.log('FB Lister: Found description textbox via container text');
           return tb;
         }
       }
     }
     
-    // Strategy 3: Look for the 3rd major input area (after title and price)
-    const allInputs = document.querySelectorAll('input, textarea, [contenteditable="true"], [role="textbox"]');
-    let inputCount = 0;
+    // Strategy 3: Find all contenteditable elements
+    const editables = document.querySelectorAll('[contenteditable="true"]');
+    console.log('FB Lister: Found', editables.length, 'contenteditable elements');
+    
+    for (const ed of editables) {
+      const ariaLabel = (ed.getAttribute('aria-label') || '').toLowerCase();
+      if (ariaLabel.includes('description') || ariaLabel.includes('describe')) {
+        console.log('FB Lister: Found description contenteditable via aria-label');
+        return ed;
+      }
+      
+      // Check ancestor containers
+      const ancestor = ed.closest('div[role="group"]') || ed.closest('label');
+      if (ancestor) {
+        const text = ancestor.textContent?.toLowerCase() || '';
+        if ((text.includes('description') || text.includes('describe')) && 
+            text.length < 500) {
+          console.log('FB Lister: Found description contenteditable via ancestor');
+          return ed;
+        }
+      }
+    }
+    
+    // Strategy 4: Look for the 3rd major input area (order: title, price, description)
+    const allInputs = document.querySelectorAll('input:not([type="hidden"]), textarea, [contenteditable="true"], [role="textbox"]');
+    let visibleCount = 0;
     for (const input of allInputs) {
-      if (input.offsetParent !== null) { // visible
-        inputCount++;
-        if (inputCount >= 3) {
+      if (input.offsetParent !== null && input.offsetHeight > 0) {
+        visibleCount++;
+        // Description is typically the 3rd visible input and is a large field
+        if (visibleCount >= 3) {
           const isLargeField = input.tagName === 'TEXTAREA' || 
                                input.getAttribute('contenteditable') === 'true' ||
                                input.getAttribute('role') === 'textbox';
           if (isLargeField) {
-            console.log('FB Lister: Found description as 3rd visible input');
+            console.log('FB Lister: Found description as', visibleCount, 'th visible input');
             return input;
           }
         }
@@ -418,7 +520,7 @@
     return null;
   }
 
-  // Unified field finder and filler
+  // Unified field finder and filler (SINGLE DEFINITION - no duplicates!)
   function findAndFillField(labelText, value, isTextarea = false) {
     if (!value) return false;
     
@@ -435,92 +537,11 @@
     }
     
     if (element) {
-      console.log('FB Lister: Found', labelText, 'field:', element.tagName, element.className);
+      console.log('FB Lister: Found', labelText, 'field:', element.tagName, 
+                  'role:', element.getAttribute('role'),
+                  'contenteditable:', element.getAttribute('contenteditable'));
       
-      // Check if it's a contenteditable element
-      if (element.getAttribute('contenteditable') === 'true' || element.getAttribute('role') === 'textbox') {
-        return fillContentEditable(element, value);
-      }
-      return simulateNativeInput(element, value);
-    }
-    
-    console.log('FB Lister: Could not find field for:', labelText);
-    return false;
-  }
-
-  // Find input with multiple strategies
-  function findAndFillField(labelText, value, isTextarea = false) {
-    if (!value) return false;
-    
-    const lowerLabel = labelText.toLowerCase();
-    console.log('FB Lister: Looking for field:', labelText, 'isTextarea:', isTextarea);
-    
-    // Strategy 1: Find by aria-label (exact and partial)
-    let element = document.querySelector((isTextarea ? 'textarea' : 'input') + '[aria-label*="' + labelText + '" i]');
-    if (element) console.log('FB Lister: Found via aria-label');
-    
-    // Strategy 2: Find by placeholder
-    if (!element) {
-      element = document.querySelector((isTextarea ? 'textarea' : 'input') + '[placeholder*="' + labelText + '" i]');
-      if (element) console.log('FB Lister: Found via placeholder');
-    }
-    
-    // Strategy 3: For description, look for textareas or large text inputs
-    if (!element && isTextarea) {
-      // Facebook often uses spans with role="textbox" for description
-      const textboxes = document.querySelectorAll('[role="textbox"], textarea, [contenteditable="true"]');
-      for (const tb of textboxes) {
-        const ariaLabel = (tb.getAttribute('aria-label') || '').toLowerCase();
-        const placeholder = (tb.getAttribute('placeholder') || '').toLowerCase();
-        const parentText = (tb.closest('label, div[role="group"]')?.textContent || '').toLowerCase();
-        
-        if (ariaLabel.includes('description') || ariaLabel.includes('describe') ||
-            placeholder.includes('description') || placeholder.includes('describe') ||
-            parentText.includes('description') || parentText.includes('describe')) {
-          element = tb;
-          console.log('FB Lister: Found description textbox via role/content check');
-          break;
-        }
-      }
-    }
-    
-    // Strategy 4: Find label and get associated input
-    if (!element) {
-      const labels = document.querySelectorAll('label, span');
-      for (let i = 0; i < labels.length; i++) {
-        const label = labels[i];
-        if (label.textContent.toLowerCase().includes(lowerLabel)) {
-          const parent = label.closest('div');
-          if (parent) {
-            element = parent.querySelector(isTextarea ? 'textarea' : 'input');
-            if (!element && isTextarea) {
-              // Try contenteditable or role=textbox
-              element = parent.querySelector('[contenteditable="true"], [role="textbox"]');
-            }
-            if (element) {
-              console.log('FB Lister: Found via parent label');
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    // Strategy 5: Find any contentEditable divs with matching context (Facebook's approach)
-    if (!element) {
-      const editables = document.querySelectorAll('[contenteditable="true"], [role="textbox"]');
-      for (let i = 0; i < editables.length; i++) {
-        const editable = editables[i];
-        const parent = editable.closest('div[role="group"], div[class*="input"], label');
-        if (parent && parent.textContent.toLowerCase().includes(lowerLabel)) {
-          console.log('FB Lister: Found contentEditable for', labelText);
-          return fillContentEditable(editable, value);
-        }
-      }
-    }
-    
-    if (element) {
-      // Check if it's a contenteditable element
+      // Check if it's a contenteditable element or role=textbox
       if (element.getAttribute('contenteditable') === 'true' || element.getAttribute('role') === 'textbox') {
         return fillContentEditable(element, value);
       }
@@ -548,6 +569,15 @@
     button.innerHTML = 'Pasting...';
     button.classList.add('loading');
 
+    // Debug info to collect
+    const debugInfo = {
+      descLen: (pendingListing.description || '').length,
+      imageCount: (pendingListing.images || []).length,
+      descFieldFound: false,
+      descInsertResult: false,
+      descFieldTag: ''
+    };
+
     try {
       // Wait longer for Facebook's React form to fully initialize
       console.log('FB Lister: Waiting for form to initialize...');
@@ -564,23 +594,39 @@
 
       // Find and fill fields with delays between each
       let filledTitle = findAndFillField('Title', pendingListing.title);
-      await new Promise(function(resolve) { setTimeout(resolve, 300); });
+      await new Promise(function(resolve) { setTimeout(resolve, 400); });
       
       let filledPrice = findAndFillField('Price', pendingListing.price);
-      await new Promise(function(resolve) { setTimeout(resolve, 300); });
+      await new Promise(function(resolve) { setTimeout(resolve, 400); });
       
-      // Fill description
+      // Fill description - check if field exists first for debug
       let filledDesc = false;
       const descValue = pendingListing.description ? pendingListing.description.substring(0, 2000) : '';
+      
       if (descValue) {
+        // Pre-check: can we find the field?
+        const descField = findDescriptionField();
+        debugInfo.descFieldFound = !!descField;
+        if (descField) {
+          debugInfo.descFieldTag = descField.tagName + 
+            (descField.getAttribute('role') ? '[role=' + descField.getAttribute('role') + ']' : '') +
+            (descField.getAttribute('contenteditable') ? '[contenteditable]' : '');
+        }
+        
         filledDesc = findAndFillField('Description', descValue, true);
+        debugInfo.descInsertResult = filledDesc;
+        
         if (!filledDesc) {
           await new Promise(function(resolve) { setTimeout(resolve, 500); });
           filledDesc = findAndFillField('Describe', descValue, true);
+          debugInfo.descInsertResult = filledDesc;
         }
       }
 
       console.log('FB Lister: Fill results - Title:', filledTitle, 'Price:', filledPrice, 'Desc:', filledDesc, 'Images:', imagesUploaded);
+
+      // Show debug toast
+      showDebugToast(debugInfo);
 
       // Show success message
       if (imagesUploaded) {
@@ -591,7 +637,7 @@
       button.classList.remove('loading');
       button.classList.add('success');
 
-      console.log('=== FB Lister v1.4.1: Product Data ===');
+      console.log('=== FB Lister v1.4.2: Product Data ===');
       console.log('Title:', pendingListing.title);
       console.log('Price:', pendingListing.price);
       console.log('Description length:', (pendingListing.description || '').length);
@@ -608,6 +654,7 @@
 
     } catch (error) {
       console.error('Paste error:', error);
+      showDebugToast(debugInfo);
       button.innerHTML = 'Error - Try Again';
       button.classList.remove('loading');
       button.classList.add('error');
@@ -623,7 +670,7 @@
   // Initialize when on marketplace create page
   function init() {
     if (window.location.href.includes('facebook.com/marketplace/create')) {
-      console.log('FB Lister: Detected marketplace create page, adding paste button...');
+      console.log('FB Lister v1.4.2: Detected marketplace create page, adding paste button...');
       setTimeout(createPasteButton, 2000);
     }
   }
