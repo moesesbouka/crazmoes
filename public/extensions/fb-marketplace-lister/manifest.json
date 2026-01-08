@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FB Marketplace Lister - Crazy Moe's",
-  "version": "1.4.10",
-  "description": "Copy product data from shopping sites and create Facebook Marketplace listings with one click",
+  "version": "1.5.0",
+  "description": "Copy product data from any shopping site and create Facebook Marketplace listings with one click",
   "permissions": [
     "activeTab",
     "storage",
@@ -21,13 +21,7 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://www.amazon.com/*",
-        "https://www.ebay.com/*",
-        "https://www.walmart.com/*",
-        "https://www.bestbuy.com/*",
-        "https://www.target.com/*"
-      ],
+      "matches": ["<all_urls>"],
       "js": ["content-scraper.js"],
       "css": ["styles.css"]
     },

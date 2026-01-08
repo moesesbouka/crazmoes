@@ -1,9 +1,176 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.4.10 - Best Buy container scoring + looser overview fallback
+// Version 1.5.0 - Universal e-commerce support with generic extractor
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.10';
+  const EXTENSION_VERSION = '1.5.0';
+
+  // ============= UNIVERSAL EXTRACTION UTILITIES =============
+  
+  // Layer 1: Extract from JSON-LD / Schema.org (most reliable)
+  function extractFromJsonLd() {
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of scripts) {
+      try {
+        const data = JSON.parse(script.textContent);
+        // Handle both direct Product and @graph containing Product
+        const product = data['@type'] === 'Product' ? data : 
+                        (Array.isArray(data['@graph']) ? data['@graph'].find(item => item['@type'] === 'Product') : null);
+        
+        if (product) {
+          // Extract price from offers
+          let price = '';
+          if (product.offers) {
+            const offer = Array.isArray(product.offers) ? product.offers[0] : product.offers;
+            price = offer?.price || offer?.lowPrice || '';
+          }
+          
+          // Extract images
+          let images = [];
+          if (product.image) {
+            if (Array.isArray(product.image)) {
+              images = product.image.filter(img => typeof img === 'string' || img?.url).map(img => typeof img === 'string' ? img : img.url);
+            } else if (typeof product.image === 'string') {
+              images = [product.image];
+            } else if (product.image?.url) {
+              images = [product.image.url];
+            }
+          }
+          
+          return {
+            title: product.name || '',
+            price: String(price).replace(/[^0-9.]/g, ''),
+            description: product.description || '',
+            images: images.filter(Boolean)
+          };
+        }
+      } catch (e) {
+        // Not valid JSON, continue
+      }
+    }
+    return null;
+  }
+  
+  // Layer 2: Extract from Open Graph / Meta Tags
+  function extractFromMetaTags() {
+    const getMeta = (props) => {
+      for (const prop of props) {
+        const el = document.querySelector(`meta[property="${prop}"], meta[name="${prop}"]`);
+        if (el?.content) return el.content;
+      }
+      return '';
+    };
+    
+    const title = getMeta(['og:title', 'twitter:title']) || document.querySelector('h1')?.textContent?.trim() || '';
+    const price = getMeta(['product:price:amount', 'og:price:amount']) || '';
+    const description = getMeta(['og:description', 'twitter:description', 'description']) || '';
+    const image = getMeta(['og:image', 'twitter:image']);
+    
+    return {
+      title,
+      price: price.replace(/[^0-9.]/g, ''),
+      description,
+      images: image ? [image] : []
+    };
+  }
+  
+  // Layer 3: Extract from Generic DOM Patterns
+  function extractFromGenericDom() {
+    // Title: h1, itemprop, data-testid
+    const title = document.querySelector('h1')?.textContent?.trim() ||
+                  document.querySelector('[itemprop="name"]')?.textContent?.trim() || '';
+    
+    // Price: itemprop, common price patterns
+    let price = '';
+    const priceEl = document.querySelector('[itemprop="price"]') ||
+                    document.querySelector('[data-testid*="price" i]') ||
+                    document.querySelector('[class*="price" i]:not([class*="compare"])') ||
+                    document.querySelector('[class*="Price" i]:not([class*="Compare"])');
+    if (priceEl) {
+      price = (priceEl.getAttribute('content') || priceEl.textContent || '').replace(/[^0-9.]/g, '');
+    }
+    
+    // If no price found, search for $ pattern in visible text
+    if (!price) {
+      const priceMatch = document.body.innerText.match(/\$(\d+(?:\.\d{2})?)/);
+      if (priceMatch) price = priceMatch[1];
+    }
+    
+    // Images: itemprop, main gallery images
+    const images = [];
+    const imageSelectors = [
+      '[itemprop="image"]',
+      'main img[src*="product"]',
+      '[class*="gallery"] img',
+      '[class*="product"] img:not([class*="thumb"])',
+      '[data-testid*="image"] img',
+      '[class*="hero"] img'
+    ];
+    
+    for (const selector of imageSelectors) {
+      document.querySelectorAll(selector).forEach(img => {
+        const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
+        if (src && src.startsWith('http') && !images.includes(src) && !src.includes('placeholder')) {
+          images.push(src);
+        }
+      });
+      if (images.length >= 5) break;
+    }
+    
+    // Description: itemprop, common description selectors
+    let description = '';
+    const descSelectors = [
+      '[itemprop="description"]',
+      '[class*="description" i]',
+      '[class*="details" i]',
+      '[class*="overview" i]',
+      '[data-testid*="description" i]'
+    ];
+    
+    for (const selector of descSelectors) {
+      const el = document.querySelector(selector);
+      if (el?.textContent?.trim().length > 50) {
+        description = el.textContent.trim().substring(0, 2000);
+        break;
+      }
+    }
+    
+    return { title, price, description, images: images.slice(0, 10) };
+  }
+  
+  // Check if page has product signals (for deciding whether to show button)
+  function hasProductSignals() {
+    // Check JSON-LD for Product type
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of jsonLdScripts) {
+      try {
+        const text = script.textContent || '';
+        if (text.includes('"@type":"Product"') || text.includes('"@type": "Product"')) {
+          return true;
+        }
+      } catch (e) {}
+    }
+    
+    // Check meta tags for product indicators
+    if (document.querySelector('meta[property="og:type"][content="product"]') ||
+        document.querySelector('meta[property="product:price:amount"]') ||
+        document.querySelector('[itemtype*="schema.org/Product"]') ||
+        document.querySelector('[itemtype*="Product"]') ||
+        document.querySelector('[itemprop="price"]')) {
+      return true;
+    }
+    
+    // Check for price pattern + h1 (basic product page heuristic)
+    const hasTitle = !!document.querySelector('h1');
+    const hasAddToCart = document.body.innerText.toLowerCase().includes('add to cart');
+    const hasPricePattern = /\$\d+(\.\d{2})?/.test(document.body.innerText);
+    
+    if (hasTitle && (hasAddToCart || hasPricePattern)) {
+      return true;
+    }
+    
+    return false;
+  }
 
   // Product data extractors for different sites
   const extractors = {
@@ -1083,6 +1250,37 @@
 
         return { title, price, description, images };
       }
+    },
+    
+    // ============= GENERIC/UNIVERSAL EXTRACTOR =============
+    generic: {
+      match: /.*/, // Matches any URL
+      extract: () => {
+        console.log(`FB Lister v${EXTENSION_VERSION}: === GENERIC UNIVERSAL EXTRACTION ===`);
+        console.log(`FB Lister: Site: ${window.location.hostname}`);
+        
+        // Layer 1: Try JSON-LD first (most reliable)
+        let data = extractFromJsonLd();
+        if (data?.title) {
+          console.log(`FB Lister: ✓ Found product via JSON-LD`);
+          data._debug = { descSource: 'JSON-LD', featuresSource: 'JSON-LD', featuresCount: 0, specsCount: 0 };
+          return data;
+        }
+        
+        // Layer 2: Try meta tags (Open Graph, Twitter, etc.)
+        data = extractFromMetaTags();
+        if (data?.title) {
+          console.log(`FB Lister: ✓ Found product via Meta Tags`);
+          data._debug = { descSource: 'META', featuresSource: 'META', featuresCount: 0, specsCount: 0 };
+          return data;
+        }
+        
+        // Layer 3: Fallback to DOM patterns
+        data = extractFromGenericDom();
+        console.log(`FB Lister: Using DOM extraction fallback`);
+        data._debug = { descSource: 'DOM', featuresSource: 'DOM', featuresCount: 0, specsCount: 0 };
+        return data;
+      }
     }
   };
 
@@ -1196,16 +1394,30 @@
 
     try {
       let productData = null;
+      let usedExtractor = 'none';
+      
+      // Try site-specific extractors first (skip 'generic')
       for (const [site, extractor] of Object.entries(extractors)) {
-        if (extractor.match.test(window.location.href)) {
+        if (site !== 'generic' && extractor.match.test(window.location.href)) {
+          console.log(`FB Lister: Trying site-specific extractor: ${site}`);
           productData = await Promise.resolve(extractor.extract());
+          usedExtractor = site;
           break;
         }
       }
 
+      // Fallback to generic extractor if no data or no title
       if (!productData || !productData.title) {
-        throw new Error('Could not extract product data');
+        console.log(`FB Lister: Site-specific extraction failed/empty, trying generic...`);
+        productData = await Promise.resolve(extractors.generic.extract());
+        usedExtractor = 'generic';
       }
+
+      if (!productData || !productData.title) {
+        throw new Error('Could not extract product data from this page');
+      }
+      
+      console.log(`FB Lister: ✓ Extraction successful using "${usedExtractor}" extractor`);
 
       // Get debug info from extraction (if available)
       const debugInfo = productData._debug || {};
@@ -1317,15 +1529,25 @@
 
   // Initialize on product pages
   function init() {
-    const isProductPage = extractors.amazon.match.test(window.location.href) ||
-                         extractors.ebay.match.test(window.location.href) ||
-                         extractors.walmart.match.test(window.location.href) ||
-                         extractors.bestbuy.match.test(window.location.href) ||
-                         extractors.target.match.test(window.location.href);
+    // Check known sites first (for immediate button on trusted domains)
+    const isKnownSite = extractors.amazon.match.test(window.location.href) ||
+                        extractors.ebay.match.test(window.location.href) ||
+                        extractors.walmart.match.test(window.location.href) ||
+                        extractors.bestbuy.match.test(window.location.href) ||
+                        extractors.target.match.test(window.location.href);
 
-    if (isProductPage) {
+    if (isKnownSite) {
       setTimeout(createFloatingButton, 1500);
+      return;
     }
+    
+    // For unknown sites, check for product signals (with slight delay to let page load)
+    setTimeout(() => {
+      if (hasProductSignals()) {
+        console.log(`FB Lister v${EXTENSION_VERSION}: Product signals detected on ${window.location.hostname}`);
+        createFloatingButton();
+      }
+    }, 2000);
   }
 
   init();
