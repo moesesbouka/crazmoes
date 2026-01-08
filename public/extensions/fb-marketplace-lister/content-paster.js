@@ -241,9 +241,12 @@
       element.value = value;
     }
     
-    // Fire events
+    // Fire events in sequence
+    element.dispatchEvent(new Event('focus', { bubbles: true }));
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }));
+    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
     element.dispatchEvent(new Event('blur', { bubbles: true }));
     
     return true;
@@ -253,13 +256,196 @@
   function fillContentEditable(element, value) {
     if (!element || !value) return false;
     
+    console.log('FB Lister: Filling contentEditable element');
+    
+    // Focus and clear
     element.focus();
-    element.textContent = value;
-    element.dispatchEvent(new Event('input', { bubbles: true }));
+    
+    // Try using execCommand first (more reliable for React)
+    try {
+      document.execCommand('selectAll', false, null);
+      document.execCommand('insertText', false, value);
+      console.log('FB Lister: Used execCommand to fill contentEditable');
+    } catch (e) {
+      // Fallback to direct manipulation
+      element.textContent = value;
+      element.innerHTML = value.replace(/\n/g, '<br>');
+    }
+    
+    // Fire all possible events
+    element.dispatchEvent(new Event('focus', { bubbles: true }));
+    element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
     element.dispatchEvent(new Event('blur', { bubbles: true }));
     
     return true;
+  }
+
+  // Find and fill a specific field type
+  function findTitleField() {
+    const selectors = [
+      'input[aria-label*="Title" i]',
+      'input[aria-label*="title" i]',
+      'input[placeholder*="Title" i]',
+      'input[name="title"]'
+    ];
+    
+    for (const sel of selectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el) return el;
+      } catch (e) {}
+    }
+    
+    // Search by traversing labels
+    const labels = document.querySelectorAll('label, span');
+    for (const label of labels) {
+      if (label.textContent.trim().toLowerCase() === 'title') {
+        const parent = label.closest('div');
+        if (parent) {
+          const input = parent.querySelector('input');
+          if (input) return input;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  function findPriceField() {
+    const selectors = [
+      'input[aria-label*="Price" i]',
+      'input[placeholder*="Price" i]',
+      'input[name="price"]',
+      'input[type="text"][inputmode="numeric"]'
+    ];
+    
+    for (const sel of selectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el) return el;
+      } catch (e) {}
+    }
+    
+    // Search by traversing labels
+    const labels = document.querySelectorAll('label, span');
+    for (const label of labels) {
+      if (label.textContent.trim().toLowerCase() === 'price') {
+        const parent = label.closest('div');
+        if (parent) {
+          const input = parent.querySelector('input');
+          if (input) return input;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  function findDescriptionField() {
+    console.log('FB Lister: Searching for description field...');
+    
+    // Strategy 1: Direct selectors
+    const directSelectors = [
+      '[aria-label*="Description" i][contenteditable="true"]',
+      '[aria-label*="Describe" i][contenteditable="true"]',
+      'textarea[aria-label*="Description" i]',
+      'textarea[aria-label*="Describe" i]',
+      '[role="textbox"][aria-label*="Description" i]',
+      '[role="textbox"][aria-label*="Describe" i]',
+      'textarea[placeholder*="Description" i]',
+      'textarea[placeholder*="Describe" i]'
+    ];
+    
+    for (const sel of directSelectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el) {
+          console.log('FB Lister: Found description via selector:', sel);
+          return el;
+        }
+      } catch (e) {}
+    }
+    
+    // Strategy 2: Find all textboxes and check context
+    const textboxes = document.querySelectorAll('[role="textbox"], [contenteditable="true"], textarea');
+    console.log('FB Lister: Found', textboxes.length, 'textbox elements');
+    
+    for (const tb of textboxes) {
+      const ariaLabel = (tb.getAttribute('aria-label') || '').toLowerCase();
+      const placeholder = (tb.getAttribute('placeholder') || '').toLowerCase();
+      
+      // Check the element itself
+      if (ariaLabel.includes('description') || ariaLabel.includes('describe') ||
+          placeholder.includes('description') || placeholder.includes('describe')) {
+        console.log('FB Lister: Found description via aria-label/placeholder');
+        return tb;
+      }
+      
+      // Check parent containers for description label
+      const parent = tb.closest('div[role="group"], label, div');
+      if (parent) {
+        const parentText = parent.textContent.toLowerCase();
+        if ((parentText.includes('description') || parentText.includes('describe')) && 
+            !parentText.includes('title') && !parentText.includes('price')) {
+          console.log('FB Lister: Found description via parent text');
+          return tb;
+        }
+      }
+    }
+    
+    // Strategy 3: Look for the 3rd major input area (after title and price)
+    const allInputs = document.querySelectorAll('input, textarea, [contenteditable="true"], [role="textbox"]');
+    let inputCount = 0;
+    for (const input of allInputs) {
+      if (input.offsetParent !== null) { // visible
+        inputCount++;
+        if (inputCount >= 3) {
+          const isLargeField = input.tagName === 'TEXTAREA' || 
+                               input.getAttribute('contenteditable') === 'true' ||
+                               input.getAttribute('role') === 'textbox';
+          if (isLargeField) {
+            console.log('FB Lister: Found description as 3rd visible input');
+            return input;
+          }
+        }
+      }
+    }
+    
+    console.log('FB Lister: Could not find description field');
+    return null;
+  }
+
+  // Unified field finder and filler
+  function findAndFillField(labelText, value, isTextarea = false) {
+    if (!value) return false;
+    
+    console.log('FB Lister: Looking for field:', labelText, 'value length:', value.length);
+    
+    let element = null;
+    
+    if (labelText.toLowerCase() === 'title') {
+      element = findTitleField();
+    } else if (labelText.toLowerCase() === 'price') {
+      element = findPriceField();
+    } else if (labelText.toLowerCase().includes('descri')) {
+      element = findDescriptionField();
+    }
+    
+    if (element) {
+      console.log('FB Lister: Found', labelText, 'field:', element.tagName, element.className);
+      
+      // Check if it's a contenteditable element
+      if (element.getAttribute('contenteditable') === 'true' || element.getAttribute('role') === 'textbox') {
+        return fillContentEditable(element, value);
+      }
+      return simulateNativeInput(element, value);
+    }
+    
+    console.log('FB Lister: Could not find field for:', labelText);
+    return false;
   }
 
   // Find input with multiple strategies
@@ -363,8 +549,9 @@
     button.classList.add('loading');
 
     try {
-      // Wait for the form to be fully loaded
-      await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+      // Wait longer for Facebook's React form to fully initialize
+      console.log('FB Lister: Waiting for form to initialize...');
+      await new Promise(function(resolve) { setTimeout(resolve, 2500); });
 
       console.log('FB Lister: Attempting to paste data...', pendingListing);
 
@@ -372,21 +559,25 @@
       let imagesUploaded = false;
       if (pendingListing.images && pendingListing.images.length > 0) {
         imagesUploaded = await uploadImages(pendingListing.images);
-        // Wait a moment for images to process
-        await new Promise(function(resolve) { setTimeout(resolve, 500); });
+        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
       }
 
-      // Find and fill fields
+      // Find and fill fields with delays between each
       let filledTitle = findAndFillField('Title', pendingListing.title);
-      let filledPrice = findAndFillField('Price', pendingListing.price);
+      await new Promise(function(resolve) { setTimeout(resolve, 300); });
       
-      // Try multiple label variations for description
+      let filledPrice = findAndFillField('Price', pendingListing.price);
+      await new Promise(function(resolve) { setTimeout(resolve, 300); });
+      
+      // Fill description
       let filledDesc = false;
-      const descValue = pendingListing.description ? pendingListing.description.substring(0, 1000) : '';
+      const descValue = pendingListing.description ? pendingListing.description.substring(0, 2000) : '';
       if (descValue) {
         filledDesc = findAndFillField('Description', descValue, true);
-        if (!filledDesc) filledDesc = findAndFillField('Describe', descValue, true);
-        if (!filledDesc) filledDesc = findAndFillField('describe your item', descValue, true);
+        if (!filledDesc) {
+          await new Promise(function(resolve) { setTimeout(resolve, 500); });
+          filledDesc = findAndFillField('Describe', descValue, true);
+        }
       }
 
       console.log('FB Lister: Fill results - Title:', filledTitle, 'Price:', filledPrice, 'Desc:', filledDesc, 'Images:', imagesUploaded);
@@ -400,12 +591,11 @@
       button.classList.remove('loading');
       button.classList.add('success');
 
-      // Log data for debugging
-      console.log('=== FB Lister: Product Data ===');
+      console.log('=== FB Lister v1.4.1: Product Data ===');
       console.log('Title:', pendingListing.title);
       console.log('Price:', pendingListing.price);
-      console.log('Original Price:', pendingListing.originalPrice);
-      console.log('Images:', pendingListing.images);
+      console.log('Description length:', (pendingListing.description || '').length);
+      console.log('Images:', pendingListing.images?.length || 0);
 
       // Clear pending data after successful paste
       await chrome.storage.local.remove('pendingListing');
