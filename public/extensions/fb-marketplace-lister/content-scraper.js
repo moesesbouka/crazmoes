@@ -3,7 +3,7 @@
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.4.5';
+  const EXTENSION_VERSION = '1.4.6';
 
   // Product data extractors for different sites
   const extractors = {
@@ -248,34 +248,59 @@
               // Get the container holding the features content
               const container = findContentContainer(heading);
               if (container) {
-                // Prefer bullet lists
+                console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Features container found, length: ${container.textContent.length}`);
+                
+                // Method 1: Prefer bullet lists (li elements)
+                const bullets = [];
                 container.querySelectorAll('li').forEach(li => {
                   const liText = li.textContent?.trim();
-                  if (liText && liText.length > 15 && liText.length < 400 && !isBoilerplate(liText)) {
-                    result.features.push(liText);
+                  if (liText && liText.length > 15 && liText.length < 500 && !isBoilerplate(liText)) {
+                    bullets.push(liText);
                   }
                 });
                 
-                // Fallback to paragraphs
-                if (result.features.length === 0) {
+                if (bullets.length > 0) {
+                  console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${bullets.length} bullet features`);
+                  result.features.push(...bullets);
+                } else {
+                  // Method 2: Extract paragraph/text blocks (for Best Buy's paragraph-style features)
+                  console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] No bullets, trying paragraph extraction...`);
+                  
+                  // Collect all text from the container, excluding navigation/boilerplate
+                  const textBlocks = [];
+                  
+                  // First try paragraphs
                   container.querySelectorAll('p').forEach(p => {
                     const pText = p.textContent?.trim();
-                    if (pText && pText.length > 20 && pText.length < 400 && !isBoilerplate(pText)) {
-                      result.features.push(pText);
+                    if (pText && pText.length > 30 && !isBoilerplate(pText)) {
+                      textBlocks.push(pText);
                     }
                   });
-                }
-                
-                // Fallback to divs with feature-like content
-                if (result.features.length === 0) {
-                  container.querySelectorAll('div').forEach(div => {
-                    // Only direct children with reasonable text
-                    if (div.children.length === 0 || div.children.length > 3) return;
-                    const divText = div.textContent?.trim();
-                    if (divText && divText.length > 20 && divText.length < 300 && !isBoilerplate(divText)) {
-                      result.features.push(divText);
+                  
+                  // If no paragraphs, try divs that contain actual text
+                  if (textBlocks.length === 0) {
+                    // Get the full text content and clean it up
+                    const fullText = container.textContent?.trim() || '';
+                    
+                    // Split by common delimiters and filter
+                    const sentences = fullText
+                      .split(/[.!?]\s+/)
+                      .map(s => s.trim())
+                      .filter(s => s.length > 20 && !isBoilerplate(s));
+                    
+                    if (sentences.length > 0) {
+                      // Join sentences back into paragraphs
+                      const featureText = sentences.join('. ');
+                      if (featureText.length > 30) {
+                        textBlocks.push(featureText);
+                      }
                     }
-                  });
+                  }
+                  
+                  if (textBlocks.length > 0) {
+                    console.log(`FB Lister v${EXTENSION_VERSION}: [Layer B] Found ${textBlocks.length} text blocks for features`);
+                    result.features.push(...textBlocks);
+                  }
                 }
               }
             }
