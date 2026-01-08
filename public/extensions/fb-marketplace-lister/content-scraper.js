@@ -1,9 +1,9 @@
 // FB Marketplace Lister - Content Script for Product Pages
-// Version 1.5.0 - Universal e-commerce support with generic extractor
+// Version 1.5.1 - Added dedicated Home Depot extractor with proper image/description handling
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.5.0';
+  const EXTENSION_VERSION = '1.5.1';
 
   // ============= UNIVERSAL EXTRACTION UTILITIES =============
   
@@ -1231,6 +1231,281 @@
         };
       }
     },
+    // ============= HOME DEPOT EXTRACTOR =============
+    homedepot: {
+      match: /homedepot\.com/,
+      extract: () => {
+        console.log(`FB Lister v${EXTENSION_VERSION}: === HOME DEPOT EXTRACTION ===`);
+        
+        // ===== TITLE =====
+        let title = '';
+        // Try data-automation-id first, then h1
+        title = document.querySelector('[data-automation-id="product-title"]')?.innerText?.trim() ||
+                document.querySelector('h1.product-details__title')?.innerText?.trim() ||
+                document.querySelector('h1')?.innerText?.trim() || '';
+        console.log(`FB Lister: Title: ${title ? 'found' : 'NOT FOUND'}`);
+        
+        // ===== PRICE =====
+        let price = '';
+        // Home Depot uses various price containers
+        const priceEl = document.querySelector('[data-automation-id="price"]') ||
+                        document.querySelector('[itemprop="price"]') ||
+                        document.querySelector('.price-format__main-price') ||
+                        document.querySelector('[class*="price"]');
+        if (priceEl) {
+          const priceText = priceEl.getAttribute('content') || priceEl.innerText || '';
+          price = priceText.replace(/[^0-9.]/g, '');
+        }
+        // Fallback: find $ pattern
+        if (!price) {
+          const priceMatch = document.body.innerText.match(/\$(\d+(?:\.\d{2})?)/);
+          if (priceMatch) price = priceMatch[1];
+        }
+        console.log(`FB Lister: Price: ${price || 'NOT FOUND'}`);
+        
+        // ===== IMAGES - Use ACTUALLY LOADED images only =====
+        const imageMap = new Map();
+        
+        // Get all currently loaded images from thdstatic.com
+        document.querySelectorAll('img').forEach(img => {
+          // Use currentSrc (what's actually displayed) or src
+          const src = img.currentSrc || img.src || '';
+          
+          // Only accept thdstatic.com images (Home Depot's CDN)
+          if (!src.includes('thdstatic.com')) return;
+          
+          // Skip tiny images, icons, thumbnails
+          const width = img.naturalWidth || img.width || 0;
+          const height = img.naturalHeight || img.height || 0;
+          if (width < 100 && height < 100) return;
+          
+          // Skip known non-product patterns
+          if (src.includes('/static/') || src.includes('/icons/') || 
+              src.includes('/logo') || src.includes('/badge')) return;
+          
+          // Get a unique key from the URL (filename/ID)
+          const urlParts = src.split('/');
+          const filename = urlParts[urlParts.length - 1].split('?')[0];
+          
+          // Deduplicate by filename
+          if (!imageMap.has(filename)) {
+            // Try to get highest resolution by removing size constraints
+            let highResSrc = src;
+            // Home Depot often uses _###_ for size variants - try to get larger
+            if (highResSrc.includes('_145_') || highResSrc.includes('_100_') || highResSrc.includes('_65_')) {
+              highResSrc = highResSrc.replace(/_\d+_/g, '_1000_');
+            }
+            imageMap.set(filename, highResSrc);
+          }
+        });
+        
+        // Also check for data-src attributes (lazy loaded)
+        document.querySelectorAll('img[data-src*="thdstatic.com"]').forEach(img => {
+          const src = img.getAttribute('data-src') || '';
+          if (src && src.includes('thdstatic.com')) {
+            const urlParts = src.split('/');
+            const filename = urlParts[urlParts.length - 1].split('?')[0];
+            if (!imageMap.has(filename)) {
+              imageMap.set(filename, src);
+            }
+          }
+        });
+        
+        // Check srcset for higher resolution images
+        document.querySelectorAll('img[srcset*="thdstatic.com"]').forEach(img => {
+          const srcset = img.getAttribute('srcset') || '';
+          // Parse srcset and get the largest one
+          const sources = srcset.split(',').map(s => s.trim());
+          let bestSrc = '';
+          let bestSize = 0;
+          sources.forEach(source => {
+            const [url, size] = source.split(' ');
+            const sizeNum = parseInt(size) || 0;
+            if (url && url.includes('thdstatic.com') && sizeNum > bestSize) {
+              bestSrc = url;
+              bestSize = sizeNum;
+            }
+          });
+          if (bestSrc) {
+            const urlParts = bestSrc.split('/');
+            const filename = urlParts[urlParts.length - 1].split('?')[0];
+            if (!imageMap.has(filename)) {
+              imageMap.set(filename, bestSrc);
+            }
+          }
+        });
+        
+        const images = Array.from(imageMap.values()).slice(0, 10);
+        console.log(`FB Lister: Images: ${images.length} unique from thdstatic.com`);
+        
+        // ===== DESCRIPTION - Product Details + Specifications =====
+        const features = [];
+        const specs = [];
+        
+        // Method 1: Try JSON-LD first
+        const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+        for (const script of jsonLdScripts) {
+          try {
+            const data = JSON.parse(script.textContent);
+            const product = data['@type'] === 'Product' ? data : 
+                            (data['@graph']?.find(item => item['@type'] === 'Product'));
+            if (product?.description) {
+              features.push(product.description);
+              console.log(`FB Lister: Found description in JSON-LD`);
+            }
+          } catch (e) {}
+        }
+        
+        // Method 2: Product Details section (bullets)
+        // Home Depot has a "Product Details" accordion/section with bullet points
+        const detailsSelectors = [
+          '[data-component="product-details"] li',
+          '[class*="product-details"] li',
+          '[class*="product_details"] li',
+          '[data-testid*="details"] li',
+          '.product-info-bar__description li',
+          '#product-section-overview li'
+        ];
+        
+        for (const selector of detailsSelectors) {
+          const bullets = document.querySelectorAll(selector);
+          if (bullets.length > 0) {
+            bullets.forEach(li => {
+              const text = li.innerText?.trim();
+              if (text && text.length > 10 && text.length < 500) {
+                features.push(text);
+              }
+            });
+            if (features.length > 0) {
+              console.log(`FB Lister: Found ${features.length} feature bullets via ${selector}`);
+              break;
+            }
+          }
+        }
+        
+        // Method 3: Try to find and expand "Product Details" section
+        const expandButtons = document.querySelectorAll('button, [role="button"]');
+        expandButtons.forEach(btn => {
+          const text = btn.innerText?.toLowerCase() || '';
+          if (text.includes('product details') || text.includes('show more') || text.includes('see more')) {
+            // Check if it has an aria-expanded="false"
+            if (btn.getAttribute('aria-expanded') === 'false') {
+              try { btn.click(); } catch (e) {}
+            }
+          }
+        });
+        
+        // Method 4: Specifications table
+        const specSelectors = [
+          '[data-component="specifications"] tr',
+          '[class*="specifications"] tr',
+          '[class*="specs"] tr',
+          '[data-testid*="specifications"] tr',
+          '#specifications tr',
+          '.product-info-bar__specifications tr'
+        ];
+        
+        for (const selector of specSelectors) {
+          const rows = document.querySelectorAll(selector);
+          if (rows.length > 0) {
+            rows.forEach(row => {
+              const cells = row.querySelectorAll('td, th');
+              if (cells.length >= 2) {
+                const label = cells[0]?.innerText?.trim();
+                const value = cells[1]?.innerText?.trim();
+                if (label && value) {
+                  specs.push(`${label}: ${value}`);
+                }
+              }
+            });
+            if (specs.length > 0) {
+              console.log(`FB Lister: Found ${specs.length} specs via ${selector}`);
+              break;
+            }
+          }
+        }
+        
+        // Method 5: If still no specs, try key-value pairs in description area
+        if (specs.length === 0) {
+          const specPairs = document.querySelectorAll('[class*="spec"] [class*="name"], [class*="spec"] [class*="value"]');
+          for (let i = 0; i < specPairs.length - 1; i += 2) {
+            const name = specPairs[i]?.innerText?.trim();
+            const value = specPairs[i + 1]?.innerText?.trim();
+            if (name && value) {
+              specs.push(`${name}: ${value}`);
+            }
+          }
+        }
+        
+        // Method 6: Fallback to visible description paragraphs
+        if (features.length === 0) {
+          const descSelectors = [
+            '[data-component="product-overview"] p',
+            '[class*="overview"] p',
+            '[class*="description"] p',
+            '.product-info-bar p'
+          ];
+          for (const selector of descSelectors) {
+            const paragraphs = document.querySelectorAll(selector);
+            paragraphs.forEach(p => {
+              const text = p.innerText?.trim();
+              if (text && text.length > 50 && text.length < 1000) {
+                features.push(text);
+              }
+            });
+            if (features.length > 0) break;
+          }
+        }
+        
+        // Build description
+        let description = '';
+        
+        if (features.length > 0) {
+          // Dedupe features
+          const uniqueFeatures = [...new Set(features)].slice(0, 15);
+          description += 'PRODUCT DETAILS:\n';
+          uniqueFeatures.forEach(f => {
+            description += `• ${f}\n`;
+          });
+          description += '\n';
+        }
+        
+        if (specs.length > 0) {
+          // Dedupe specs
+          const uniqueSpecs = [...new Set(specs)].slice(0, 20);
+          description += 'SPECIFICATIONS:\n';
+          uniqueSpecs.forEach(s => {
+            description += `• ${s}\n`;
+          });
+        }
+        
+        description = description.trim();
+        
+        // Limit to 2000 chars
+        if (description.length > 2000) {
+          description = description.substring(0, 1997) + '...';
+        }
+        
+        const descSource = features.length > 0 || specs.length > 0 ? 'HOMEDEPOT_DOM' : 'FAILED';
+        console.log(`FB Lister: Description source: ${descSource}, length: ${description.length}`);
+        console.log(`FB Lister: Features: ${features.length}, Specs: ${specs.length}`);
+        
+        return {
+          title,
+          price,
+          description,
+          images,
+          _debug: {
+            featuresCount: features.length,
+            specsCount: specs.length,
+            descSource,
+            featuresSource: features.length > 0 ? 'HOMEDEPOT_DOM' : 'none',
+            featuresSample: features[0]?.substring(0, 80) || ''
+          }
+        };
+      }
+    },
+    
     target: {
       match: /target\.com/,
       extract: () => {
@@ -1534,7 +1809,8 @@
                         extractors.ebay.match.test(window.location.href) ||
                         extractors.walmart.match.test(window.location.href) ||
                         extractors.bestbuy.match.test(window.location.href) ||
-                        extractors.target.match.test(window.location.href);
+                        extractors.target.match.test(window.location.href) ||
+                        extractors.homedepot.match.test(window.location.href);
 
     if (isKnownSite) {
       setTimeout(createFloatingButton, 1500);
