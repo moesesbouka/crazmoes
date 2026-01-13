@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FB Marketplace Importer - Crazy Moe's",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Backup your Facebook Marketplace inventory to prevent data loss",
   "permissions": [
     "activeTab",
@@ -24,6 +24,12 @@
       "matches": ["https://www.facebook.com/marketplace/you/*"],
       "js": ["content-importer.js"],
       "css": ["styles.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-graphql-interceptor.js"],
+      "matches": ["https://www.facebook.com/*"]
     }
   ],
   "background": {

@@ -1,9 +1,9 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 1.2.0 - Multi-strategy with GraphQL fallback for seller dashboard
+// Version 1.2.1 - Page-context GraphQL interception + improved scroll stopping
 (function() {
   'use strict';
 
-  const EXTENSION_VERSION = '1.2.0';
+  const EXTENSION_VERSION = '1.2.1';
 
   // Configuration - Update this with your Supabase project URL
   const SUPABASE_URL = 'https://dluabbbrdhvspbjmckuf.supabase.co';
@@ -16,6 +16,8 @@
   // GraphQL capture storage
   let capturedListings = new Map();
   let isCapturing = false;
+  let graphqlInterceptionSetup = false;
+  let graphqlInterceptorReady = false;
 
   // Create floating import button
   function createImportButton() {
@@ -232,66 +234,78 @@
 
   // ============= GRAPHQL INTERCEPTION (Track B) =============
   
-  // Set up fetch/XHR interception to capture GraphQL responses
+  // Set up GraphQL interception by injecting a page-context script.
+  // NOTE: Facebook runs its network stack in the page context; content scripts are isolated,
+  // so patching fetch/XHR here often won't see FB's GraphQL calls.
   function setupGraphQLInterception() {
-    console.log('FB Importer: Setting up GraphQL interception...');
-    
-    // Intercept fetch
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-      const response = await originalFetch.apply(this, args);
-      
-      if (isCapturing) {
-        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-        if (url.includes('graphql') || url.includes('/api/graphql')) {
-          try {
-            const clone = response.clone();
-            const text = await clone.text();
-            parseGraphQLResponse(text);
-          } catch (e) {
-            // Ignore parsing errors
-          }
-        }
+    if (graphqlInterceptionSetup) return;
+    graphqlInterceptionSetup = true;
+
+    console.log('FB Importer: Setting up GraphQL interception (page-context injection)...');
+
+    // Listen for messages from the injected page script
+    window.addEventListener('message', (event) => {
+      if (event.source !== window) return;
+      const msg = event.data;
+      if (!msg || msg.source !== 'fb-importer') return;
+
+      if (msg.type === 'READY') {
+        graphqlInterceptorReady = true;
+        console.log('FB Importer: Page-context GraphQL interceptor READY');
+        return;
       }
-      
-      return response;
-    };
-    
-    // Intercept XMLHttpRequest
-    const originalXHROpen = XMLHttpRequest.prototype.open;
-    const originalXHRSend = XMLHttpRequest.prototype.send;
-    
-    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-      this._fbImporterUrl = url;
-      return originalXHROpen.apply(this, [method, url, ...rest]);
-    };
-    
-    XMLHttpRequest.prototype.send = function(...args) {
-      this.addEventListener('load', function() {
-        if (isCapturing && this._fbImporterUrl && 
-            (this._fbImporterUrl.includes('graphql') || this._fbImporterUrl.includes('/api/graphql'))) {
-          try {
-            parseGraphQLResponse(this.responseText);
-          } catch (e) {
-            // Ignore parsing errors
-          }
-        }
-      });
-      return originalXHRSend.apply(this, args);
-    };
+
+      if (msg.type !== 'LISTING') return;
+      if (!isCapturing) return;
+
+      const listing = msg.payload;
+      if (!listing || !listing.facebook_id) return;
+
+      if (!capturedListings.has(listing.facebook_id)) {
+        capturedListings.set(listing.facebook_id, listing);
+        console.log(
+          `FB Importer: Captured (${capturedListings.size}) ${
+            (listing.title || listing.facebook_id).toString().slice(0, 60)
+          }`
+        );
+      }
+    });
+
+    // Inject a script into the PAGE context (not the isolated content-script world)
+    try {
+      const script = document.createElement('script');
+      script.src = chrome.runtime.getURL('page-graphql-interceptor.js');
+      script.async = false;
+      script.onload = () => script.remove();
+      (document.documentElement || document.head).appendChild(script);
+      console.log('FB Importer: Injected page-graphql-interceptor.js');
+    } catch (e) {
+      console.log('FB Importer: Injection failed', e);
+    }
   }
   
   // Parse GraphQL response and extract listing data
   function parseGraphQLResponse(text) {
     try {
-      // Sometimes responses are JSON lines, try both
-      const jsonObjects = text.includes('\n') ? 
-        text.split('\n').filter(line => line.trim().startsWith('{')) :
-        [text];
-      
-      for (const jsonStr of jsonObjects) {
+      const stripForPrefix = (s) => {
+        const t = String(s || '').trim();
+        return t.startsWith('for(;;);') ? t.slice(8).trim() : t;
+      };
+
+      const cleaned = stripForPrefix(text);
+      if (!cleaned) return;
+
+      // Sometimes responses are JSON lines (or mixed with non-JSON), so try line-by-line first.
+      const lines = cleaned.includes('\n') ? cleaned.split('\n') : [];
+      const candidates = lines.length ? lines : [cleaned];
+
+      for (const cand of candidates) {
+        const s = stripForPrefix(cand);
+        if (!s) continue;
+        if (!s.startsWith('{') && !s.startsWith('[')) continue;
+
         try {
-          const data = JSON.parse(jsonStr);
+          const data = JSON.parse(s);
           findListingsInObject(data);
         } catch (e) {
           // Not valid JSON, skip
@@ -407,6 +421,7 @@
     const listings = [];
     const seenIds = new Set();
     let lastHeight = 0;
+    let lastCapturedSize = 0;
     let noNewListingsCount = 0;
     
     // Start GraphQL capture
@@ -444,13 +459,14 @@
       
       const newHeight = document.documentElement.scrollHeight;
       const newCapturedSize = capturedListings.size;
-      
-      if (newHeight === lastHeight && newCapturedSize === capturedListings.size) {
+
+      if (newHeight === lastHeight && newCapturedSize === lastCapturedSize) {
         noNewListingsCount++;
         console.log(`FB Importer: No new content (attempt ${noNewListingsCount}/4)`);
       } else {
         noNewListingsCount = 0;
         lastHeight = newHeight;
+        lastCapturedSize = newCapturedSize;
       }
     }
     
