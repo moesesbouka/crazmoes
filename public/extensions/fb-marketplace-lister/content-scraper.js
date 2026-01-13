@@ -1933,6 +1933,13 @@
 
   // Initialize on product pages
   function init() {
+    // IMPORTANT: Do NOT run on Facebook - the importer extension handles FB
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname === 'facebook.com' || hostname === 'www.facebook.com' || hostname === 'm.facebook.com') {
+      console.log(`FB Lister v${EXTENSION_VERSION}: Skipping Facebook (handled by importer extension)`);
+      return;
+    }
+    
     // Check known sites first (for immediate button on trusted domains)
     const isKnownSite = extractors.amazon.match.test(window.location.href) ||
                         extractors.ebay.match.test(window.location.href) ||
