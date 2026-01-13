@@ -1,4 +1,4 @@
-/* FB Marketplace Importer Styles */
+/* FB Marketplace Importer Styles v1.1.0 */
 
 #fb-importer-container {
   position: fixed;
@@ -8,6 +8,14 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.fb-importer-version {
+  text-align: center;
+  font-size: 10px;
+  color: #666;
+  margin-top: -8px;
+  margin-bottom: 4px;
 }
 
 .fb-importer-btn {

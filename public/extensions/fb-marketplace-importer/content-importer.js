@@ -1,6 +1,9 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
+// Version 1.1.0 - Multi-strategy DOM detection
 (function() {
   'use strict';
+
+  const EXTENSION_VERSION = '1.1.0';
 
   // Configuration - Update this with your Supabase project URL
   const SUPABASE_URL = 'https://dluabbbrdhvspbjmckuf.supabase.co';
@@ -23,6 +26,7 @@
         </svg>
         Import All Listings
       </button>
+      <div id="fb-importer-version" class="fb-importer-version">v${EXTENSION_VERSION}</div>
       <div id="fb-importer-progress" class="fb-importer-progress" style="display:none;">
         <div class="progress-text">Importing: <span id="import-count">0</span> / <span id="import-total">0</span></div>
         <div class="progress-bar">
@@ -34,41 +38,56 @@
     document.body.appendChild(container);
     
     document.querySelector('#fb-importer-button').addEventListener('click', startImport);
+    
+    console.log(`FB Importer v${EXTENSION_VERSION}: Button created`);
   }
 
   // Extract listing data from a listing element
   function extractListingData(element) {
     try {
-      // Get the listing link
+      // Get the listing link (anchor approach is most stable)
       const linkElement = element.querySelector('a[href*="/marketplace/item/"]');
       if (!linkElement) return null;
       
       const listingUrl = linkElement.href;
       const facebookId = listingUrl.match(/\/item\/(\d+)/)?.[1] || null;
+      if (!facebookId) return null;
       
-      // Get title
-      const titleElement = element.querySelector('span[dir="auto"]') ||
-                          element.querySelector('[role="heading"]') ||
-                          linkElement;
-      const title = titleElement?.textContent?.trim() || 'Untitled';
+      // Get title - multiple strategies
+      const titleElement = 
+        element.querySelector('span[dir="auto"]:not([aria-hidden])') ||
+        element.querySelector('[role="heading"]') ||
+        element.querySelector('a[href*="/marketplace/item/"] span') ||
+        linkElement;
       
-      // Get price
-      const priceElement = element.querySelector('span[dir="auto"]:last-of-type');
+      // Clean up title (remove price if mixed in)
+      let title = titleElement?.textContent?.trim() || 'Untitled';
+      title = title.replace(/^\$[\d,]+(\.\d{2})?\s*/, ''); // Remove leading price
+      title = title.replace(/\s+/g, ' ').trim(); // Normalize whitespace
+      
+      // Get price - look for currency patterns
       let price = null;
-      if (priceElement) {
-        const priceMatch = priceElement.textContent?.match(/\$?([\d,]+(?:\.\d{2})?)/);
-        if (priceMatch) {
-          price = parseFloat(priceMatch[1].replace(',', ''));
-        }
+      const allText = element.textContent || '';
+      const priceMatch = allText.match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+      if (priceMatch) {
+        price = parseFloat(priceMatch[1].replace(/,/g, ''));
       }
       
-      // Get image
-      const imageElement = element.querySelector('img[src*="fbcdn"]');
+      // Get image - try multiple sources
+      const imageElement = 
+        element.querySelector('img[src*="fbcdn"]') ||
+        element.querySelector('img[src*="facebook"]') ||
+        element.querySelector('img[src*="scontent"]') ||
+        element.querySelector('img[src]:not([src*="emoji"]):not([src*="gif"])');
+      
       const images = imageElement?.src ? [imageElement.src] : [];
+      
+      // Only return if we have the essential data
+      if (!facebookId || title === 'Untitled') return null;
       
       return {
         facebook_id: facebookId,
-        title: title,
+        title: title.substring(0, 255), // Limit length
         price: price,
         images: images,
         listing_url: listingUrl,
@@ -76,7 +95,7 @@
         imported_at: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Error extracting listing:', error);
+      console.error('FB Importer: Error extracting listing:', error);
       return null;
     }
   }
@@ -97,15 +116,58 @@
       
       if (!response.ok) {
         const error = await response.text();
-        console.error('Save error:', error);
+        console.error('FB Importer: Save error:', error);
         return false;
       }
       
       return true;
     } catch (error) {
-      console.error('Network error:', error);
+      console.error('FB Importer: Network error:', error);
       return false;
     }
+  }
+
+  // Get listing elements using multiple strategies
+  function getListingElements() {
+    // Strategy 1: Links to marketplace items (most reliable)
+    const itemLinks = document.querySelectorAll('a[href*="/marketplace/item/"]');
+    
+    console.log(`FB Importer: Found ${itemLinks.length} item links on page`);
+    
+    // Get parent containers of each link
+    const containers = new Set();
+    itemLinks.forEach(link => {
+      // Walk up to find a reasonable container (usually 3-5 levels up)
+      let parent = link.parentElement;
+      for (let i = 0; i < 6 && parent; i++) {
+        // Look for a container that has an image and reasonable size
+        if (parent.querySelector('img') && parent.offsetHeight > 80 && parent.offsetWidth > 80) {
+          // Make sure this container has our link but isn't too large (avoid grabbing the whole page)
+          if (parent.offsetHeight < 500 && parent.contains(link)) {
+            containers.add(parent);
+            break;
+          }
+        }
+        parent = parent.parentElement;
+      }
+    });
+    
+    // Fallback: if no containers found, use the links' immediate card-like parents
+    if (containers.size === 0 && itemLinks.length > 0) {
+      console.log('FB Importer: Using fallback container detection');
+      itemLinks.forEach(link => {
+        let parent = link.parentElement;
+        for (let i = 0; i < 4 && parent; i++) {
+          if (parent.offsetHeight > 50) {
+            containers.add(parent);
+            break;
+          }
+          parent = parent.parentElement;
+        }
+      });
+    }
+    
+    return Array.from(containers);
   }
 
   // Scroll and collect all listings
@@ -115,9 +177,13 @@
     let lastHeight = 0;
     let noNewListingsCount = 0;
     
+    console.log('FB Importer: Starting to collect listings...');
+    
     while (noNewListingsCount < 3) {
-      // Find all listing elements
-      const listingElements = document.querySelectorAll('[data-pagelet*="BrowseFeed"] > div > div');
+      // Find all listing elements using multi-strategy approach
+      const listingElements = getListingElements();
+      
+      console.log(`FB Importer: Found ${listingElements.length} listing containers`);
       
       listingElements.forEach(element => {
         const data = extractListingData(element);
@@ -127,25 +193,34 @@
         }
       });
       
-      // Scroll down
+      console.log(`FB Importer: Collected ${listings.length} unique listings so far`);
+      
+      // Scroll down to load more
       window.scrollTo(0, document.documentElement.scrollHeight);
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       const newHeight = document.documentElement.scrollHeight;
       if (newHeight === lastHeight) {
         noNewListingsCount++;
+        console.log(`FB Importer: No new content loaded (attempt ${noNewListingsCount}/3)`);
       } else {
         noNewListingsCount = 0;
         lastHeight = newHeight;
       }
     }
     
+    console.log(`FB Importer: Total unique listings collected: ${listings.length}`);
     return listings;
   }
 
   // Start import process
   async function startImport() {
     if (isImporting) return;
+    
+    console.log('FB Importer: Starting import...');
+    console.log('FB Importer: Current URL:', window.location.href);
+    console.log('FB Importer: Item links found:', 
+      document.querySelectorAll('a[href*="/marketplace/item/"]').length);
     
     isImporting = true;
     importedCount = 0;
@@ -165,6 +240,7 @@
       totalCount = listings.length;
       
       if (totalCount === 0) {
+        console.log('FB Importer: No listings found to import');
         button.innerHTML = 'No listings found';
         button.disabled = false;
         isImporting = false;
@@ -190,6 +266,7 @@
       }
       
       // Done
+      console.log(`FB Importer: Successfully imported ${importedCount} listings`);
       button.innerHTML = `✓ Imported ${importedCount} listings`;
       button.classList.add('success');
       
@@ -215,7 +292,7 @@
       }, 5000);
       
     } catch (error) {
-      console.error('Import error:', error);
+      console.error('FB Importer: Import error:', error);
       button.innerHTML = 'Error - Try Again';
       button.disabled = false;
       isImporting = false;
@@ -225,6 +302,7 @@
   // Initialize on your listings page
   function init() {
     if (window.location.href.includes('facebook.com/marketplace/you')) {
+      console.log(`FB Importer v${EXTENSION_VERSION}: Detected Your Listings page, initializing...`);
       setTimeout(createImportButton, 2000);
     }
   }
@@ -236,6 +314,7 @@
   new MutationObserver(() => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
+      console.log('FB Importer: URL changed, re-initializing...');
       setTimeout(init, 1500);
     }
   }).observe(document.body, { subtree: true, childList: true });
