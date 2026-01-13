@@ -45,6 +45,68 @@
       color: #888;
     }
     
+    .account-selector {
+      margin-bottom: 20px;
+    }
+    
+    .account-selector label {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .account-select {
+      width: 100%;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='white'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    
+    .account-select:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+    
+    .account-select option {
+      background: #1a1a2e;
+      color: #fff;
+    }
+    
+    .account-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    
+    .account-badge.mbfb {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #60a5fa;
+    }
+    
+    .account-badge.cmfb {
+      background: rgba(168, 85, 247, 0.2);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #c084fc;
+    }
+    
     .stats {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -95,6 +157,14 @@
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
     }
     
+    .action-btn .account-indicator {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+    
     .instructions {
       margin-top: 16px;
       padding-top: 16px;
@@ -121,6 +191,68 @@
       font-size: 10px;
       color: #555;
     }
+    
+    /* Confirmation Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-overlay.show {
+      display: flex;
+    }
+    
+    .modal {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 20px;
+      width: 280px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .modal h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+    }
+    
+    .modal p {
+      margin: 0 0 16px 0;
+      font-size: 13px;
+      color: #888;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .modal-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .modal-btn.cancel {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    
+    .modal-btn.confirm {
+      background: #ef4444;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -132,8 +264,20 @@
     </div>
     <div class="header-text">
       <h1>FB Marketplace Importer</h1>
-      <span>Backup Your Inventory</span>
+      <span>v1.2.6 - Multi-Account</span>
     </div>
+  </div>
+  
+  <div class="account-selector">
+    <label>Import to Account</label>
+    <select id="account-select" class="account-select">
+      <option value="MBFB">🔵 MBFB (Main Account)</option>
+      <option value="CMFB">🟣 CMFB (Second Account)</option>
+    </select>
+  </div>
+  
+  <div id="account-badge" class="account-badge mbfb">
+    <span>●</span> Currently: MBFB
   </div>
   
   <div class="stats">
@@ -149,20 +293,33 @@
   
   <button class="action-btn" id="go-to-listings">
     Go to Your Listings
+    <span class="account-indicator" id="btn-account-indicator">Importing to: MBFB</span>
   </button>
   
   <div class="instructions">
     <h3>HOW TO USE</h3>
     <ol>
-      <li>Click the button above to open your listings</li>
+      <li>Select the account above (MBFB or CMFB)</li>
+      <li>Click the button to open your listings</li>
       <li>Click "Import All Listings" on the page</li>
-      <li>Wait while listings are backed up</li>
       <li>View your inventory in Admin Dashboard</li>
     </ol>
   </div>
   
   <div class="footer">
     Made for Crazy Moe's Discount Warehouse
+  </div>
+  
+  <!-- Account Switch Confirmation Modal -->
+  <div class="modal-overlay" id="switch-modal">
+    <div class="modal">
+      <h3>⚠️ Switch Account?</h3>
+      <p>Are you sure you want to switch to <strong id="modal-account-name">CMFB</strong>? This will import listings to a different inventory.</p>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
+        <button class="modal-btn confirm" id="modal-confirm">Switch</button>
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>

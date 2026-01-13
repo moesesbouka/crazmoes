@@ -53,11 +53,13 @@ import {
   Package,
   Filter,
   X,
+  AlertTriangle,
 } from "lucide-react";
 
 interface MarketplaceListing {
   id: string;
-  facebook_id: string | null;
+  facebook_id: string;
+  account_tag: string;
   title: string;
   description: string | null;
   price: number | null;
@@ -87,6 +89,11 @@ interface StatusCounts {
   total: number;
 }
 
+interface AccountCounts {
+  MBFB: StatusCounts;
+  CMFB: StatusCounts;
+}
+
 export function AdminMarketplaceInventory() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,6 +109,7 @@ export function AdminMarketplaceInventory() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter state
+  const [accountFilter, setAccountFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [conditionFilter, setConditionFilter] = useState<string>("all");
   const [launchFilter, setLaunchFilter] = useState<string>("all");
@@ -110,14 +118,10 @@ export function AdminMarketplaceInventory() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
-  // Status counts
-  const [statusCounts, setStatusCounts] = useState<StatusCounts>({
-    active: 0,
-    pending: 0,
-    sold: 0,
-    deleted: 0,
-    launched: 0,
-    total: 0,
+  // Account counts
+  const [accountCounts, setAccountCounts] = useState<AccountCounts>({
+    MBFB: { active: 0, pending: 0, sold: 0, deleted: 0, launched: 0, total: 0 },
+    CMFB: { active: 0, pending: 0, sold: 0, deleted: 0, launched: 0, total: 0 },
   });
 
   // Launch state
@@ -129,35 +133,39 @@ export function AdminMarketplaceInventory() {
   // Bulk delete state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const fetchStatusCounts = useCallback(async () => {
+  // Clear all dialog
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState("");
+  const [isClearing, setIsClearing] = useState(false);
+
+  const fetchAccountCounts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("marketplace_listings")
-        .select("status, shopify_product_id");
+        .select("status, shopify_product_id, account_tag");
 
       if (error) throw error;
 
-      const counts: StatusCounts = {
-        active: 0,
-        pending: 0,
-        sold: 0,
-        deleted: 0,
-        launched: 0,
-        total: data?.length || 0,
+      const counts: AccountCounts = {
+        MBFB: { active: 0, pending: 0, sold: 0, deleted: 0, launched: 0, total: 0 },
+        CMFB: { active: 0, pending: 0, sold: 0, deleted: 0, launched: 0, total: 0 },
       };
 
       data?.forEach((item) => {
+        const account = (item.account_tag === "CMFB" ? "CMFB" : "MBFB") as keyof AccountCounts;
         const status = item.status?.toLowerCase() || "active";
-        if (status === "active") counts.active++;
-        else if (status === "pending") counts.pending++;
-        else if (status === "sold") counts.sold++;
-        else if (status === "deleted") counts.deleted++;
-        if (item.shopify_product_id) counts.launched++;
+        
+        counts[account].total++;
+        if (status === "active") counts[account].active++;
+        else if (status === "pending") counts[account].pending++;
+        else if (status === "sold") counts[account].sold++;
+        else if (status === "deleted") counts[account].deleted++;
+        if (item.shopify_product_id) counts[account].launched++;
       });
 
-      setStatusCounts(counts);
+      setAccountCounts(counts);
     } catch (error: any) {
-      console.error("Error fetching status counts:", error);
+      console.error("Error fetching account counts:", error);
     }
   }, []);
 
@@ -172,6 +180,11 @@ export function AdminMarketplaceInventory() {
       // Apply search filter
       if (searchQuery) {
         query = query.ilike("title", `%${searchQuery}%`);
+      }
+
+      // Apply account filter
+      if (accountFilter !== "all") {
+        query = query.eq("account_tag", accountFilter);
       }
 
       // Apply status filter
@@ -205,12 +218,12 @@ export function AdminMarketplaceInventory() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchQuery, sortField, sortDirection, statusFilter, conditionFilter, launchFilter]);
+  }, [currentPage, searchQuery, sortField, sortDirection, accountFilter, statusFilter, conditionFilter, launchFilter]);
 
   useEffect(() => {
     fetchListings();
-    fetchStatusCounts();
-  }, [fetchListings, fetchStatusCounts]);
+    fetchAccountCounts();
+  }, [fetchListings, fetchAccountCounts]);
 
   useEffect(() => {
     const channel = supabase
@@ -220,7 +233,7 @@ export function AdminMarketplaceInventory() {
         { event: "*", schema: "public", table: "marketplace_listings" },
         () => {
           fetchListings();
-          fetchStatusCounts();
+          fetchAccountCounts();
         }
       )
       .subscribe();
@@ -228,13 +241,13 @@ export function AdminMarketplaceInventory() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchListings, fetchStatusCounts]);
+  }, [fetchListings, fetchAccountCounts]);
 
   // Reset selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
     setSelectAll(false);
-  }, [statusFilter, conditionFilter, launchFilter, searchQuery, currentPage]);
+  }, [accountFilter, statusFilter, conditionFilter, launchFilter, searchQuery, currentPage]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -303,7 +316,7 @@ export function AdminMarketplaceInventory() {
       toast.success("Listing updated");
       setEditingListing(null);
       fetchListings();
-      fetchStatusCounts();
+      fetchAccountCounts();
     } catch (error: any) {
       toast.error("Failed to update: " + error.message);
     }
@@ -321,7 +334,7 @@ export function AdminMarketplaceInventory() {
       if (error) throw error;
       toast.success("Listing deleted");
       fetchListings();
-      fetchStatusCounts();
+      fetchAccountCounts();
     } catch (error: any) {
       toast.error("Failed to delete: " + error.message);
     }
@@ -342,9 +355,32 @@ export function AdminMarketplaceInventory() {
       setSelectAll(false);
       setShowDeleteDialog(false);
       fetchListings();
-      fetchStatusCounts();
+      fetchAccountCounts();
     } catch (error: any) {
       toast.error("Failed to delete: " + error.message);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (clearConfirmText !== "DELETE ALL") return;
+
+    setIsClearing(true);
+    try {
+      const { error } = await supabase
+        .from("marketplace_listings")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+
+      if (error) throw error;
+      toast.success("All inventory cleared");
+      setShowClearAllDialog(false);
+      setClearConfirmText("");
+      fetchListings();
+      fetchAccountCounts();
+    } catch (error: any) {
+      toast.error("Failed to clear: " + error.message);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -362,7 +398,7 @@ export function AdminMarketplaceInventory() {
       setSelectedIds(new Set());
       setSelectAll(false);
       fetchListings();
-      fetchStatusCounts();
+      fetchAccountCounts();
     } catch (error: any) {
       toast.error("Failed to update: " + error.message);
     }
@@ -395,7 +431,7 @@ export function AdminMarketplaceInventory() {
       setSelectedIds(new Set());
       setSelectAll(false);
       fetchListings();
-      fetchStatusCounts();
+      fetchAccountCounts();
     } catch (error: any) {
       console.error("Launch error:", error);
       toast.error("Failed to launch: " + (error.message || "Unknown error"));
@@ -425,6 +461,7 @@ export function AdminMarketplaceInventory() {
     const itemsToExport = exportAll ? listings : listings.filter((l) => selectedIds.has(l.id));
     
     const headers = [
+      "Account",
       "Title",
       "Description",
       "Price",
@@ -442,6 +479,7 @@ export function AdminMarketplaceInventory() {
       headers.join(","),
       ...itemsToExport.map((l) =>
         [
+          l.account_tag || "MBFB",
           `"${l.title.replace(/"/g, '""')}"`,
           `"${(l.description || "").replace(/"/g, '""')}"`,
           l.price || "",
@@ -466,10 +504,25 @@ export function AdminMarketplaceInventory() {
     toast.success(`Exported ${itemsToExport.length} listings to CSV`);
   };
 
+  const getAccountBadge = (accountTag: string) => {
+    if (accountTag === "CMFB") {
+      return (
+        <Badge className="bg-purple-500 hover:bg-purple-600 text-xs">
+          CMFB
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-blue-500 hover:bg-blue-600 text-xs">
+        MBFB
+      </Badge>
+    );
+  };
+
   const getStatusBadge = (status: string, shopifyId: string | null) => {
     if (shopifyId) {
       return (
-        <Badge className="bg-blue-500 hover:bg-blue-600">
+        <Badge className="bg-emerald-500 hover:bg-emerald-600">
           <Globe className="h-3 w-3 mr-1" />
           Live
         </Badge>
@@ -511,13 +564,22 @@ export function AdminMarketplaceInventory() {
   };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const grandTotal = accountCounts.MBFB.total + accountCounts.CMFB.total;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between flex-wrap gap-4">
-          <span>Marketplace Inventory ({totalCount} listings)</span>
+          <span>Marketplace Inventory ({totalCount} of {grandTotal})</span>
           <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowClearAllDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear All
+            </Button>
             <Button variant="outline" size="sm" onClick={() => fetchListings()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
@@ -530,23 +592,58 @@ export function AdminMarketplaceInventory() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Stats Row */}
-        <div className="flex flex-wrap gap-4 p-3 bg-muted/50 rounded-lg text-sm">
-          <div className="flex items-center gap-1">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span className="font-medium">{statusCounts.active}</span> Active
+        {/* Per-Account Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* MBFB Stats */}
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className="bg-blue-500">MBFB</Badge>
+              <span className="font-semibold">{accountCounts.MBFB.total} total</span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                {accountCounts.MBFB.active} Active
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-yellow-500" />
+                {accountCounts.MBFB.pending} Pending
+              </span>
+              <span className="flex items-center gap-1">
+                <Package className="h-3 w-3 text-red-500" />
+                {accountCounts.MBFB.sold} Sold
+              </span>
+              <span className="flex items-center gap-1">
+                <Globe className="h-3 w-3 text-emerald-500" />
+                {accountCounts.MBFB.launched} Live
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4 text-yellow-500" />
-            <span className="font-medium">{statusCounts.pending}</span> Pending
-          </div>
-          <div className="flex items-center gap-1">
-            <Package className="h-4 w-4 text-red-500" />
-            <span className="font-medium">{statusCounts.sold}</span> Sold
-          </div>
-          <div className="flex items-center gap-1">
-            <Globe className="h-4 w-4 text-blue-500" />
-            <span className="font-medium">{statusCounts.launched}</span> Live on Site
+
+          {/* CMFB Stats */}
+          <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className="bg-purple-500">CMFB</Badge>
+              <span className="font-semibold">{accountCounts.CMFB.total} total</span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                {accountCounts.CMFB.active} Active
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-yellow-500" />
+                {accountCounts.CMFB.pending} Pending
+              </span>
+              <span className="flex items-center gap-1">
+                <Package className="h-3 w-3 text-red-500" />
+                {accountCounts.CMFB.sold} Sold
+              </span>
+              <span className="flex items-center gap-1">
+                <Globe className="h-3 w-3 text-emerald-500" />
+                {accountCounts.CMFB.launched} Live
+              </span>
+            </div>
           </div>
         </div>
 
@@ -564,6 +661,17 @@ export function AdminMarketplaceInventory() {
               className="pl-10"
             />
           </div>
+
+          <Select value={accountFilter} onValueChange={(v) => { setAccountFilter(v); setCurrentPage(1); }}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Account" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Accounts</SelectItem>
+              <SelectItem value="MBFB">🔵 MBFB</SelectItem>
+              <SelectItem value="CMFB">🟣 CMFB</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
             <SelectTrigger className="w-[140px]">
@@ -692,6 +800,7 @@ export function AdminMarketplaceInventory() {
                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                       />
                     </TableHead>
+                    <TableHead className="w-16">Acct</TableHead>
                     <TableHead className="w-16"></TableHead>
                     <TableHead>
                       <button
@@ -747,6 +856,9 @@ export function AdminMarketplaceInventory() {
                         />
                       </TableCell>
                       <TableCell>
+                        {getAccountBadge(listing.account_tag)}
+                      </TableCell>
+                      <TableCell>
                         {listing.images && listing.images.length > 0 ? (
                           <img
                             src={listing.images[0]}
@@ -800,7 +912,7 @@ export function AdminMarketplaceInventory() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >
-                                <Globe className="h-4 w-4 text-blue-500" />
+                                <Globe className="h-4 w-4 text-emerald-500" />
                               </a>
                             </Button>
                           ) : (
@@ -901,7 +1013,7 @@ export function AdminMarketplaceInventory() {
                             onClick={() => handleDelete(listing.id)}
                             title="Delete"
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       </TableCell>
@@ -911,101 +1023,119 @@ export function AdminMarketplaceInventory() {
               </Table>
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="flex items-center px-3 text-sm">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-            )}
+            </div>
           </>
         )}
-
-        {/* Launch Confirmation Dialog */}
-        <Dialog open={showLaunchDialog} onOpenChange={setShowLaunchDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Rocket className="h-5 w-5" />
-                Launch to crazymoe.com
-              </DialogTitle>
-              <DialogDescription>
-                You're about to publish {launchingIds.length} product{launchingIds.length > 1 ? "s" : ""} to your live website.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-2">
-              <p className="text-sm">Products will be:</p>
-              <ul className="text-sm space-y-1 ml-4">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Added to Shopify inventory
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Visible on crazymoe.com/shop
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Searchable by customers
-                </li>
-              </ul>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowLaunchDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => handleLaunch(launchingIds)}>
-                <Rocket className="h-4 w-4 mr-2" />
-                Launch Now
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Bulk Delete Confirmation Dialog */}
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-destructive">
-                <Trash2 className="h-5 w-5" />
-                Delete {selectedIds.size} Listings
-              </DialogTitle>
-              <DialogDescription>
-                This action cannot be undone. Are you sure you want to permanently delete these listings?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleBulkDelete}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete All
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </CardContent>
+
+      {/* Launch Confirmation Dialog */}
+      <Dialog open={showLaunchDialog} onOpenChange={setShowLaunchDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Launch to crazymoe.com</DialogTitle>
+            <DialogDescription>
+              You're about to launch {launchingIds.length} product{launchingIds.length > 1 ? "s" : ""} to your live website.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLaunchDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleLaunch(launchingIds)}>
+              <Rocket className="h-4 w-4 mr-2" />
+              Launch {launchingIds.length} Product{launchingIds.length > 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} Listings</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Are you sure you want to delete the selected listings?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete {selectedIds.size} Listings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear All Confirmation Dialog */}
+      <Dialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-500">
+              <AlertTriangle className="h-5 w-5" />
+              Clear All Inventory
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete ALL {grandTotal} listings from both MBFB and CMFB accounts. 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Type "DELETE ALL" to confirm:</label>
+            <Input
+              value={clearConfirmText}
+              onChange={(e) => setClearConfirmText(e.target.value)}
+              placeholder="DELETE ALL"
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowClearAllDialog(false);
+              setClearConfirmText("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleClearAll}
+              disabled={clearConfirmText !== "DELETE ALL" || isClearing}
+            >
+              {isClearing ? "Clearing..." : "Clear All Inventory"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
