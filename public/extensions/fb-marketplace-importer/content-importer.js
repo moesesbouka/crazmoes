@@ -173,8 +173,33 @@
         facebookId = extractListingIdFromUrl(possible) || extractIdFromAnyString(possible);
       }
 
-      if (!facebookId) return null;
-      if (!listingUrl) listingUrl = `https://www.facebook.com/marketplace/item/${facebookId}`;
+      if (!facebookId) {
+        // Facebook Selling dashboard often hides IDs in DOM.
+        // Create a stable fallback id from title+price+image.
+        const fallbackTitle =
+          (tile.querySelector('[role="heading"]')?.textContent || tile.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 120);
+
+        const txt = (tile.textContent || "").replace(/\s+/g, " ");
+        const pm = txt.match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+        const fallbackPrice = pm ? pm[1].replace(/,/g, "") : "";
+
+        const img = tile.querySelector("img[src]")?.src || extractBackgroundImageUrl(tile) || "";
+
+        // simple hash (no crypto needed)
+        const raw = `${fallbackTitle}||${fallbackPrice}||${img}`;
+        let hash = 0;
+        for (let i = 0; i < raw.length; i++) {
+          hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+        }
+
+        facebookId = `dom_${Math.abs(hash)}`;
+        listingUrl = ""; // unknown at this stage
+      }
+
+      if (!listingUrl) listingUrl = facebookId.startsWith("dom_") ? "" : `https://www.facebook.com/marketplace/item/${facebookId}`;
 
       // Title: first heading-like text in tile that isn't price
       let title = "";
