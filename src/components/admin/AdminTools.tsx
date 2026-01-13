@@ -36,6 +36,7 @@ const EXTENSIONS = {
       "popup.js",
       "background.js",
       "content-importer.js",
+      "page-graphql-interceptor.js",
       "styles.css"
     ]
   }
