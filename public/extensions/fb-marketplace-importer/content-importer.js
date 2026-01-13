@@ -1,5 +1,5 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 1.2.2 - Price-node driven tile detection (works when no <a href> and no role=link cards)
+// Version 1.2.2 - Dual-track: GraphQL capture (full data) + DOM fallback
 (function () {
   "use strict";
 
@@ -13,8 +13,45 @@
   let importedCount = 0;
   let totalCount = 0;
 
+  // GraphQL captured listings (includes description, condition, category)
+  const capturedListings = new Map();
+  let lastCapturedSize = 0;
+
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  // Inject the page-context GraphQL interceptor
+  function injectGraphQLInterceptor() {
+    if (window.__fbImporterGraphqlInjected) return;
+    window.__fbImporterGraphqlInjected = true;
+
+    console.log("FB Importer: Injecting GraphQL interceptor into page context...");
+
+    // Listen for messages from the injected page script
+    window.addEventListener("message", (event) => {
+      if (event.source !== window) return;
+      const msg = event.data;
+      if (!msg || msg.source !== "fb-importer") return;
+
+      if (msg.type === "READY") {
+        console.log("FB Importer: GraphQL interceptor is READY");
+      }
+
+      if (msg.type === "LISTING") {
+        const listing = msg.payload;
+        if (listing && listing.facebook_id && !capturedListings.has(listing.facebook_id)) {
+          capturedListings.set(listing.facebook_id, listing);
+          console.log(`FB Importer: GraphQL captured (${capturedListings.size}):`, listing.title?.slice(0, 50));
+        }
+      }
+    });
+
+    // Inject the script into page context
+    const script = document.createElement("script");
+    script.src = chrome.runtime.getURL("page-graphql-interceptor.js");
+    script.onload = () => script.remove();
+    document.documentElement.appendChild(script);
   }
 
   function createImportButton() {
@@ -102,7 +139,7 @@
     return null;
   }
 
-  // -------- NEW: find listing tiles by locating price nodes ($xx) then climbing to a "card"
+  // Find listing tiles by locating price nodes ($xx) then climbing to a "card"
   function getListingElements() {
     const containers = new Set();
 
@@ -123,7 +160,6 @@
         const hasText = getVisibleText(card).length > 10;
         const hasImg = !!card.querySelector("img[src]") || !!extractBackgroundImageUrl(card);
 
-        // Many FB tiles are clickable as role=link/button, but not always
         const isClickable =
           card.getAttribute?.("role") === "link" ||
           card.getAttribute?.("role") === "button" ||
@@ -134,7 +170,6 @@
           break;
         }
 
-        // If clickable + contains price + decent size, accept too
         if (okSize && hasText && isClickable) {
           containers.add(card);
           break;
@@ -188,7 +223,7 @@
 
         const img = tile.querySelector("img[src]")?.src || extractBackgroundImageUrl(tile) || "";
 
-        // simple hash (no crypto needed)
+        // simple hash
         const raw = `${fallbackTitle}||${fallbackPrice}||${img}`;
         let hash = 0;
         for (let i = 0; i < raw.length; i++) {
@@ -196,12 +231,12 @@
         }
 
         facebookId = `dom_${Math.abs(hash)}`;
-        listingUrl = ""; // unknown at this stage
+        listingUrl = "";
       }
 
       if (!listingUrl) listingUrl = facebookId.startsWith("dom_") ? "" : `https://www.facebook.com/marketplace/item/${facebookId}`;
 
-      // Title: first heading-like text in tile that isn't price
+      // Title
       let title = "";
       const heading = tile.querySelector('[role="heading"]');
       if (heading) title = getVisibleText(heading);
@@ -210,7 +245,6 @@
         const spans = Array.from(tile.querySelectorAll('span[dir="auto"]'))
           .map((s) => getVisibleText(s))
           .filter((t) => t && t.length > 3 && t.length < 200 && !/^\$[\d,]+/.test(t));
-        // Often the first non-price span is title
         title = spans[0] || "";
       }
 
@@ -238,6 +272,11 @@
         listing_url: listingUrl,
         status: "active",
         imported_at: new Date().toISOString(),
+        // DOM extraction doesn't have these - GraphQL will fill them
+        description: null,
+        condition: null,
+        category: null,
+        location: null,
       };
     } catch (e) {
       console.error("FB Importer: extractListingData error", e);
@@ -254,8 +293,10 @@
 
     console.log("FB Importer: Starting to collect listings...");
     console.log("FB Importer: URL:", window.location.href);
+    console.log(`FB Importer: GraphQL already captured: ${capturedListings.size}`);
 
     while (noNew < 4) {
+      // DOM extraction (fallback)
       const tiles = getListingElements();
 
       for (const t of tiles) {
@@ -266,27 +307,70 @@
         }
       }
 
-      console.log(`FB Importer: Collected so far: ${listings.length}`);
+      const newCapturedSize = capturedListings.size;
+      console.log(`FB Importer: DOM collected: ${listings.length}, GraphQL captured: ${newCapturedSize}`);
 
+      // Scroll to trigger lazy load and more GraphQL calls
       window.scrollTo(0, document.documentElement.scrollHeight);
       await sleep(2000);
 
       const h = document.documentElement.scrollHeight;
-      if (h === lastHeight) {
+      
+      // Stop if both scroll height and GraphQL captures stop increasing
+      if (h === lastHeight && newCapturedSize === lastCapturedSize) {
         noNew++;
         console.log(`FB Importer: No new content (attempt ${noNew}/4)`);
       } else {
         noNew = 0;
         lastHeight = h;
+        lastCapturedSize = newCapturedSize;
       }
     }
 
-    console.log(`FB Importer: FINAL unique listings: ${listings.length}`);
+    // Merge GraphQL captured listings - these have full data (description, condition, etc.)
+    // GraphQL data takes priority because it has more fields
+    for (const [id, gqlListing] of capturedListings) {
+      const existingIndex = listings.findIndex(l => l.facebook_id === id);
+      if (existingIndex >= 0) {
+        // Merge: GraphQL data overwrites DOM data
+        listings[existingIndex] = { ...listings[existingIndex], ...gqlListing };
+      } else if (!seen.has(id)) {
+        seen.add(id);
+        listings.push(gqlListing);
+      }
+    }
+
+    console.log(`FB Importer: === FINAL RESULTS ===`);
+    console.log(`  DOM-based: ${listings.length - capturedListings.size}`);
+    console.log(`  GraphQL captured: ${capturedListings.size}`);
+    console.log(`  Total unique: ${listings.length}`);
+
+    // Log what data we have
+    const withDesc = listings.filter(l => l.description).length;
+    const withCondition = listings.filter(l => l.condition).length;
+    const withCategory = listings.filter(l => l.category).length;
+    console.log(`  With description: ${withDesc}, With condition: ${withCondition}, With category: ${withCategory}`);
+
     return listings;
   }
 
   async function saveListing(listing) {
     try {
+      // Clean up the listing object - only send fields the DB accepts
+      const payload = {
+        facebook_id: listing.facebook_id,
+        title: listing.title,
+        price: listing.price,
+        description: listing.description || null,
+        condition: listing.condition || null,
+        category: listing.category || null,
+        location: listing.location || null,
+        images: listing.images || [],
+        listing_url: listing.listing_url || null,
+        status: listing.status || "active",
+        imported_at: listing.imported_at || new Date().toISOString(),
+      };
+
       const res = await fetch(`${SUPABASE_URL}/rest/v1/marketplace_listings`, {
         method: "POST",
         headers: {
@@ -295,7 +379,7 @@
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
           Prefer: "resolution=merge-duplicates",
         },
-        body: JSON.stringify(listing),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -383,6 +467,10 @@
   function init() {
     if (window.location.href.includes("facebook.com/marketplace/you")) {
       console.log(`FB Importer v${EXTENSION_VERSION}: Detected page, initializing...`);
+      
+      // Inject GraphQL interceptor FIRST to start capturing network data
+      injectGraphQLInterceptor();
+      
       setTimeout(createImportButton, 2000);
     }
   }
