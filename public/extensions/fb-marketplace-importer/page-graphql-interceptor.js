@@ -1,5 +1,5 @@
 // FB Marketplace Importer - Page Context GraphQL Interceptor
-// Version 1.2.3 - Captures full listing data with diagnostic logging
+// Version 1.2.5 - Captures full listing data with status extraction and diagnostic logging
 (function () {
   try {
     if (window.__fbImporterInjected) return;
@@ -34,6 +34,72 @@
         return String(field.text || field.value || field.name || '').trim();
       }
       return '';
+    }
+
+    // Enhanced status extraction from Facebook's various field names
+    function extractStatus(obj) {
+      // Check for explicit sold indicators
+      if (obj.is_sold === true || obj.sold === true) {
+        return 'sold';
+      }
+      
+      // Check sold_status field
+      const soldStatus = obj.sold_status || obj.sale_status;
+      if (soldStatus) {
+        const ss = String(soldStatus).toUpperCase();
+        if (ss === 'SOLD' || ss === 'COMPLETED' || ss === 'CLOSED') {
+          return 'sold';
+        }
+      }
+      
+      // Check for pending indicators
+      if (obj.is_pending === true || obj.pending === true || obj.is_pending_sale === true) {
+        return 'pending';
+      }
+      
+      // Check listing_state field
+      const listingState = obj.listing_state || obj.marketplace_listing_state || obj.state;
+      if (listingState) {
+        const ls = String(listingState).toUpperCase();
+        if (ls === 'SOLD' || ls === 'CLOSED' || ls === 'COMPLETED') {
+          return 'sold';
+        }
+        if (ls === 'PENDING' || ls === 'PENDING_SALE' || ls === 'PENDING_PICKUP') {
+          return 'pending';
+        }
+        if (ls === 'DELETED' || ls === 'HIDDEN' || ls === 'REMOVED' || ls === 'EXPIRED') {
+          return 'deleted';
+        }
+      }
+      
+      // Check visibility field
+      const visibility = obj.visibility || obj.listing_visibility;
+      if (visibility) {
+        const v = String(visibility).toUpperCase();
+        if (v === 'HIDDEN' || v === 'DELETED' || v === 'REMOVED') {
+          return 'deleted';
+        }
+      }
+      
+      // Check is_deleted / is_hidden flags
+      if (obj.is_deleted === true || obj.is_hidden === true || obj.deleted === true) {
+        return 'deleted';
+      }
+      
+      // Check availability field
+      const availability = obj.availability || obj.availability_status || obj.stock_status;
+      if (availability) {
+        const a = String(availability).toUpperCase();
+        if (a === 'OUT_OF_STOCK' || a === 'SOLD' || a === 'UNAVAILABLE') {
+          return 'sold';
+        }
+        if (a === 'RESERVED' || a === 'PENDING') {
+          return 'pending';
+        }
+      }
+      
+      // Default to active if no other status found
+      return 'active';
     }
 
     function maybeEmitListing(obj) {
@@ -197,6 +263,9 @@
         // Only emit if we have at least something useful
         if (!title && !price && images.length === 0 && !description) return;
 
+        // Extract status using enhanced logic
+        const status = extractStatus(obj);
+
         listingsEmitted++;
         const payload = {
           facebook_id: id,
@@ -208,7 +277,7 @@
           location: location || null,
           images: images.slice(0, 20),
           listing_url: 'https://www.facebook.com/marketplace/item/' + id,
-          status: 'active',
+          status: status,
           imported_at: new Date().toISOString(),
         };
 
@@ -222,6 +291,7 @@
         );
 
         console.log(`FB Importer GraphQL: Captured listing #${listingsEmitted}:`, id, title?.slice(0, 40), 
+          `(status: ${status})`,
           description ? `(desc: ${description.length} chars)` : '(no desc)', 
           condition ? `(cond: ${condition})` : '(no cond)');
       } catch (e) {
@@ -325,8 +395,9 @@
     };
 
     window.postMessage({ source: 'fb-importer', type: 'READY' }, '*');
-    console.log('FB Importer: Page-context GraphQL interceptor v1.2.3 READY');
+    console.log('FB Importer: Page-context GraphQL interceptor v1.2.5 READY');
     console.log('FB Importer: Watching for /api/graphql and /graphql requests...');
+    console.log('FB Importer: Enhanced status detection enabled (active/pending/sold/deleted)');
   } catch (e) {
     console.log('FB Importer: Injection failed', e);
   }
