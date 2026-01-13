@@ -1,9 +1,9 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 1.2.4 - Deep image extraction: clicks into each listing to capture ALL gallery images
+// Version 1.2.6 - Multi-account support with proper upsert (no duplicates)
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "1.2.4";
+  const EXTENSION_VERSION = "1.2.6";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -12,6 +12,7 @@
   let isImporting = false;
   let importedCount = 0;
   let totalCount = 0;
+  let selectedAccount = "MBFB"; // Default account
 
   // GraphQL captured listings (includes description, condition, category)
   const capturedListings = new Map();
@@ -19,6 +20,17 @@
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  // Load selected account from storage
+  async function loadSelectedAccount() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["selectedAccount"], (result) => {
+        selectedAccount = result.selectedAccount || "MBFB";
+        console.log(`FB Importer v${EXTENSION_VERSION}: Account loaded: ${selectedAccount}`);
+        resolve(selectedAccount);
+      });
+    });
   }
 
   // Inject the page-context GraphQL interceptor
@@ -57,9 +69,15 @@
   function createImportButton() {
     if (document.querySelector("#fb-importer-button")) return;
 
+    const accountClass = selectedAccount === "MBFB" ? "mbfb" : "cmfb";
+    const accountColor = selectedAccount === "MBFB" ? "#3b82f6" : "#a855f7";
+
     const container = document.createElement("div");
     container.id = "fb-importer-container";
     container.innerHTML = `
+      <div id="fb-importer-account-badge" class="fb-importer-account-badge ${accountClass}">
+        ● ${selectedAccount}
+      </div>
       <button id="fb-importer-button" class="fb-importer-btn">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
@@ -68,7 +86,7 @@
       </button>
       <div id="fb-importer-version" class="fb-importer-version">v${EXTENSION_VERSION}</div>
       <div id="fb-importer-progress" class="fb-importer-progress" style="display:none;">
-        <div class="progress-text">Importing: <span id="import-count">0</span> / <span id="import-total">0</span></div>
+        <div class="progress-text">Importing to <strong>${selectedAccount}</strong>: <span id="import-count">0</span> / <span id="import-total">0</span></div>
         <div class="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
@@ -79,7 +97,31 @@
     document.body.appendChild(container);
     document.querySelector("#fb-importer-button").addEventListener("click", startImport);
 
-    console.log(`FB Importer v${EXTENSION_VERSION}: Button created`);
+    // Add account badge styles
+    const style = document.createElement("style");
+    style.textContent = `
+      .fb-importer-account-badge {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        display: inline-block;
+      }
+      .fb-importer-account-badge.mbfb {
+        background: rgba(59, 130, 246, 0.2);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        color: #60a5fa;
+      }
+      .fb-importer-account-badge.cmfb {
+        background: rgba(168, 85, 247, 0.2);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        color: #c084fc;
+      }
+    `;
+    document.head.appendChild(style);
+
+    console.log(`FB Importer v${EXTENSION_VERSION}: Button created for account ${selectedAccount}`);
   }
 
   function updateStatus(text) {
@@ -147,6 +189,30 @@
       }
     }
     return null;
+  }
+
+  // ============= STABLE FALLBACK ID GENERATION =============
+  // Uses stable fields only (NOT price, NOT description - they change too often)
+  function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16);
+  }
+
+  function normalizeTitle(title) {
+    return (title || "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 100);
+  }
+
+  function generateStableFallbackId(accountTag, title, firstImage, location) {
+    // Use stable fields only - NOT price, NOT description
+    const normalizedTitle = normalizeTitle(title);
+    const raw = `${accountTag}|${normalizedTitle}|${firstImage || ""}|${location || ""}`;
+    const hash = simpleHash(raw);
+    return `H_${accountTag}_${hash}`;
   }
 
   // ============= DEEP IMAGE EXTRACTION =============
@@ -393,35 +459,7 @@
         facebookId = extractListingIdFromUrl(possible) || extractIdFromAnyString(possible);
       }
 
-      if (!facebookId) {
-        // Facebook Selling dashboard often hides IDs in DOM.
-        // Create a stable fallback id from title+price+image.
-        const fallbackTitle =
-          (tile.querySelector('[role="heading"]')?.textContent || tile.textContent || "")
-            .replace(/\s+/g, " ")
-            .trim()
-            .slice(0, 120);
-
-        const txt = (tile.textContent || "").replace(/\s+/g, " ");
-        const pm = txt.match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-        const fallbackPrice = pm ? pm[1].replace(/,/g, "") : "";
-
-        const img = tile.querySelector("img[src]")?.src || extractBackgroundImageUrl(tile) || "";
-
-        // simple hash
-        const raw = `${fallbackTitle}||${fallbackPrice}||${img}`;
-        let hash = 0;
-        for (let i = 0; i < raw.length; i++) {
-          hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
-        }
-
-        facebookId = `dom_${Math.abs(hash)}`;
-        listingUrl = "";
-      }
-
-      if (!listingUrl) listingUrl = facebookId.startsWith("dom_") ? "" : `https://www.facebook.com/marketplace/item/${facebookId}`;
-
-      // Title
+      // Title extraction (needed for fallback ID)
       let title = "";
       const heading = tile.querySelector('[role="heading"]');
       if (heading) title = getVisibleText(heading);
@@ -436,12 +474,6 @@
       title = title.replace(/\s+/g, " ").trim();
       if (!title || title.length < 3) return null;
 
-      // Price
-      let price = null;
-      const txt = getVisibleText(tile);
-      const pm = txt.match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-      if (pm) price = parseFloat(pm[1].replace(/,/g, ""));
-
       // Images (just thumbnail for now - deep extraction happens later)
       const images = [];
       const img = tile.querySelector("img[src]");
@@ -449,8 +481,27 @@
       const bg = extractBackgroundImageUrl(tile);
       if (images.length === 0 && bg) images.push(bg);
 
+      // Location extraction for stable ID
+      const locationEl = tile.querySelector('[aria-label*="location"]') || tile.querySelector('[data-testid*="location"]');
+      const location = locationEl ? getVisibleText(locationEl) : null;
+
+      // Generate stable fallback ID if no real FB ID found
+      if (!facebookId) {
+        facebookId = generateStableFallbackId(selectedAccount, title, images[0], location);
+        listingUrl = "";
+      }
+
+      if (!listingUrl) listingUrl = facebookId.startsWith("H_") ? "" : `https://www.facebook.com/marketplace/item/${facebookId}`;
+
+      // Price
+      let price = null;
+      const txt = getVisibleText(tile);
+      const pm = txt.match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+      if (pm) price = parseFloat(pm[1].replace(/,/g, ""));
+
       return {
         facebook_id: String(facebookId),
+        account_tag: selectedAccount, // Include account tag
         title: title.substring(0, 255),
         price: Number.isFinite(price) ? price : null,
         images: images.slice(0, 10),
@@ -461,7 +512,7 @@
         description: null,
         condition: null,
         category: null,
-        location: null,
+        location: location,
         // Reference to tile for deep extraction
         _tile: tile,
       };
@@ -480,10 +531,11 @@
 
     console.log("FB Importer: Starting to collect listings...");
     console.log("FB Importer: URL:", window.location.href);
+    console.log(`FB Importer: Account: ${selectedAccount}`);
     console.log(`FB Importer: GraphQL already captured: ${capturedListings.size}`);
 
     // Phase 1: Scroll and collect all listing tiles
-    updateStatus("Phase 1: Scanning all listings...");
+    updateStatus(`Phase 1: Scanning all listings for ${selectedAccount}...`);
     
     while (noNew < 4) {
       // DOM extraction (fallback)
@@ -524,15 +576,21 @@
       if (existingIndex >= 0) {
         // Merge: GraphQL data overwrites DOM data, keep tile reference
         const tile = listings[existingIndex]._tile;
-        listings[existingIndex] = { ...listings[existingIndex], ...gqlListing, _tile: tile };
+        listings[existingIndex] = { 
+          ...listings[existingIndex], 
+          ...gqlListing, 
+          account_tag: selectedAccount, // Ensure account_tag is set
+          _tile: tile 
+        };
       } else if (!seen.has(id)) {
         seen.add(id);
-        listings.push(gqlListing);
+        listings.push({ ...gqlListing, account_tag: selectedAccount });
       }
     }
 
     console.log(`FB Importer: === PHASE 1 COMPLETE ===`);
     console.log(`  Total listings found: ${listings.length}`);
+    console.log(`  Account: ${selectedAccount}`);
     
     // Phase 2: Deep image extraction for listings with only 1 image
     // Skip if GraphQL captured full image arrays
@@ -579,6 +637,7 @@
     }
 
     console.log(`FB Importer: === FINAL RESULTS ===`);
+    console.log(`  Account: ${selectedAccount}`);
     console.log(`  DOM-based: ${listings.length - capturedListings.size}`);
     console.log(`  GraphQL captured: ${capturedListings.size}`);
     console.log(`  Total unique: ${listings.length}`);
@@ -599,6 +658,7 @@
       // Clean up the listing object - only send fields the DB accepts
       const payload = {
         facebook_id: listing.facebook_id,
+        account_tag: listing.account_tag || selectedAccount, // Always include account_tag
         title: listing.title,
         price: listing.price,
         description: listing.description || null,
@@ -611,7 +671,9 @@
         imported_at: listing.imported_at || new Date().toISOString(),
       };
 
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/marketplace_listings`, {
+      // Use proper upsert with composite unique constraint
+      // on_conflict=account_tag,facebook_id ensures updates instead of duplicates
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/marketplace_listings?on_conflict=account_tag,facebook_id`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -637,6 +699,9 @@
   async function startImport() {
     if (isImporting) return;
 
+    // Reload account selection in case it changed
+    await loadSelectedAccount();
+
     isImporting = true;
     importedCount = 0;
 
@@ -646,8 +711,12 @@
     const totalSpan = document.querySelector("#import-total");
     const progressFill = document.querySelector("#progress-fill");
 
+    // Update progress text with account name
+    progress.querySelector('.progress-text').innerHTML = 
+      `Importing to <strong>${selectedAccount}</strong>: <span id="import-count">0</span> / <span id="import-total">0</span>`;
+
     button.disabled = true;
-    button.innerHTML = "Scanning listings...";
+    button.innerHTML = `Scanning listings for ${selectedAccount}...`;
 
     try {
       const listings = await collectAllListings();
@@ -661,31 +730,40 @@
       }
 
       progress.style.display = "block";
-      totalSpan.textContent = String(totalCount);
-      button.innerHTML = "Importing...";
-      updateStatus("Phase 3: Saving to database...");
+      document.querySelector("#import-total").textContent = String(totalCount);
+      button.innerHTML = `Importing to ${selectedAccount}...`;
+      updateStatus(`Phase 3: Saving to ${selectedAccount} database...`);
+
+      let newCount = 0;
+      let updateCount = 0;
 
       for (const item of listings) {
         const ok = await saveListing(item);
         if (ok) {
           importedCount++;
-          countSpan.textContent = String(importedCount);
+          document.querySelector("#import-count").textContent = String(importedCount);
           progressFill.style.width = `${(importedCount / totalCount) * 100}%`;
         }
         await sleep(120);
       }
 
-      button.innerHTML = `✓ Imported ${importedCount}`;
+      button.innerHTML = `✓ ${selectedAccount}: ${importedCount} saved`;
       button.classList.add("success");
       
       const totalImages = listings.reduce((sum, l) => sum + (l.images?.length || 0), 0);
-      updateStatus(`Complete! ${importedCount} listings, ${totalImages} images`);
+      updateStatus(`Complete! ${selectedAccount}: ${importedCount} listings, ${totalImages} images`);
 
-      chrome.storage.local.set({
-        lastImport: {
-          count: importedCount,
-          date: new Date().toISOString(),
-        },
+      // Update storage with import count
+      chrome.storage.local.get(['totalImported'], (result) => {
+        const currentTotal = result.totalImported || 0;
+        chrome.storage.local.set({
+          lastImport: {
+            count: importedCount,
+            account: selectedAccount,
+            date: new Date().toISOString(),
+          },
+          totalImported: currentTotal + importedCount,
+        });
       });
 
       setTimeout(() => {
@@ -709,9 +787,12 @@
     }
   }
 
-  function init() {
+  async function init() {
     if (window.location.href.includes("facebook.com/marketplace/you")) {
-      console.log(`FB Importer v${EXTENSION_VERSION}: Detected page, initializing...`);
+      // Load account first
+      await loadSelectedAccount();
+      
+      console.log(`FB Importer v${EXTENSION_VERSION}: Detected page, initializing for ${selectedAccount}...`);
       
       // Inject GraphQL interceptor FIRST to start capturing network data
       injectGraphQLInterceptor();

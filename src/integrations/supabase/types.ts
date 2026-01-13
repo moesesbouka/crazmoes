@@ -129,60 +129,69 @@ export type Database = {
       }
       marketplace_listings: {
         Row: {
+          account_tag: string
           category: string | null
           condition: string | null
           created_at: string
           description: string | null
-          facebook_id: string | null
+          facebook_id: string
           id: string
           images: string[] | null
           imported_at: string
+          launch_status: string | null
           launched_at: string | null
           listing_url: string | null
           location: string | null
           metadata: Json | null
           original_price: number | null
           price: number | null
+          shopify_handle: string | null
           shopify_product_id: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          account_tag?: string
           category?: string | null
           condition?: string | null
           created_at?: string
           description?: string | null
-          facebook_id?: string | null
+          facebook_id: string
           id?: string
           images?: string[] | null
           imported_at?: string
+          launch_status?: string | null
           launched_at?: string | null
           listing_url?: string | null
           location?: string | null
           metadata?: Json | null
           original_price?: number | null
           price?: number | null
+          shopify_handle?: string | null
           shopify_product_id?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          account_tag?: string
           category?: string | null
           condition?: string | null
           created_at?: string
           description?: string | null
-          facebook_id?: string | null
+          facebook_id?: string
           id?: string
           images?: string[] | null
           imported_at?: string
+          launch_status?: string | null
           launched_at?: string | null
           listing_url?: string | null
           location?: string | null
           metadata?: Json | null
           original_price?: number | null
           price?: number | null
+          shopify_handle?: string | null
           shopify_product_id?: string | null
           status?: string
           title?: string
