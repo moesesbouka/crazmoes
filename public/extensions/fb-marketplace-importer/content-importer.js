@@ -3,7 +3,7 @@
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "1.2.2";
+  const EXTENSION_VERSION = "1.2.3";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =

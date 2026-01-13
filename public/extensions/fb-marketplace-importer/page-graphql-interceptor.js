@@ -1,15 +1,22 @@
 // FB Marketplace Importer - Page Context GraphQL Interceptor
-// Version 1.2.2 - Captures full listing data: description, condition, category, all images
+// Version 1.2.3 - Captures full listing data with diagnostic logging
 (function () {
   try {
     if (window.__fbImporterInjected) return;
     window.__fbImporterInjected = true;
 
+    // Diagnostic counters
+    let graphqlResponsesSeen = 0;
+    let listingsEmitted = 0;
+
     function cleanJsonText(t) {
       if (!t) return '';
       const s = String(t);
       // Facebook often prefixes responses with: for(;;);
-      if (s.startsWith('for(;;);')) return s.slice(8);
+      if (s.startsWith('for(;;);')) {
+        console.log('FB Importer: Stripped for(;;); prefix');
+        return s.slice(8);
+      }
       return s;
     }
 
@@ -190,6 +197,7 @@
         // Only emit if we have at least something useful
         if (!title && !price && images.length === 0 && !description) return;
 
+        listingsEmitted++;
         const payload = {
           facebook_id: id,
           title: (title || 'Untitled').slice(0, 255),
@@ -213,7 +221,9 @@
           '*'
         );
 
-        console.log('FB Importer GraphQL: Captured listing', id, title?.slice(0, 40));
+        console.log(`FB Importer GraphQL: Captured listing #${listingsEmitted}:`, id, title?.slice(0, 40), 
+          description ? `(desc: ${description.length} chars)` : '(no desc)', 
+          condition ? `(cond: ${condition})` : '(no cond)');
       } catch (e) {
         // ignore
       }
@@ -237,6 +247,7 @@
 
         // Sometimes multiple JSON objects separated by newlines
         const parts = cleaned.split('\n');
+        let parsedCount = 0;
         for (const p of parts) {
           const s = cleanJsonText(p).trim();
           if (!s) continue;
@@ -244,10 +255,14 @@
 
           try {
             const data = JSON.parse(s);
+            parsedCount++;
             walk(data, 0);
           } catch (e) {
-            // ignore
+            // ignore parse errors
           }
+        }
+        if (parsedCount > 0) {
+          console.log(`FB Importer: Parsed ${parsedCount} JSON block(s) from response`);
         }
       } catch (e) {
         // ignore
@@ -262,12 +277,17 @@
         const firstArg = arguments[0];
         const url = typeof firstArg === 'string' ? firstArg : firstArg && firstArg.url;
         if (url && (url.indexOf('graphql') !== -1 || url.indexOf('/api/graphql') !== -1)) {
+          graphqlResponsesSeen++;
+          console.log(`FB Importer: GraphQL fetch response #${graphqlResponsesSeen} from:`, url.slice(0, 80));
           const clone = res.clone();
           const text = await clone.text();
-          parseAndWalk(text);
+          if (text && text.length > 10) {
+            console.log(`FB Importer: Response text length: ${text.length}`);
+            parseAndWalk(text);
+          }
         }
       } catch (e) {
-        // ignore
+        console.log('FB Importer: Fetch intercept error:', e.message);
       }
       return res;
     };
@@ -287,10 +307,15 @@
           try {
             const url = this.__fbImpUrl || '';
             if (url && (url.indexOf('graphql') !== -1 || url.indexOf('/api/graphql') !== -1)) {
-              parseAndWalk(this.responseText);
+              graphqlResponsesSeen++;
+              console.log(`FB Importer: GraphQL XHR response #${graphqlResponsesSeen} from:`, url.slice(0, 80));
+              if (this.responseText && this.responseText.length > 10) {
+                console.log(`FB Importer: XHR response text length: ${this.responseText.length}`);
+                parseAndWalk(this.responseText);
+              }
             }
           } catch (e) {
-            // ignore
+            console.log('FB Importer: XHR intercept error:', e.message);
           }
         });
       } catch (e) {
@@ -300,7 +325,8 @@
     };
 
     window.postMessage({ source: 'fb-importer', type: 'READY' }, '*');
-    console.log('FB Importer: Page-context GraphQL interceptor READY (captures description, condition, category)');
+    console.log('FB Importer: Page-context GraphQL interceptor v1.2.3 READY');
+    console.log('FB Importer: Watching for /api/graphql and /graphql requests...');
   } catch (e) {
     console.log('FB Importer: Injection failed', e);
   }
