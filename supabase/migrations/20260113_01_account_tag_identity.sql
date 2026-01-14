@@ -1,10 +1,10 @@
 begin;
 
 -- 1) add account_tag (multi-account support)
-alter table public.listings
+alter table public.marketplace_listings
 add column if not exists account_tag text not null default 'MBFB';
 
-update public.listings
+update public.marketplace_listings
 set account_tag = 'MBFB'
 where account_tag is null;
 
