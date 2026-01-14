@@ -1,5 +1,5 @@
 // FB Marketplace Importer - Page Context GraphQL Interceptor
-// Version 1.2.5 - Captures full listing data with status extraction and diagnostic logging
+// Version 1.2.7 - Enhanced title extraction, skip untitled listings
 (function () {
   try {
     if (window.__fbImporterInjected) return;
@@ -8,13 +8,13 @@
     // Diagnostic counters
     let graphqlResponsesSeen = 0;
     let listingsEmitted = 0;
+    let listingsSkipped = 0;
 
     function cleanJsonText(t) {
       if (!t) return '';
       const s = String(t);
       // Facebook often prefixes responses with: for(;;);
       if (s.startsWith('for(;;);')) {
-        console.log('FB Importer: Stripped for(;;); prefix');
         return s.slice(8);
       }
       return s;
@@ -31,9 +31,73 @@
       if (!field) return '';
       if (typeof field === 'string') return field.trim();
       if (typeof field === 'object') {
-        return String(field.text || field.value || field.name || '').trim();
+        return String(field.text || field.value || field.name || field.display_text || '').trim();
       }
       return '';
+    }
+
+    // ============= ENHANCED TITLE EXTRACTION (15+ fields) =============
+    function findTitle(obj) {
+      // Direct fields - check all common title locations
+      const directFields = [
+        obj.title,
+        obj.name,
+        obj.marketplace_listing_title,
+        obj.product_title,
+        obj.story_title,
+        obj.headline,
+        obj.label,
+        obj.display_name,
+        obj.item_title,
+        obj.product_name,
+        obj.listing_title
+      ];
+
+      // Check direct fields first
+      for (const field of directFields) {
+        const txt = extractText(field);
+        if (txt && txt.length > 2) return txt;
+      }
+
+      // Nested paths - Facebook nests data inconsistently
+      const nestedPaths = [
+        obj.listing?.title,
+        obj.node?.title,
+        obj.marketplace_listing?.title,
+        obj.primary_listing?.title,
+        obj.target?.title,
+        obj.story?.title,
+        obj.attached_story?.title,
+        obj.marketplace_product_item?.title,
+        obj.commerce_product_item?.title,
+        obj.item?.title,
+        obj.product?.title,
+        obj.edge?.node?.title,
+        // Deeper nested
+        obj.listing?.node?.title,
+        obj.marketplace_listing?.node?.title
+      ];
+
+      for (const field of nestedPaths) {
+        const txt = extractText(field);
+        if (txt && txt.length > 2) return txt;
+      }
+
+      // Last resort: First line of description (since FB requires titles)
+      const descFields = [obj.description, obj.redacted_description, obj.body, obj.message];
+      for (const df of descFields) {
+        const descText = extractText(df);
+        if (descText && descText.length > 5) {
+          // Take first line, up to 80 chars
+          const firstLine = descText.split('\n')[0].trim();
+          if (firstLine.length > 3) {
+            return firstLine.slice(0, 80);
+          }
+        }
+      }
+
+      // Return null - DO NOT return 'Untitled' - we'll skip this listing
+      return null;
     }
 
     // Enhanced status extraction from Facebook's various field names
@@ -117,8 +181,15 @@
         const id = String(idRaw || '').trim();
         if (!id || id.length < 5) return;
 
-        // Title
-        var title = extractText(obj.title) || extractText(obj.name) || extractText(obj.marketplace_listing_title);
+        // ============= CRITICAL: Use enhanced title extraction =============
+        const title = findTitle(obj);
+
+        // SKIP if no title found - Facebook requires titles
+        if (!title) {
+          listingsSkipped++;
+          console.log(`FB Importer GraphQL: Skipped listing ${id} - no title found (skipped: ${listingsSkipped})`);
+          return;
+        }
 
         // Price
         var price = null;
@@ -260,16 +331,13 @@
           }
         }
 
-        // Only emit if we have at least something useful
-        if (!title && !price && images.length === 0 && !description) return;
-
         // Extract status using enhanced logic
         const status = extractStatus(obj);
 
         listingsEmitted++;
         const payload = {
           facebook_id: id,
-          title: (title || 'Untitled').slice(0, 255),
+          title: title.slice(0, 255),
           price: Number.isFinite(price) ? price : null,
           description: description.slice(0, 5000) || null,
           condition: condition || null,
@@ -290,7 +358,7 @@
           '*'
         );
 
-        console.log(`FB Importer GraphQL: Captured listing #${listingsEmitted}:`, id, title?.slice(0, 40), 
+        console.log(`FB Importer GraphQL: Captured #${listingsEmitted}:`, id, title.slice(0, 40), 
           `(status: ${status})`,
           description ? `(desc: ${description.length} chars)` : '(no desc)', 
           condition ? `(cond: ${condition})` : '(no cond)');
@@ -348,11 +416,10 @@
         const url = typeof firstArg === 'string' ? firstArg : firstArg && firstArg.url;
         if (url && (url.indexOf('graphql') !== -1 || url.indexOf('/api/graphql') !== -1)) {
           graphqlResponsesSeen++;
-          console.log(`FB Importer: GraphQL fetch response #${graphqlResponsesSeen} from:`, url.slice(0, 80));
+          console.log(`FB Importer: GraphQL fetch #${graphqlResponsesSeen} from:`, url.slice(0, 80));
           const clone = res.clone();
           const text = await clone.text();
           if (text && text.length > 10) {
-            console.log(`FB Importer: Response text length: ${text.length}`);
             parseAndWalk(text);
           }
         }
@@ -378,9 +445,8 @@
             const url = this.__fbImpUrl || '';
             if (url && (url.indexOf('graphql') !== -1 || url.indexOf('/api/graphql') !== -1)) {
               graphqlResponsesSeen++;
-              console.log(`FB Importer: GraphQL XHR response #${graphqlResponsesSeen} from:`, url.slice(0, 80));
+              console.log(`FB Importer: GraphQL XHR #${graphqlResponsesSeen} from:`, url.slice(0, 80));
               if (this.responseText && this.responseText.length > 10) {
-                console.log(`FB Importer: XHR response text length: ${this.responseText.length}`);
                 parseAndWalk(this.responseText);
               }
             }
@@ -395,9 +461,9 @@
     };
 
     window.postMessage({ source: 'fb-importer', type: 'READY' }, '*');
-    console.log('FB Importer: Page-context GraphQL interceptor v1.2.5 READY');
+    console.log('FB Importer: Page-context GraphQL interceptor v1.2.7 READY');
     console.log('FB Importer: Watching for /api/graphql and /graphql requests...');
-    console.log('FB Importer: Enhanced status detection enabled (active/pending/sold/deleted)');
+    console.log('FB Importer: Enhanced title extraction (15+ fields), skips untitled listings');
   } catch (e) {
     console.log('FB Importer: Injection failed', e);
   }

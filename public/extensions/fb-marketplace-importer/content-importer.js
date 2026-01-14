@@ -1,9 +1,9 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 1.2.6 - Multi-account support with proper upsert (no duplicates)
+// Version 1.2.7 - GraphQL-first architecture, no duplicate IDs, enhanced title extraction
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "1.2.6";
+  const EXTENSION_VERSION = "1.2.7";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -25,7 +25,11 @@
   // Load selected account from storage
   async function loadSelectedAccount() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["selectedAccount"], (result) => {
+      chrome.storage.local.get(["selectedAccount", "accountConfigured"], (result) => {
+        if (!result.accountConfigured) {
+          // First-time user - show warning in console
+          console.warn(`FB Importer v${EXTENSION_VERSION}: Account not configured! Please open extension popup and select account first.`);
+        }
         selectedAccount = result.selectedAccount || "MBFB";
         console.log(`FB Importer v${EXTENSION_VERSION}: Account loaded: ${selectedAccount}`);
         resolve(selectedAccount);
@@ -76,9 +80,9 @@
     container.id = "fb-importer-container";
     container.innerHTML = `
       <div id="fb-importer-account-badge" class="fb-importer-account-badge ${accountClass}">
-        ● ${selectedAccount}
+        ● IMPORTING TO: ${selectedAccount}
       </div>
-      <button id="fb-importer-button" class="fb-importer-btn">
+      <button id="fb-importer-button" class="fb-importer-btn ${accountClass}">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
         </svg>
@@ -97,26 +101,33 @@
     document.body.appendChild(container);
     document.querySelector("#fb-importer-button").addEventListener("click", startImport);
 
-    // Add account badge styles
+    // Add account badge styles with larger, more visible badge
     const style = document.createElement("style");
     style.textContent = `
       .fb-importer-account-badge {
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-bottom: 8px;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 10px;
         display: inline-block;
+        letter-spacing: 0.5px;
       }
       .fb-importer-account-badge.mbfb {
-        background: rgba(59, 130, 246, 0.2);
-        border: 1px solid rgba(59, 130, 246, 0.4);
+        background: rgba(59, 130, 246, 0.3);
+        border: 2px solid rgba(59, 130, 246, 0.6);
         color: #60a5fa;
       }
       .fb-importer-account-badge.cmfb {
-        background: rgba(168, 85, 247, 0.2);
-        border: 1px solid rgba(168, 85, 247, 0.4);
+        background: rgba(168, 85, 247, 0.3);
+        border: 2px solid rgba(168, 85, 247, 0.6);
         color: #c084fc;
+      }
+      .fb-importer-btn.mbfb {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+      }
+      .fb-importer-btn.cmfb {
+        background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%) !important;
       }
     `;
     document.head.appendChild(style);
@@ -133,522 +144,90 @@
     console.log(`FB Importer: ${text}`);
   }
 
-  function extractListingIdFromUrl(url) {
-    if (!url) return null;
-
-    const m1 = url.match(/\/marketplace\/item\/(\d+)/);
-    if (m1) return m1[1];
-
-    const m2 = url.match(/\/item\/(\d+)/);
-    if (m2) return m2[1];
-
-    const m3 = url.match(/[?&]listing_id=(\d+)/);
-    if (m3) return m3[1];
-
-    const m4 = url.match(/[?&]item_id=(\d+)/);
-    if (m4) return m4[1];
-
-    const m5 = url.match(/\/(\d{10,})/);
-    if (m5) return m5[1];
-
-    return null;
-  }
-
-  function extractIdFromAnyString(s) {
-    if (!s) return null;
-    const m = String(s).match(/(\d{10,})/);
-    return m ? m[1] : null;
-  }
-
-  function getVisibleText(el) {
-    return (el?.textContent || "").replace(/\s+/g, " ").trim();
-  }
-
-  function extractBackgroundImageUrl(el) {
-    const nodes = el.querySelectorAll("div, span");
-    for (const n of nodes) {
-      const bg = window.getComputedStyle(n).backgroundImage;
-      if (bg && bg !== "none" && bg.includes("url(")) {
-        const m = bg.match(/url\(["']?(.*?)["']?\)/);
-        if (m && m[1] && m[1].startsWith("http")) return m[1];
-      }
-    }
-    return null;
-  }
-
-  function findAnyMarketplaceUrlInElement(el) {
-    const attrsToCheck = ["href", "data-href", "data-url", "ajaxify", "data-testid", "aria-label", "data-ft"];
-    const all = el.querySelectorAll("*");
-    for (const node of all) {
-      for (const a of attrsToCheck) {
-        const v = node.getAttribute && node.getAttribute(a);
-        if (!v) continue;
-        if (v.includes("marketplace") || v.includes("/item/") || v.includes("listing_id") || v.includes("item_id")) {
-          return v;
-        }
-      }
-    }
-    return null;
-  }
-
-  // ============= STABLE FALLBACK ID GENERATION =============
-  // Uses stable fields only (NOT price, NOT description - they change too often)
-  function simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(16);
-  }
-
-  function normalizeTitle(title) {
-    return (title || "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 100);
-  }
-
-  function generateStableFallbackId(accountTag, title, firstImage, location) {
-    // Use stable fields only - NOT price, NOT description
-    const normalizedTitle = normalizeTitle(title);
-    const raw = `${accountTag}|${normalizedTitle}|${firstImage || ""}|${location || ""}`;
-    const hash = simpleHash(raw);
-    return `H_${accountTag}_${hash}`;
-  }
-
-  // ============= DEEP IMAGE EXTRACTION =============
-  
-  // Wait for image gallery to appear in modal/detail view
-  async function waitForImageGallery(maxWait = 4000) {
-    const startTime = Date.now();
-    
-    while (Date.now() - startTime < maxWait) {
-      // Look for common Facebook gallery selectors
-      const gallerySelectors = [
-        '[data-pagelet*="MediaViewerPhoto"]',
-        '[data-pagelet*="PhotoViewer"]',
-        '[role="dialog"] img[src*="scontent"]',
-        '[role="main"] img[src*="scontent"]',
-        '.x1n2onr6 img[src*="scontent"]', // Common FB container class
-        'div[style*="background-image"] img',
-      ];
-      
-      for (const sel of gallerySelectors) {
-        const found = document.querySelectorAll(sel);
-        if (found.length > 0) {
-          // Wait a bit more for all images to load
-          await sleep(500);
-          return true;
-        }
-      }
-      
-      await sleep(200);
-    }
-    
-    return false;
-  }
-
-  // Extract all high-res images from the current view (modal or detail page)
-  function extractAllVisibleImages() {
-    const images = new Set();
-    const minSize = 100; // Skip tiny images (icons, etc.)
-    
-    // Get all img elements with Facebook CDN sources
-    const allImgs = document.querySelectorAll('img[src*="scontent"], img[src*="fbcdn"]');
-    
-    for (const img of allImgs) {
-      const src = img.src;
-      if (!src || src.includes("emoji") || src.includes("static")) continue;
-      
-      // Check if it's a reasonably sized image
-      const rect = img.getBoundingClientRect();
-      if (rect.width >= minSize || rect.height >= minSize) {
-        // Try to get highest resolution version
-        let highResSrc = src;
-        
-        // Facebook often has size params we can strip/upgrade
-        if (src.includes("_n.jpg") || src.includes("_o.jpg")) {
-          images.add(src);
-        } else {
-          // Add base URL, may be lower res but still useful
-          images.add(src);
-        }
-      }
-    }
-    
-    // Also check background images
-    const bgElements = document.querySelectorAll('[style*="background-image"]');
-    for (const el of bgElements) {
-      const bg = window.getComputedStyle(el).backgroundImage;
-      if (bg && bg !== "none" && (bg.includes("scontent") || bg.includes("fbcdn"))) {
-        const m = bg.match(/url\(["']?(.*?)["']?\)/);
-        if (m && m[1]) {
-          images.add(m[1]);
-        }
-      }
-    }
-    
-    return Array.from(images);
-  }
-
-  // Click into a listing to get full gallery, then extract images
-  async function extractFullImagesFromTile(tile, listingTitle) {
-    const originalUrl = window.location.href;
-    
-    try {
-      // Find clickable element within tile
-      const clickTarget = tile.querySelector('a[href*="marketplace"]') || 
-                          tile.querySelector('[role="link"]') ||
-                          tile.querySelector('[role="button"]') ||
-                          tile;
-      
-      if (!clickTarget) {
-        console.log(`FB Importer: No clickable element found for "${listingTitle?.slice(0, 30)}"`);
-        return null;
-      }
-      
-      // Simulate click
-      clickTarget.click();
-      
-      // Wait for modal/detail page to open
-      await sleep(800);
-      
-      // Check if we're in a modal or navigated to detail page
-      const galleryLoaded = await waitForImageGallery(4000);
-      
-      if (!galleryLoaded) {
-        console.log(`FB Importer: Gallery didn't load for "${listingTitle?.slice(0, 30)}"`);
-        // Try to go back/close modal
-        await closeModalOrGoBack(originalUrl);
-        return null;
-      }
-      
-      // Extract all images from the gallery
-      let allImages = extractAllVisibleImages();
-      
-      // Try to navigate through gallery to capture more images
-      const nextButton = document.querySelector('[aria-label="Next"]') || 
-                         document.querySelector('[data-testid="photo-viewer-next"]') ||
-                         document.querySelector('div[role="button"] svg[viewBox="0 0 24 24"]');
-      
-      if (nextButton && allImages.length < 10) {
-        // Click through gallery up to 10 times
-        for (let i = 0; i < 10; i++) {
-          nextButton.click();
-          await sleep(400);
-          const newImages = extractAllVisibleImages();
-          newImages.forEach(img => allImages.includes(img) || allImages.push(img));
-          
-          // Stop if we've looped back (same image count)
-          if (allImages.length >= 20) break;
-        }
-      }
-      
-      // Close modal or navigate back
-      await closeModalOrGoBack(originalUrl);
-      
-      // Deduplicate and limit
-      const uniqueImages = [...new Set(allImages)].slice(0, 20);
-      console.log(`FB Importer: Extracted ${uniqueImages.length} images for "${listingTitle?.slice(0, 30)}"`);
-      
-      return uniqueImages;
-      
-    } catch (e) {
-      console.error(`FB Importer: Error extracting images for "${listingTitle?.slice(0, 30)}"`, e);
-      await closeModalOrGoBack(originalUrl);
-      return null;
-    }
-  }
-
-  async function closeModalOrGoBack(originalUrl) {
-    // Try to close modal first
-    const closeButtons = [
-      '[aria-label="Close"]',
-      '[aria-label="close"]',
-      'div[role="dialog"] div[role="button"]:first-child',
-      'div[aria-label="Close"][role="button"]',
-    ];
-    
-    for (const sel of closeButtons) {
-      const btn = document.querySelector(sel);
-      if (btn) {
-        btn.click();
-        await sleep(300);
-        return;
-      }
-    }
-    
-    // If no close button found and URL changed, go back
-    if (window.location.href !== originalUrl) {
-      window.history.back();
-      await sleep(500);
-    }
-    
-    // Press Escape as fallback
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27 }));
-    await sleep(300);
-  }
-
-  // ============= END DEEP IMAGE EXTRACTION =============
-
-  // Find listing tiles by locating price nodes ($xx) then climbing to a "card"
-  function getListingElements() {
-    const containers = new Set();
-
-    // Price nodes are the strongest signal on this page
-    const priceSpans = Array.from(document.querySelectorAll('span[dir="auto"]'))
-      .filter((s) => /\$\s*[\d,]+(?:\.\d{2})?/.test(getVisibleText(s)));
-
-    console.log(`FB Importer: Price spans found: ${priceSpans.length}`);
-
-    for (const priceEl of priceSpans) {
-      let card = priceEl;
-
-      // climb up to find a reasonable "tile"
-      for (let i = 0; i < 10 && card; i++) {
-        const rect = card.getBoundingClientRect?.();
-        const okSize = rect && rect.width > 180 && rect.height > 120 && rect.height < 950;
-
-        const hasText = getVisibleText(card).length > 10;
-        const hasImg = !!card.querySelector("img[src]") || !!extractBackgroundImageUrl(card);
-
-        const isClickable =
-          card.getAttribute?.("role") === "link" ||
-          card.getAttribute?.("role") === "button" ||
-          card.tagName === "A";
-
-        if (okSize && hasText && hasImg) {
-          containers.add(card);
-          break;
-        }
-
-        if (okSize && hasText && isClickable) {
-          containers.add(card);
-          break;
-        }
-
-        card = card.parentElement;
-      }
-    }
-
-    // fallback: include role=link that contains price somewhere
-    if (containers.size === 0) {
-      const roleLinks = Array.from(document.querySelectorAll('[role="link"], [role="button"]'));
-      const candidates = roleLinks.filter((el) => /\$\s*[\d,]+(?:\.\d{2})?/.test(getVisibleText(el)));
-      console.log(`FB Importer: role=link/button candidates with price: ${candidates.length}`);
-      candidates.forEach((c) => containers.add(c));
-    }
-
-    console.log(`FB Importer: Total containers found: ${containers.size}`);
-    return Array.from(containers);
-  }
-
-  function extractListingData(tile) {
-    try {
-      // ID: try hrefs, then attributes
-      let listingUrl = null;
-      let facebookId = null;
-
-      const a = tile.querySelector('a[href]') || (tile.tagName === "A" ? tile : null);
-      if (a?.href) {
-        facebookId = extractListingIdFromUrl(a.href);
-        listingUrl = a.href;
-      }
-
-      if (!facebookId) {
-        const possible = findAnyMarketplaceUrlInElement(tile);
-        facebookId = extractListingIdFromUrl(possible) || extractIdFromAnyString(possible);
-      }
-
-      // Title extraction (needed for fallback ID)
-      let title = "";
-      const heading = tile.querySelector('[role="heading"]');
-      if (heading) title = getVisibleText(heading);
-
-      if (!title) {
-        const spans = Array.from(tile.querySelectorAll('span[dir="auto"]'))
-          .map((s) => getVisibleText(s))
-          .filter((t) => t && t.length > 3 && t.length < 200 && !/^\$[\d,]+/.test(t));
-        title = spans[0] || "";
-      }
-
-      title = title.replace(/\s+/g, " ").trim();
-      if (!title || title.length < 3) return null;
-
-      // Images (just thumbnail for now - deep extraction happens later)
-      const images = [];
-      const img = tile.querySelector("img[src]");
-      if (img?.src) images.push(img.src);
-      const bg = extractBackgroundImageUrl(tile);
-      if (images.length === 0 && bg) images.push(bg);
-
-      // Location extraction for stable ID
-      const locationEl = tile.querySelector('[aria-label*="location"]') || tile.querySelector('[data-testid*="location"]');
-      const location = locationEl ? getVisibleText(locationEl) : null;
-
-      // Generate stable fallback ID if no real FB ID found
-      if (!facebookId) {
-        facebookId = generateStableFallbackId(selectedAccount, title, images[0], location);
-        listingUrl = "";
-      }
-
-      if (!listingUrl) listingUrl = facebookId.startsWith("H_") ? "" : `https://www.facebook.com/marketplace/item/${facebookId}`;
-
-      // Price
-      let price = null;
-      const txt = getVisibleText(tile);
-      const pm = txt.match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-      if (pm) price = parseFloat(pm[1].replace(/,/g, ""));
-
-      return {
-        facebook_id: String(facebookId),
-        account_tag: selectedAccount, // Include account tag
-        title: title.substring(0, 255),
-        price: Number.isFinite(price) ? price : null,
-        images: images.slice(0, 10),
-        listing_url: listingUrl,
-        status: "active",
-        imported_at: new Date().toISOString(),
-        // DOM extraction doesn't have these - GraphQL will fill them
-        description: null,
-        condition: null,
-        category: null,
-        location: location,
-        // Reference to tile for deep extraction
-        _tile: tile,
-      };
-    } catch (e) {
-      console.error("FB Importer: extractListingData error", e);
-      return null;
-    }
-  }
+  // ============= GRAPHQL-FIRST COLLECTION =============
+  // NO more DOM ID extraction - GraphQL is the source of truth
+  // DOM is only used for scroll detection as a fallback
 
   async function collectAllListings() {
-    const listings = [];
-    const seen = new Set();
-
-    let lastHeight = 0;
-    let noNew = 0;
-
-    console.log("FB Importer: Starting to collect listings...");
+    console.log("FB Importer: === STARTING GRAPHQL-FIRST COLLECTION ===");
     console.log("FB Importer: URL:", window.location.href);
     console.log(`FB Importer: Account: ${selectedAccount}`);
     console.log(`FB Importer: GraphQL already captured: ${capturedListings.size}`);
 
-    // Phase 1: Scroll and collect all listing tiles
-    updateStatus(`Phase 1: Scanning all listings for ${selectedAccount}...`);
+    // Phase 1: Scroll to trigger ALL GraphQL responses
+    updateStatus(`Scrolling to load all ${selectedAccount} listings...`);
     
-    while (noNew < 4) {
-      // DOM extraction (fallback)
-      const tiles = getListingElements();
-
-      for (const t of tiles) {
-        const data = extractListingData(t);
-        if (data?.facebook_id && !seen.has(data.facebook_id)) {
-          seen.add(data.facebook_id);
-          listings.push(data);
-        }
-      }
-
-      const newCapturedSize = capturedListings.size;
-      updateStatus(`Scanning: ${listings.length} DOM, ${newCapturedSize} GraphQL`);
-
-      // Scroll to trigger lazy load and more GraphQL calls
+    let noGrowth = 0;
+    let lastHeight = 0;
+    let lastCapturedCount = 0;
+    
+    // More patience - wait for GraphQL captures to stop growing
+    while (noGrowth < 6) {
+      // Scroll to trigger lazy load and GraphQL calls
       window.scrollTo(0, document.documentElement.scrollHeight);
-      await sleep(2000);
+      await sleep(2500);
 
-      const h = document.documentElement.scrollHeight;
+      const currentHeight = document.documentElement.scrollHeight;
+      const currentCapturedCount = capturedListings.size;
       
-      // Stop if both scroll height and GraphQL captures stop increasing
-      if (h === lastHeight && newCapturedSize === lastCapturedSize) {
-        noNew++;
-        console.log(`FB Importer: No new content (attempt ${noNew}/4)`);
+      updateStatus(`Scanning: ${currentCapturedCount} listings captured via GraphQL...`);
+
+      // Stop only when BOTH scroll height AND GraphQL captures stop growing
+      if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
+        noGrowth++;
+        console.log(`FB Importer: No new content (attempt ${noGrowth}/6)`);
       } else {
-        noNew = 0;
-        lastHeight = h;
-        lastCapturedSize = newCapturedSize;
+        noGrowth = 0;
+        lastHeight = currentHeight;
+        lastCapturedCount = currentCapturedCount;
       }
     }
 
-    // Merge GraphQL captured listings - these have full data (description, condition, etc.)
-    // GraphQL data takes priority because it has more fields
-    for (const [id, gqlListing] of capturedListings) {
-      const existingIndex = listings.findIndex(l => l.facebook_id === id);
-      if (existingIndex >= 0) {
-        // Merge: GraphQL data overwrites DOM data, keep tile reference
-        const tile = listings[existingIndex]._tile;
-        listings[existingIndex] = { 
-          ...listings[existingIndex], 
-          ...gqlListing, 
-          account_tag: selectedAccount, // Ensure account_tag is set
-          _tile: tile 
-        };
-      } else if (!seen.has(id)) {
-        seen.add(id);
-        listings.push({ ...gqlListing, account_tag: selectedAccount });
-      }
-    }
+    console.log(`FB Importer: Scroll complete. GraphQL captured: ${capturedListings.size} listings`);
+
+    // Phase 2: Convert GraphQL captured listings to array
+    // ONLY use GraphQL data - no DOM ID extraction
+    const listings = Array.from(capturedListings.values()).map(gql => ({
+      ...gql,
+      account_tag: selectedAccount,
+      source: 'graphql'
+    }));
 
     console.log(`FB Importer: === PHASE 1 COMPLETE ===`);
-    console.log(`  Total listings found: ${listings.length}`);
+    console.log(`  GraphQL captured: ${listings.length}`);
     console.log(`  Account: ${selectedAccount}`);
-    
-    // Phase 2: Deep image extraction for listings with only 1 image
-    // Skip if GraphQL captured full image arrays
-    const needsDeepExtraction = listings.filter(l => 
-      l._tile && 
-      (!l.images || l.images.length <= 1) && 
-      !capturedListings.has(l.facebook_id)
-    );
 
-    if (needsDeepExtraction.length > 0) {
-      console.log(`FB Importer: === PHASE 2: Deep image extraction for ${needsDeepExtraction.length} listings ===`);
-      updateStatus(`Phase 2: Extracting images (0/${needsDeepExtraction.length})...`);
-      
-      // Scroll back to top first
-      window.scrollTo(0, 0);
-      await sleep(1000);
-      
-      let extractedCount = 0;
-      let totalImagesExtracted = 0;
-      
-      for (const listing of needsDeepExtraction) {
-        extractedCount++;
-        updateStatus(`Extracting images: ${extractedCount}/${needsDeepExtraction.length} - "${listing.title?.slice(0, 25)}..."`);
-        
-        const fullImages = await extractFullImagesFromTile(listing._tile, listing.title);
-        
-        if (fullImages && fullImages.length > 0) {
-          listing.images = fullImages;
-          totalImagesExtracted += fullImages.length;
-        }
-        
-        // Small delay between extractions to avoid rate limiting
-        await sleep(800);
-      }
-      
-      console.log(`FB Importer: Deep extraction complete. Total images: ${totalImagesExtracted}`);
-      updateStatus(`Extracted ${totalImagesExtracted} images from ${needsDeepExtraction.length} listings`);
-      await sleep(1000);
+    // Phase 3: If GraphQL captured ZERO, show warning (but don't fall back to bad DOM extraction)
+    if (listings.length === 0) {
+      console.warn('FB Importer: GraphQL captured 0 listings!');
+      console.warn('FB Importer: Possible causes:');
+      console.warn('  - Page not fully loaded');
+      console.warn('  - Facebook changed their GraphQL structure');
+      console.warn('  - Extension not properly injected');
+      updateStatus('⚠️ No listings found. Try scrolling manually first, then re-import.');
     }
 
-    // Clean up tile references before returning
-    for (const listing of listings) {
-      delete listing._tile;
-    }
-
-    console.log(`FB Importer: === FINAL RESULTS ===`);
-    console.log(`  Account: ${selectedAccount}`);
-    console.log(`  DOM-based: ${listings.length - capturedListings.size}`);
-    console.log(`  GraphQL captured: ${capturedListings.size}`);
-    console.log(`  Total unique: ${listings.length}`);
-
-    // Log what data we have
+    // Log data quality stats
     const withDesc = listings.filter(l => l.description).length;
     const withCondition = listings.filter(l => l.condition).length;
     const withCategory = listings.filter(l => l.category).length;
-    const avgImages = listings.reduce((sum, l) => sum + (l.images?.length || 0), 0) / listings.length;
-    console.log(`  With description: ${withDesc}, With condition: ${withCondition}, With category: ${withCategory}`);
+    const withMultipleImages = listings.filter(l => l.images && l.images.length > 1).length;
+    const avgImages = listings.length > 0 
+      ? listings.reduce((sum, l) => sum + (l.images?.length || 0), 0) / listings.length 
+      : 0;
+
+    console.log(`FB Importer: === DATA QUALITY ===`);
+    console.log(`  With description: ${withDesc}/${listings.length}`);
+    console.log(`  With condition: ${withCondition}/${listings.length}`);
+    console.log(`  With category: ${withCategory}/${listings.length}`);
+    console.log(`  With multiple images: ${withMultipleImages}/${listings.length}`);
     console.log(`  Average images per listing: ${avgImages.toFixed(1)}`);
+
+    // Check for any H_ hash IDs (should be ZERO with GraphQL-first)
+    const hashIds = listings.filter(l => l.facebook_id?.startsWith('H_'));
+    if (hashIds.length > 0) {
+      console.warn(`FB Importer: WARNING - Found ${hashIds.length} hash IDs. This shouldn't happen!`);
+    }
 
     return listings;
   }
@@ -658,7 +237,7 @@
       // Clean up the listing object - only send fields the DB accepts
       const payload = {
         facebook_id: listing.facebook_id,
-        account_tag: listing.account_tag || selectedAccount, // Always include account_tag
+        account_tag: listing.account_tag || selectedAccount,
         title: listing.title,
         price: listing.price,
         description: listing.description || null,
@@ -669,6 +248,8 @@
         listing_url: listing.listing_url || null,
         status: listing.status || "active",
         imported_at: listing.imported_at || new Date().toISOString(),
+        source: listing.source || 'graphql',
+        last_seen_at: new Date().toISOString(),
       };
 
       // Use proper upsert with composite unique constraint
@@ -707,8 +288,6 @@
 
     const button = document.querySelector("#fb-importer-button");
     const progress = document.querySelector("#fb-importer-progress");
-    const countSpan = document.querySelector("#import-count");
-    const totalSpan = document.querySelector("#import-total");
     const progressFill = document.querySelector("#progress-fill");
 
     // Update progress text with account name
@@ -732,10 +311,7 @@
       progress.style.display = "block";
       document.querySelector("#import-total").textContent = String(totalCount);
       button.innerHTML = `Importing to ${selectedAccount}...`;
-      updateStatus(`Phase 3: Saving to ${selectedAccount} database...`);
-
-      let newCount = 0;
-      let updateCount = 0;
+      updateStatus(`Saving ${totalCount} listings to ${selectedAccount} database...`);
 
       for (const item of listings) {
         const ok = await saveListing(item);
@@ -744,7 +320,7 @@
           document.querySelector("#import-count").textContent = String(importedCount);
           progressFill.style.width = `${(importedCount / totalCount) * 100}%`;
         }
-        await sleep(120);
+        await sleep(100);
       }
 
       button.innerHTML = `✓ ${selectedAccount}: ${importedCount} saved`;

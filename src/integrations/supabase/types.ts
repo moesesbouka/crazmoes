@@ -138,6 +138,7 @@ export type Database = {
           id: string
           images: string[] | null
           imported_at: string
+          last_seen_at: string | null
           launch_status: string | null
           launched_at: string | null
           listing_url: string | null
@@ -147,6 +148,7 @@ export type Database = {
           price: number | null
           shopify_handle: string | null
           shopify_product_id: string | null
+          source: string | null
           status: string
           title: string
           updated_at: string
@@ -161,6 +163,7 @@ export type Database = {
           id?: string
           images?: string[] | null
           imported_at?: string
+          last_seen_at?: string | null
           launch_status?: string | null
           launched_at?: string | null
           listing_url?: string | null
@@ -170,6 +173,7 @@ export type Database = {
           price?: number | null
           shopify_handle?: string | null
           shopify_product_id?: string | null
+          source?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -184,6 +188,7 @@ export type Database = {
           id?: string
           images?: string[] | null
           imported_at?: string
+          last_seen_at?: string | null
           launch_status?: string | null
           launched_at?: string | null
           listing_url?: string | null
@@ -193,6 +198,7 @@ export type Database = {
           price?: number | null
           shopify_handle?: string | null
           shopify_product_id?: string | null
+          source?: string | null
           status?: string
           title?: string
           updated_at?: string

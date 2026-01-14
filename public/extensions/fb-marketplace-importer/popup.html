@@ -12,6 +12,14 @@
       color: #fff;
     }
     
+    body.mbfb-theme {
+      background: linear-gradient(135deg, #1a1a2e 0%, #1e3a5f 100%);
+    }
+    
+    body.cmfb-theme {
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 100%);
+    }
+    
     .header {
       display: flex;
       align-items: center;
@@ -27,6 +35,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    
+    .header-icon.mbfb {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    .header-icon.cmfb {
+      background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
     }
     
     .header-icon svg {
@@ -88,22 +104,22 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
       margin-bottom: 16px;
     }
     
     .account-badge.mbfb {
-      background: rgba(59, 130, 246, 0.2);
-      border: 1px solid rgba(59, 130, 246, 0.4);
+      background: rgba(59, 130, 246, 0.25);
+      border: 2px solid rgba(59, 130, 246, 0.6);
       color: #60a5fa;
     }
     
     .account-badge.cmfb {
-      background: rgba(168, 85, 247, 0.2);
-      border: 1px solid rgba(168, 85, 247, 0.4);
+      background: rgba(168, 85, 247, 0.25);
+      border: 2px solid rgba(168, 85, 247, 0.6);
       color: #c084fc;
     }
     
@@ -152,6 +168,14 @@
       transition: all 0.2s;
     }
     
+    .action-btn.mbfb {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    .action-btn.cmfb {
+      background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    }
+    
     .action-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
@@ -159,9 +183,9 @@
     
     .action-btn .account-indicator {
       display: block;
-      font-size: 11px;
-      font-weight: 400;
-      opacity: 0.8;
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.9;
       margin-top: 4px;
     }
     
@@ -253,18 +277,116 @@
       background: #ef4444;
       color: #fff;
     }
+    
+    /* First-time Setup Modal */
+    .setup-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    
+    .setup-modal.show {
+      display: flex;
+    }
+    
+    .setup-content {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 16px;
+      padding: 28px;
+      width: 300px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      text-align: center;
+    }
+    
+    .setup-content h2 {
+      margin: 0 0 8px 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .setup-content p {
+      margin: 0 0 24px 0;
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+    }
+    
+    .setup-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .setup-btn {
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    
+    .setup-btn.mbfb {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+    }
+    
+    .setup-btn.cmfb {
+      background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+      color: white;
+    }
+    
+    .setup-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .setup-btn .emoji {
+      font-size: 24px;
+    }
   </style>
 </head>
 <body>
+  <!-- First-time Setup Modal (cannot be dismissed) -->
+  <div class="setup-modal" id="setup-modal">
+    <div class="setup-content">
+      <h2>👋 Welcome!</h2>
+      <p>Select which Facebook account you're importing from. This ensures listings go to the correct inventory.</p>
+      <div class="setup-buttons">
+        <button class="setup-btn mbfb" id="setup-mbfb">
+          <span class="emoji">🔵</span>
+          MBFB (Main Account)
+        </button>
+        <button class="setup-btn cmfb" id="setup-cmfb">
+          <span class="emoji">🟣</span>
+          CMFB (Second Account)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="header">
-    <div class="header-icon">
+    <div class="header-icon" id="header-icon">
       <svg viewBox="0 0 24 24" fill="white">
         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
       </svg>
     </div>
     <div class="header-text">
       <h1>FB Marketplace Importer</h1>
-      <span>v1.2.6 - Multi-Account</span>
+      <span>v1.2.7 - Multi-Account</span>
     </div>
   </div>
   
