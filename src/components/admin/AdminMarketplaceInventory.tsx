@@ -113,6 +113,7 @@ export function AdminMarketplaceInventory() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [conditionFilter, setConditionFilter] = useState<string>("all");
   const [launchFilter, setLaunchFilter] = useState<string>("all");
+  const [showBroken, setShowBroken] = useState(false); // hide broken imports by default
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
