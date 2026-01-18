@@ -102,7 +102,7 @@ export function AdminMarketplaceInventory() {
   const [totalCount, setTotalCount] = useState(0);
   const [editingListing, setEditingListing] = useState<MarketplaceListing | null>(null);
   const [editForm, setEditForm] = useState({ title: "", description: "", price: "", status: "" });
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(20); // Now a state variable with default 20
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>("imported_at");
@@ -719,6 +719,25 @@ export function AdminMarketplaceInventory() {
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="launched">Live on Site</SelectItem>
               <SelectItem value="not_launched">Not Launched</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select 
+            value={itemsPerPage.toString()} 
+            onValueChange={(v) => { 
+              setItemsPerPage(parseInt(v)); 
+              setCurrentPage(1); 
+            }}
+          >
+            <SelectTrigger className="w-[120px]">
+              <Package className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Per Page" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 per page</SelectItem>
+              <SelectItem value="20">20 per page</SelectItem>
+              <SelectItem value="50">50 per page</SelectItem>
+              <SelectItem value="100">100 per page</SelectItem>
             </SelectContent>
           </Select>
 
