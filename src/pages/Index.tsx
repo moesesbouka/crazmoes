@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
+import { PickupInfoSection } from "@/components/PickupInfoSection";
 import { FeaturedProducts } from "@/components/FeaturedProducts";
 import { ShopByCategory } from "@/components/ShopByCategory";
 import { NewsAndUpdates } from "@/components/NewsAndUpdates";
@@ -15,7 +16,7 @@ const Index = () => {
   const [newsletterOpen, setNewsletterOpen] = useState(false);
 
   useEffect(() => {
-    document.title = "Crazy Moe's - Amazing Deals on Quality Consumer Goods";
+    document.title = "Crazy Moe's - Buffalo Pickup Deals on Quality Consumer Goods";
   }, []);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ const Index = () => {
       
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
       <HeroSection />
+      <PickupInfoSection />
       <FeaturedProducts products={products} isLoading={isLoading} />
       <ShopByCategory />
       <NewsAndUpdates />
