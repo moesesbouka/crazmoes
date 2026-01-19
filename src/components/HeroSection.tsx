@@ -1,4 +1,4 @@
-import { Sparkles, ArrowRight, Zap, Star, TrendingUp, ShoppingBag, Gift, Percent } from "lucide-react";
+import { Sparkles, ArrowRight, Zap, TrendingUp, ShoppingBag, Calendar, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { AnimatedBadge } from "./AnimatedBadge";
@@ -15,6 +15,13 @@ const FLOATING_ICONS = [
 ];
 
 export function HeroSection() {
+  const scrollToPickupInfo = () => {
+    const element = document.getElementById("pickup-info");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section className="relative min-h-[85vh] flex items-center overflow-hidden py-16 md:py-24 lg:py-32">
       {/* Animated background blobs */}
@@ -48,24 +55,32 @@ export function HeroSection() {
           <div className="animate-bounce-in mb-8" style={{ animationDelay: "0.1s" }}>
             <AnimatedBadge variant="flash" className="text-sm px-6 py-3">
               <Sparkles className="h-4 w-4 animate-wiggle" />
-              Fresh inventory added daily!
+              Fresh inventory added daily — appointment pickup near 14212
               <Sparkles className="h-4 w-4 animate-wiggle" style={{ animationDelay: '0.5s' }} />
             </AnimatedBadge>
           </div>
           
           {/* Main headline with animated gradient */}
           <h1 className="font-display text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl animate-pop-in opacity-0" style={{ animationDelay: '100ms' }}>
-            <span className="text-gradient-animated">Crazy Deals</span>
+            <span className="text-gradient-animated">Buffalo Pickup Deals</span>
             <br />
             <span className="text-foreground">at </span>
-            <span className="text-gradient-animated">Crazy Moe's!</span>
+            <span className="text-gradient-animated">Crazy Moe's</span>
           </h1>
           
           {/* Animated subtitle */}
-          <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in-up opacity-0 font-medium" style={{ animationDelay: '200ms' }}>
-            Your one-stop shop for amazing finds! From furniture to electronics, we've got treasures waiting just for you.
-            <span className="text-primary font-bold animate-glow-pulse inline-block ml-1">Up to 75% off retail!</span>
-          </p>
+          <div className="mt-6 max-w-2xl mx-auto animate-fade-in-up opacity-0" style={{ animationDelay: '200ms' }}>
+            <p className="text-xl text-muted-foreground font-medium">
+              Liquidation, open-box, and overstock deals —{" "}
+              <span className="text-primary font-bold">50–75% off retail.</span>
+            </p>
+            <p className="text-lg text-muted-foreground mt-2">
+              Appointment pickup near 14212 (exact address shared after confirmation).
+            </p>
+            <p className="text-sm text-muted-foreground/80 mt-3 font-medium">
+              ⚡ Fast pickup • 💵 Cash or Cash App • 🛵 Test at pickup (e-bikes/scooters)
+            </p>
+          </div>
           
           {/* CTA Buttons with crazy hover effects */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '300ms' }}>
@@ -76,12 +91,15 @@ export function HeroSection() {
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link to="/about">
-              <Button size="lg" variant="outline" className="text-lg font-bold px-8 py-6 rounded-2xl border-2 hover:bg-accent hover:border-accent transition-all duration-300 hover:scale-105 hover-wobble">
-                <Gift className="mr-2 h-5 w-5" />
-                Visit Us
-              </Button>
-            </Link>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              onClick={scrollToPickupInfo}
+              className="text-lg font-bold px-8 py-6 rounded-2xl border-2 hover:bg-accent hover:border-accent transition-all duration-300 hover:scale-105 hover-wobble"
+            >
+              <Calendar className="mr-2 h-5 w-5" />
+              Pickup Info (Appointment Only)
+            </Button>
           </div>
           
           {/* Animated stats with 3D tilt */}
