@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchAllProducts, formatPrice, ShopifyProduct } from "@/lib/shopify";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/safeClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -127,7 +127,7 @@ export function AdminShopifyInventory() {
     switch (status) {
       case "available":
         return (
-          <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
+          <Badge variant="default">
             <CheckCircle className="h-3 w-3 mr-1" />
             In Stock
           </Badge>
@@ -141,7 +141,7 @@ export function AdminShopifyInventory() {
         );
       case "partial":
         return (
-          <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+          <Badge variant="secondary">
             <Clock className="h-3 w-3 mr-1" />
             Partial
           </Badge>
@@ -274,7 +274,7 @@ export function AdminShopifyInventory() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-2xl font-bold">{stats.inStock}</p>
                 <p className="text-xs text-muted-foreground">In Stock</p>
@@ -296,7 +296,7 @@ export function AdminShopifyInventory() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-yellow-500" />
+              <Clock className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-2xl font-bold">{stats.partial}</p>
                 <p className="text-xs text-muted-foreground">Partial Stock</p>

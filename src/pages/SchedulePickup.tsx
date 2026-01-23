@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/safeClient";
 import { toast } from "sonner";
 import { MapPin, Clock, Building, CalendarIcon, Phone } from "lucide-react";
 import { format, addDays, isSunday, isSaturday } from "date-fns";

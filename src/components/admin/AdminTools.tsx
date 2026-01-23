@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Chrome, Upload, Package, Loader2, CheckCircle, FileJson } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/safeClient";
 
 // Extension metadata - versions are read dynamically from manifest.json files
 const EXTENSIONS = {
