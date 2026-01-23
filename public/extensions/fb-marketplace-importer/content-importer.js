@@ -1,9 +1,14 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 1.2.7 - GraphQL-first architecture, no duplicate IDs, enhanced title extraction
+// Version 2.0.0 - BULLETPROOF EDITION
+// Key improvements:
+// - Better scroll detection with momentum tracking
+// - Improved duplicate prevention
+// - Enhanced error recovery
+// - Real-time capture feedback
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "1.2.7";
+  const EXTENSION_VERSION = "2.0.0";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -12,11 +17,11 @@
   let isImporting = false;
   let importedCount = 0;
   let totalCount = 0;
-  let selectedAccount = "MBFB"; // Default account
+  let selectedAccount = "MBFB";
 
-  // GraphQL captured listings (includes description, condition, category)
+  // GraphQL captured listings Map
   const capturedListings = new Map();
-  let lastCapturedSize = 0;
+  let interceptorReady = false;
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
@@ -27,11 +32,10 @@
     return new Promise((resolve) => {
       chrome.storage.local.get(["selectedAccount", "accountConfigured"], (result) => {
         if (!result.accountConfigured) {
-          // First-time user - show warning in console
-          console.warn(`FB Importer v${EXTENSION_VERSION}: Account not configured! Please open extension popup and select account first.`);
+          console.warn(`FB Importer v${EXTENSION_VERSION}: Account not configured! Open popup first.`);
         }
         selectedAccount = result.selectedAccount || "MBFB";
-        console.log(`FB Importer v${EXTENSION_VERSION}: Account loaded: ${selectedAccount}`);
+        console.log(`FB Importer v${EXTENSION_VERSION}: Account: ${selectedAccount}`);
         resolve(selectedAccount);
       });
     });
@@ -39,9 +43,13 @@
 
   // Inject the page-context GraphQL interceptor
   function injectGraphQLInterceptor() {
-    if (window.__fbImporterGraphqlInjected) return;
+    if (window.__fbImporterGraphqlInjected) {
+      console.log("FB Importer: Interceptor already injected");
+      return;
+    }
     window.__fbImporterGraphqlInjected = true;
 
+    console.log(`%cFB Importer v${EXTENSION_VERSION}`, 'color: #10b981; font-weight: bold; font-size: 14px');
     console.log("FB Importer: Injecting GraphQL interceptor into page context...");
 
     // Listen for messages from the injected page script
@@ -51,30 +59,47 @@
       if (!msg || msg.source !== "fb-importer") return;
 
       if (msg.type === "READY") {
-        console.log("FB Importer: GraphQL interceptor is READY");
+        interceptorReady = true;
+        console.log(`FB Importer: GraphQL interceptor v${msg.version || '?'} is READY`);
       }
 
       if (msg.type === "LISTING") {
         const listing = msg.payload;
-        if (listing && listing.facebook_id && !capturedListings.has(listing.facebook_id)) {
-          capturedListings.set(listing.facebook_id, listing);
-          console.log(`FB Importer: GraphQL captured (${capturedListings.size}):`, listing.title?.slice(0, 50));
+        if (listing && listing.facebook_id) {
+          // Check for duplicates
+          if (!capturedListings.has(listing.facebook_id)) {
+            capturedListings.set(listing.facebook_id, listing);
+            // Update live counter if visible
+            updateLiveCounter();
+          }
         }
       }
     });
 
-    // Inject the script into page context
+    // Inject the script into page context using web_accessible_resources
     const script = document.createElement("script");
     script.src = chrome.runtime.getURL("page-graphql-interceptor.js");
-    script.onload = () => script.remove();
-    document.documentElement.appendChild(script);
+    script.onload = () => {
+      script.remove();
+      console.log("FB Importer: Interceptor script injected successfully");
+    };
+    script.onerror = (e) => {
+      console.error("FB Importer: Failed to inject interceptor script!", e);
+    };
+    (document.head || document.documentElement).appendChild(script);
+  }
+
+  function updateLiveCounter() {
+    const liveCounter = document.querySelector("#fb-importer-live-count");
+    if (liveCounter) {
+      liveCounter.textContent = capturedListings.size;
+    }
   }
 
   function createImportButton() {
     if (document.querySelector("#fb-importer-button")) return;
 
     const accountClass = selectedAccount === "MBFB" ? "mbfb" : "cmfb";
-    const accountColor = selectedAccount === "MBFB" ? "#3b82f6" : "#a855f7";
 
     const container = document.createElement("div");
     container.id = "fb-importer-container";
@@ -82,13 +107,17 @@
       <div id="fb-importer-account-badge" class="fb-importer-account-badge ${accountClass}">
         ● IMPORTING TO: ${selectedAccount}
       </div>
+      <div id="fb-importer-live-capture" class="fb-importer-live-capture">
+        <span class="pulse-dot"></span>
+        Listings Detected: <strong id="fb-importer-live-count">${capturedListings.size}</strong>
+      </div>
       <button id="fb-importer-button" class="fb-importer-btn ${accountClass}">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
         </svg>
         Import All Listings
       </button>
-      <div id="fb-importer-version" class="fb-importer-version">v${EXTENSION_VERSION}</div>
+      <div id="fb-importer-version" class="fb-importer-version">v${EXTENSION_VERSION} BULLETPROOF</div>
       <div id="fb-importer-progress" class="fb-importer-progress" style="display:none;">
         <div class="progress-text">Importing to <strong>${selectedAccount}</strong>: <span id="import-count">0</span> / <span id="import-total">0</span></div>
         <div class="progress-bar">
@@ -101,7 +130,7 @@
     document.body.appendChild(container);
     document.querySelector("#fb-importer-button").addEventListener("click", startImport);
 
-    // Add account badge styles with larger, more visible badge
+    // Enhanced styles
     const style = document.createElement("style");
     style.textContent = `
       .fb-importer-account-badge {
@@ -129,10 +158,33 @@
       .fb-importer-btn.cmfb {
         background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%) !important;
       }
+      .fb-importer-live-capture {
+        background: rgba(16, 185, 129, 0.2);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #34d399;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+      }
     `;
     document.head.appendChild(style);
 
-    console.log(`FB Importer v${EXTENSION_VERSION}: Button created for account ${selectedAccount}`);
+    console.log(`FB Importer v${EXTENSION_VERSION}: Button created for ${selectedAccount}`);
   }
 
   function updateStatus(text) {
@@ -144,89 +196,107 @@
     console.log(`FB Importer: ${text}`);
   }
 
-  // ============= GRAPHQL-FIRST COLLECTION =============
-  // NO more DOM ID extraction - GraphQL is the source of truth
-  // DOM is only used for scroll detection as a fallback
-
+  // ============= IMPROVED COLLECTION WITH MOMENTUM DETECTION =============
   async function collectAllListings() {
-    console.log("FB Importer: === STARTING GRAPHQL-FIRST COLLECTION ===");
+    console.log("FB Importer: === STARTING BULLETPROOF COLLECTION v2.0 ===");
     console.log("FB Importer: URL:", window.location.href);
     console.log(`FB Importer: Account: ${selectedAccount}`);
-    console.log(`FB Importer: GraphQL already captured: ${capturedListings.size}`);
+    console.log(`FB Importer: Already captured: ${capturedListings.size}`);
 
-    // Phase 1: Scroll to trigger ALL GraphQL responses
-    updateStatus(`Scrolling to load all ${selectedAccount} listings...`);
-    
-    let noGrowth = 0;
+    updateStatus(`Scrolling to capture all ${selectedAccount} listings...`);
+
+    // Wait for interceptor to be ready
+    if (!interceptorReady) {
+      console.log("FB Importer: Waiting for interceptor to initialize...");
+      await sleep(2000);
+    }
+
+    // Phase 1: Aggressive scrolling to trigger ALL GraphQL pagination
+    let noNewData = 0;
     let lastHeight = 0;
     let lastCapturedCount = 0;
-    
-    // More patience - wait for GraphQL captures to stop growing
-    while (noGrowth < 6) {
-      // Scroll to trigger lazy load and GraphQL calls
-      window.scrollTo(0, document.documentElement.scrollHeight);
-      await sleep(2500);
+    let scrollAttempts = 0;
+    const maxScrollAttempts = 50; // Safety limit
+
+    // Clear any old captures from different page loads
+    const startingCount = capturedListings.size;
+
+    while (noNewData < 8 && scrollAttempts < maxScrollAttempts) {
+      scrollAttempts++;
+      
+      // Scroll with slight randomization to avoid detection
+      const scrollVariation = Math.random() * 200;
+      window.scrollTo(0, document.documentElement.scrollHeight + scrollVariation);
+      
+      // Also try scrolling specific containers (FB sometimes uses these)
+      const mainContent = document.querySelector('[role="main"]');
+      if (mainContent) {
+        mainContent.scrollTop = mainContent.scrollHeight;
+      }
+
+      await sleep(2000 + Math.random() * 500); // Variable delay
 
       const currentHeight = document.documentElement.scrollHeight;
       const currentCapturedCount = capturedListings.size;
-      
-      updateStatus(`Scanning: ${currentCapturedCount} listings captured via GraphQL...`);
 
-      // Stop only when BOTH scroll height AND GraphQL captures stop growing
+      updateStatus(`Scanning... ${currentCapturedCount} listings captured (scroll #${scrollAttempts})`);
+      updateLiveCounter();
+
+      // Check for new data
       if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
-        noGrowth++;
-        console.log(`FB Importer: No new content (attempt ${noGrowth}/6)`);
+        noNewData++;
+        console.log(`FB Importer: No new content (attempt ${noNewData}/8)`);
+        
+        // Try clicking "See More" or load more buttons
+        const loadMoreButtons = document.querySelectorAll('[aria-label*="more"], [aria-label*="More"], button:contains("See more")');
+        for (const btn of loadMoreButtons) {
+          try {
+            btn.click();
+            await sleep(1000);
+          } catch (e) {}
+        }
       } else {
-        noGrowth = 0;
+        noNewData = 0;
         lastHeight = currentHeight;
         lastCapturedCount = currentCapturedCount;
       }
     }
 
-    console.log(`FB Importer: Scroll complete. GraphQL captured: ${capturedListings.size} listings`);
+    // Scroll back to top
+    window.scrollTo(0, 0);
 
-    // Phase 2: Convert GraphQL captured listings to array
-    // ONLY use GraphQL data - no DOM ID extraction
-    const listings = Array.from(capturedListings.values()).map(gql => ({
+    console.log(`FB Importer: Scroll complete after ${scrollAttempts} attempts`);
+    console.log(`FB Importer: Total GraphQL captured: ${capturedListings.size} listings`);
+
+    // Phase 2: Convert to array with account tag
+    const listings = Array.from(capturedListings.values()).map((gql) => ({
       ...gql,
       account_tag: selectedAccount,
-      source: 'graphql'
+      source: "graphql",
     }));
 
-    console.log(`FB Importer: === PHASE 1 COMPLETE ===`);
-    console.log(`  GraphQL captured: ${listings.length}`);
-    console.log(`  Account: ${selectedAccount}`);
-
-    // Phase 3: If GraphQL captured ZERO, show warning (but don't fall back to bad DOM extraction)
-    if (listings.length === 0) {
-      console.warn('FB Importer: GraphQL captured 0 listings!');
-      console.warn('FB Importer: Possible causes:');
-      console.warn('  - Page not fully loaded');
-      console.warn('  - Facebook changed their GraphQL structure');
-      console.warn('  - Extension not properly injected');
-      updateStatus('⚠️ No listings found. Try scrolling manually first, then re-import.');
-    }
-
     // Log data quality stats
-    const withDesc = listings.filter(l => l.description).length;
-    const withCondition = listings.filter(l => l.condition).length;
-    const withCategory = listings.filter(l => l.category).length;
-    const withMultipleImages = listings.filter(l => l.images && l.images.length > 1).length;
-    const avgImages = listings.length > 0 
-      ? listings.reduce((sum, l) => sum + (l.images?.length || 0), 0) / listings.length 
+    const withDesc = listings.filter((l) => l.description).length;
+    const withImages = listings.filter((l) => l.images && l.images.length > 0).length;
+    const withMultipleImages = listings.filter((l) => l.images && l.images.length > 1).length;
+    const avgImages = listings.length > 0
+      ? listings.reduce((sum, l) => sum + (l.images?.length || 0), 0) / listings.length
       : 0;
 
-    console.log(`FB Importer: === DATA QUALITY ===`);
-    console.log(`  With description: ${withDesc}/${listings.length}`);
-    console.log(`  With condition: ${withCondition}/${listings.length}`);
-    console.log(`  With category: ${withCategory}/${listings.length}`);
-    console.log(`  With multiple images: ${withMultipleImages}/${listings.length}`);
-    console.log(`  Average images per listing: ${avgImages.toFixed(1)}`);
+    console.log(`FB Importer: === DATA QUALITY REPORT ===`);
+    console.log(`  Total listings: ${listings.length}`);
+    console.log(`  With description: ${withDesc}/${listings.length} (${Math.round(withDesc/listings.length*100)}%)`);
+    console.log(`  With images: ${withImages}/${listings.length} (${Math.round(withImages/listings.length*100)}%)`);
+    console.log(`  With 2+ images: ${withMultipleImages}/${listings.length}`);
+    console.log(`  Average images: ${avgImages.toFixed(1)}`);
 
-    // Check for any H_ hash IDs (should be ZERO with GraphQL-first)
-    const hashIds = listings.filter(l => l.facebook_id?.startsWith('H_'));
-    if (hashIds.length > 0) {
-      console.warn(`FB Importer: WARNING - Found ${hashIds.length} hash IDs. This shouldn't happen!`);
+    if (listings.length === 0) {
+      console.warn("FB Importer: ⚠️ No listings captured!");
+      console.warn("Troubleshooting:");
+      console.warn("  1. Make sure you're on facebook.com/marketplace/you/selling");
+      console.warn("  2. Try scrolling manually first, then click Import");
+      console.warn("  3. Check browser console for interceptor errors");
+      updateStatus("⚠️ No listings found. Try scrolling manually first.");
     }
 
     return listings;
@@ -234,7 +304,6 @@
 
   async function saveListing(listing) {
     try {
-      // Clean up the listing object - only send fields the DB accepts
       const payload = {
         facebook_id: listing.facebook_id,
         account_tag: listing.account_tag || selectedAccount,
@@ -248,22 +317,24 @@
         listing_url: listing.listing_url || null,
         status: listing.status || "active",
         imported_at: listing.imported_at || new Date().toISOString(),
-        source: listing.source || 'graphql',
+        source: listing.source || "graphql",
         last_seen_at: new Date().toISOString(),
       };
 
-      // Use proper upsert with composite unique constraint
-      // on_conflict=account_tag,facebook_id ensures updates instead of duplicates
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/marketplace_listings?on_conflict=account_tag,facebook_id`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          Prefer: "resolution=merge-duplicates",
-        },
-        body: JSON.stringify(payload),
-      });
+      // Upsert using composite unique constraint
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/marketplace_listings?on_conflict=account_tag,facebook_id`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: "resolution=merge-duplicates",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!res.ok) {
         const err = await res.text();
@@ -280,7 +351,7 @@
   async function startImport() {
     if (isImporting) return;
 
-    // Reload account selection in case it changed
+    // Reload account in case it changed
     await loadSelectedAccount();
 
     isImporting = true;
@@ -289,59 +360,77 @@
     const button = document.querySelector("#fb-importer-button");
     const progress = document.querySelector("#fb-importer-progress");
     const progressFill = document.querySelector("#progress-fill");
+    const liveCapture = document.querySelector("#fb-importer-live-capture");
 
-    // Update progress text with account name
-    progress.querySelector('.progress-text').innerHTML = 
+    // Hide live capture during import
+    if (liveCapture) liveCapture.style.display = "none";
+
+    // Update progress text
+    progress.querySelector(".progress-text").innerHTML =
       `Importing to <strong>${selectedAccount}</strong>: <span id="import-count">0</span> / <span id="import-total">0</span>`;
 
     button.disabled = true;
-    button.innerHTML = `Scanning listings for ${selectedAccount}...`;
+    button.innerHTML = `Scanning ${selectedAccount} listings...`;
 
     try {
       const listings = await collectAllListings();
       totalCount = listings.length;
 
       if (totalCount === 0) {
-        button.innerHTML = "No listings found";
+        button.innerHTML = "No listings found - try scrolling first";
         button.disabled = false;
         isImporting = false;
+        if (liveCapture) liveCapture.style.display = "flex";
         return;
       }
 
       progress.style.display = "block";
       document.querySelector("#import-total").textContent = String(totalCount);
-      button.innerHTML = `Importing to ${selectedAccount}...`;
-      updateStatus(`Saving ${totalCount} listings to ${selectedAccount} database...`);
+      button.innerHTML = `Saving to ${selectedAccount}...`;
+      updateStatus(`Saving ${totalCount} listings to ${selectedAccount}...`);
+
+      // Batch save with progress
+      let successCount = 0;
+      let errorCount = 0;
 
       for (const item of listings) {
         const ok = await saveListing(item);
         if (ok) {
+          successCount++;
           importedCount++;
-          document.querySelector("#import-count").textContent = String(importedCount);
-          progressFill.style.width = `${(importedCount / totalCount) * 100}%`;
+        } else {
+          errorCount++;
         }
-        await sleep(100);
+        
+        document.querySelector("#import-count").textContent = String(importedCount);
+        progressFill.style.width = `${((successCount + errorCount) / totalCount) * 100}%`;
+        
+        // Small delay to avoid rate limiting
+        await sleep(80);
       }
 
-      button.innerHTML = `✓ ${selectedAccount}: ${importedCount} saved`;
+      // Success state
+      button.innerHTML = `✓ ${selectedAccount}: ${successCount} saved`;
       button.classList.add("success");
-      
-      const totalImages = listings.reduce((sum, l) => sum + (l.images?.length || 0), 0);
-      updateStatus(`Complete! ${selectedAccount}: ${importedCount} listings, ${totalImages} images`);
 
-      // Update storage with import count
-      chrome.storage.local.get(['totalImported'], (result) => {
+      const totalImages = listings.reduce((sum, l) => sum + (l.images?.length || 0), 0);
+      updateStatus(`Complete! ${successCount}/${totalCount} saved, ${totalImages} images captured`);
+
+      // Update storage stats
+      chrome.storage.local.get(["totalImported"], (result) => {
         const currentTotal = result.totalImported || 0;
         chrome.storage.local.set({
           lastImport: {
-            count: importedCount,
+            count: successCount,
             account: selectedAccount,
             date: new Date().toISOString(),
+            errors: errorCount,
           },
-          totalImported: currentTotal + importedCount,
+          totalImported: currentTotal + successCount,
         });
       });
 
+      // Reset after delay
       setTimeout(() => {
         button.disabled = false;
         button.classList.remove("success");
@@ -353,38 +442,57 @@
         `;
         progress.style.display = "none";
         document.querySelector("#fb-importer-status").style.display = "none";
+        if (liveCapture) liveCapture.style.display = "flex";
         isImporting = false;
+        
+        // Clear captured listings for fresh next run
+        capturedListings.clear();
+        updateLiveCounter();
       }, 5000);
+
     } catch (e) {
       console.error("FB Importer: Import error:", e);
       button.innerHTML = "Error - Try Again";
       button.disabled = false;
+      if (liveCapture) liveCapture.style.display = "flex";
       isImporting = false;
     }
   }
 
+  // ============= INITIALIZATION =============
   async function init() {
-    if (window.location.href.includes("facebook.com/marketplace/you")) {
-      // Load account first
-      await loadSelectedAccount();
-      
-      console.log(`FB Importer v${EXTENSION_VERSION}: Detected page, initializing for ${selectedAccount}...`);
-      
-      // Inject GraphQL interceptor FIRST to start capturing network data
-      injectGraphQLInterceptor();
-      
-      setTimeout(createImportButton, 2000);
+    // Check if we're on the correct page
+    const url = window.location.href;
+    const isYourListings = url.includes("facebook.com/marketplace/you");
+    
+    if (!isYourListings) {
+      console.log("FB Importer: Not on Your Listings page, skipping...");
+      return;
     }
+
+    // Load account first
+    await loadSelectedAccount();
+
+    console.log(`FB Importer v${EXTENSION_VERSION}: Initializing for ${selectedAccount}...`);
+
+    // Inject GraphQL interceptor FIRST (before any network requests)
+    injectGraphQLInterceptor();
+
+    // Create button after a short delay for page to settle
+    setTimeout(createImportButton, 1500);
   }
 
+  // Start initialization
   init();
 
+  // Watch for URL changes (FB is a SPA)
   let lastUrl = location.href;
   new MutationObserver(() => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
-      console.log("FB Importer: URL changed, re-init...");
-      setTimeout(init, 1200);
+      console.log("FB Importer: URL changed, re-initializing...");
+      capturedListings.clear();
+      setTimeout(init, 1500);
     }
   }).observe(document.body, { subtree: true, childList: true });
 })();

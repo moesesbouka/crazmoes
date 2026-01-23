@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FB Marketplace Importer - Crazy Moe's",
-  "version": "1.2.7",
-  "description": "Backup your Facebook Marketplace inventory to prevent data loss (Multi-Account)",
+  "version": "2.0.0",
+  "description": "BULLETPROOF backup of your Facebook Marketplace inventory (Multi-Account)",
   "permissions": [
     "activeTab",
     "storage",
@@ -29,13 +29,18 @@
         "https://web.facebook.com/marketplace/you/*"
       ],
       "js": ["content-importer.js"],
-      "css": ["styles.css"]
+      "css": ["styles.css"],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": ["page-graphql-interceptor.js"],
-      "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*", "https://web.facebook.com/*"]
+      "matches": [
+        "https://www.facebook.com/*",
+        "https://m.facebook.com/*",
+        "https://web.facebook.com/*"
+      ]
     }
   ],
   "background": {

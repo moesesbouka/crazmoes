@@ -1,5 +1,5 @@
-// FB Marketplace Importer - Popup Script v1.2.7
-// First-time setup modal + themed UI
+// FB Marketplace Importer - Popup Script v2.0.0
+// BULLETPROOF EDITION - First-time setup modal + themed UI
 (function() {
   const accountSelect = document.getElementById('account-select');
   const accountBadge = document.getElementById('account-badge');
@@ -39,13 +39,17 @@
       const today = new Date();
       const diffDays = Math.floor((today - date) / (1000 * 60 * 60 * 24));
       
+      let dateText = '';
       if (diffDays === 0) {
-        lastImportEl.textContent = 'Today';
+        dateText = 'Today';
       } else if (diffDays === 1) {
-        lastImportEl.textContent = 'Yesterday';
+        dateText = 'Yesterday';
       } else {
-        lastImportEl.textContent = `${diffDays}d ago`;
+        dateText = `${diffDays}d ago`;
       }
+      
+      // Show count with date
+      lastImportEl.textContent = `${result.lastImport.count} (${dateText})`;
     }
     
     totalSavedEl.textContent = result.totalImported || 0;
