@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Chrome, Upload, Package, Loader2, CheckCircle, FileJson } from "lucide-react";
+import { Download, Chrome, Upload, Package, Loader2, CheckCircle, FileJson, FileSpreadsheet } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,7 +54,8 @@ export function AdminTools() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState<string | null>(null);
   const [versions, setVersions] = useState<Record<string, string>>({});
-  const [exportingInventory, setExportingInventory] = useState(false);
+  const [exportingJson, setExportingJson] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   // Fetch versions from manifest.json files on mount
   useEffect(() => {
@@ -179,19 +180,20 @@ export function AdminTools() {
     }
   };
 
-  const exportShopifyInventory = async () => {
-    setExportingInventory(true);
+  const exportShopifyInventoryJson = async () => {
+    setExportingJson(true);
     try {
       toast({
-        title: "Exporting inventory...",
+        title: "Exporting inventory (JSON)...",
         description: "Fetching all products from Shopify. This may take a moment.",
       });
 
-      const { data, error } = await supabase.functions.invoke('export-shopify-inventory');
+      const { data, error } = await supabase.functions.invoke('export-shopify-inventory', {
+        body: { format: 'json' }
+      });
       
       if (error) throw error;
       
-      // Create and download JSON file
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -204,17 +206,67 @@ export function AdminTools() {
 
       toast({
         title: "Export complete!",
-        description: `Downloaded ${data.exportInfo?.totalProducts || 0} products with ${data.exportInfo?.totalImages || 0} images.`,
+        description: `Downloaded ${data.exportInfo?.totalProducts || 0} products.`,
       });
     } catch (error: any) {
       console.error('Export error:', error);
       toast({
         title: "Export failed",
-        description: error.message || "Could not export inventory. Check console for details.",
+        description: error.message || "Could not export inventory.",
         variant: "destructive",
       });
     } finally {
-      setExportingInventory(false);
+      setExportingJson(false);
+    }
+  };
+
+  const exportShopifyInventoryCsv = async () => {
+    setExportingCsv(true);
+    try {
+      toast({
+        title: "Exporting inventory (CSV)...",
+        description: "Fetching all products from Shopify. This may take a moment.",
+      });
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-shopify-inventory`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({ format: 'csv' })
+        }
+      );
+      
+      if (!response.ok) throw new Error('Export failed');
+      
+      const csvText = await response.text();
+      const blob = new Blob([csvText], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `shopify-inventory-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const rowCount = csvText.split('\n').length - 1;
+      toast({
+        title: "Export complete!",
+        description: `Downloaded ${rowCount} products as CSV.`,
+      });
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export failed",
+        description: error.message || "Could not export inventory.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingCsv(false);
     }
   };
 
@@ -224,11 +276,11 @@ export function AdminTools() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileJson className="h-5 w-5 text-primary" />
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
             Export Shopify Inventory
           </CardTitle>
           <CardDescription>
-            Download your complete Shopify inventory as a JSON file with all product details
+            Download your complete Shopify inventory as CSV or JSON
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -236,30 +288,49 @@ export function AdminTools() {
             <h4 className="font-medium">Includes:</h4>
             <ul className="list-disc list-inside text-muted-foreground space-y-1">
               <li>All product titles, descriptions, and handles</li>
-              <li>Full image URLs with dimensions</li>
-              <li>All variants with pricing and inventory</li>
+              <li>Full image URLs</li>
+              <li>Pricing and inventory quantities</li>
               <li>Tags, categories, and vendor info</li>
               <li>Direct Shopify admin links</li>
             </ul>
           </div>
 
-          <Button 
-            className="w-full" 
-            onClick={exportShopifyInventory}
-            disabled={exportingInventory}
-          >
-            {exportingInventory ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Export Full Inventory (JSON)
-              </>
-            )}
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              variant="default"
+              onClick={exportShopifyInventoryCsv}
+              disabled={exportingCsv || exportingJson}
+            >
+              {exportingCsv ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export CSV
+                </>
+              )}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={exportShopifyInventoryJson}
+              disabled={exportingJson || exportingCsv}
+            >
+              {exportingJson ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <FileJson className="h-4 w-4 mr-2" />
+                  Export JSON
+                </>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
