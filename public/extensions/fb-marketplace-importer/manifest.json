@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FB Marketplace Importer - Crazy Moe's",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "DIAGNOSTIC DASHBOARD EDITION - Backup your Facebook Marketplace inventory with real-time progress tracking",
   "permissions": [
     "activeTab",
