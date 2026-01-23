@@ -1,16 +1,15 @@
 // FB Marketplace Importer - Page Context GraphQL Interceptor
-// Version 2.0.0 - BULLETPROOF EDITION
+// Version 2.1.0 - DIAGNOSTIC EDITION
 // Key improvements:
-// - GraphQL operationName filtering (MarketplaceSellingInventory only)
-// - Enhanced image extraction (20+ nested patterns)
-// - Strict listing validation (require marketplace-specific fields)
-// - Better debugging with accept/reject logging
+// - DIAGNOSTIC LOGGING: Logs response structures and candidate objects
+// - RELAXED VALIDATION: Accepts 15+ ID patterns and any listing signals
+// - BETTER FIELD DETECTION: Expanded title, price, and image patterns
 (function () {
   try {
     if (window.__fbImporterInjected) return;
     window.__fbImporterInjected = true;
 
-    const VERSION = '2.0.0';
+    const VERSION = '2.1.0';
 
     // Diagnostic counters
     let graphqlResponsesSeen = 0;
@@ -18,6 +17,12 @@
     let listingsSkipped = 0;
     let responsesAccepted = 0;
     let responsesRejected = 0;
+
+    // DIAGNOSTIC: Track candidate objects for debugging
+    let diagnosticCandidates = 0;
+    const MAX_DIAGNOSTIC = 5;
+    let responseStructuresLogged = 0;
+    const MAX_STRUCTURE_LOGS = 3;
 
     // ============= OPERATION NAME WHITELIST =============
     // Only process GraphQL responses from these operations
@@ -31,7 +36,10 @@
       'CometMarketplaceBuyerListingQuery',
       'MarketplaceListingQuery',
       'CometMarketplaceListingQuery',
-      // Fallback patterns - allow if contains these keywords
+      // Additional patterns
+      'MarketplaceSellerHomeQuery',
+      'CometMarketplaceSellerHomeQuery',
+      'MarketplaceCategoryFeedQuery',
     ];
 
     const OPERATION_KEYWORDS = [
@@ -40,6 +48,8 @@
       'marketplace_listing',
       'seller_listing',
       'your_listings',
+      'SellerHome',
+      'MarketplaceItem',
     ];
 
     function cleanJsonText(t) {
@@ -65,7 +75,7 @@
       if (!field) return '';
       if (typeof field === 'string') return field.trim();
       if (typeof field === 'object') {
-        return String(field.text || field.value || field.name || field.display_text || '').trim();
+        return String(field.text || field.value || field.name || field.display_text || field.content || '').trim();
       }
       return '';
     }
@@ -82,7 +92,7 @@
         }
 
         // Method 2: Stringify and check for operation patterns
-        const dataStr = JSON.stringify(data).substring(0, 5000);
+        const dataStr = JSON.stringify(data).substring(0, 8000);
         
         // Check for marketplace-specific field names that ONLY exist in listings
         const marketplaceSignals = [
@@ -97,7 +107,16 @@
           'CometMarketplace',
           '"__typename":"MarketplaceListing"',
           '"__typename":"Listing"',
+          '"__typename":"MarketplaceProductItem"',
+          '"__typename":"MarketplaceFeedUnit"',
+          '"__typename":"MarketplaceSellerListingItem"',
           'your_listings',
+          'selling_inventory',
+          'seller_home',
+          // Additional patterns for detection
+          'marketplace_product',
+          'listing_id',
+          'product_item',
         ];
 
         for (const signal of marketplaceSignals) {
@@ -119,7 +138,6 @@
         for (const signal of nonMarketplaceSignals) {
           if (dataStr.includes(signal)) {
             responsesRejected++;
-            console.log(`FB Importer: REJECTED response (${responsesRejected}) - Non-marketplace: ${signal}`);
             return false;
           }
         }
@@ -131,7 +149,7 @@
       }
     }
 
-    // ============= ENHANCED TITLE EXTRACTION (20+ fields) =============
+    // ============= ENHANCED TITLE EXTRACTION (30+ fields) =============
     function findTitle(obj) {
       // Direct fields - check all common title locations
       const directFields = [
@@ -147,6 +165,11 @@
         obj.product_name,
         obj.listing_title,
         obj.custom_title,
+        // NEW patterns
+        obj.formatted_title,
+        obj.text_title,
+        obj.item_name,
+        obj.display_title,
       ];
 
       for (const field of directFields) {
@@ -158,18 +181,24 @@
       const nestedPaths = [
         obj.listing?.title,
         obj.listing?.marketplace_listing_title,
+        obj.listing?.name,
         obj.node?.title,
         obj.node?.marketplace_listing_title,
+        obj.node?.name,
         obj.marketplace_listing?.title,
+        obj.marketplace_listing?.name,
         obj.primary_listing?.title,
         obj.target?.title,
         obj.target?.marketplace_listing_title,
+        obj.target?.name,
         obj.story?.title,
         obj.attached_story?.title,
         obj.marketplace_product_item?.title,
         obj.commerce_product_item?.title,
         obj.item?.title,
+        obj.item?.name,
         obj.product?.title,
+        obj.product?.name,
         obj.edge?.node?.title,
         obj.listing?.node?.title,
         obj.marketplace_listing?.node?.title,
@@ -177,6 +206,11 @@
         // Even deeper nesting
         obj.data?.node?.title,
         obj.data?.marketplace_listing?.title,
+        obj.data?.listing?.title,
+        // New Facebook patterns
+        obj.story_node?.title,
+        obj.feed_unit?.title,
+        obj.primary_photo?.accessibility_caption,
       ];
 
       for (const field of nestedPaths) {
@@ -185,7 +219,7 @@
       }
 
       // Last resort: First line of description (since FB requires titles)
-      const descFields = [obj.description, obj.redacted_description, obj.body, obj.message];
+      const descFields = [obj.description, obj.redacted_description, obj.body, obj.message, obj.custom_sub_titles_with_rendering_flags];
       for (const df of descFields) {
         const descText = extractText(df);
         if (descText && descText.length > 5) {
@@ -211,7 +245,7 @@
       
       if (obj.is_pending === true || obj.pending === true || obj.is_pending_sale === true) return 'pending';
       
-      const listingState = obj.listing_state || obj.marketplace_listing_state || obj.state;
+      const listingState = obj.listing_state || obj.marketplace_listing_state || obj.state || obj.status;
       if (listingState) {
         const ls = String(listingState).toUpperCase();
         if (ls === 'SOLD' || ls === 'CLOSED' || ls === 'COMPLETED') return 'sold';
@@ -237,7 +271,7 @@
       return 'active';
     }
 
-    // ============= ENHANCED IMAGE EXTRACTION (30+ patterns) =============
+    // ============= ENHANCED IMAGE EXTRACTION (40+ patterns) =============
     function extractAllImages(obj) {
       const images = [];
 
@@ -260,6 +294,8 @@
         pushUrl(images, imgObj.full_size_uri);
         pushUrl(images, imgObj.large_uri);
         pushUrl(images, imgObj.medium_uri);
+        pushUrl(images, imgObj.scaled_uri);
+        pushUrl(images, imgObj.preview_uri);
 
         // Nested image object
         if (imgObj.image) extractFromImageObj(imgObj.image);
@@ -270,6 +306,7 @@
         if (imgObj.large) extractFromImageObj(imgObj.large);
         if (imgObj.medium) extractFromImageObj(imgObj.medium);
         if (imgObj.full) extractFromImageObj(imgObj.full);
+        if (imgObj.scaled) extractFromImageObj(imgObj.scaled);
       }
 
       // All possible image field names
@@ -293,14 +330,28 @@
         obj.listing_images,
         obj.product_images,
         obj.marketplace_listing_photos,
+        // NEW patterns
+        obj.scaled_image,
+        obj.preview_image,
+        obj.hero_image,
+        obj.photo_image,
+        obj.picture,
+        obj.pictures,
+        obj.visual_media,
         // Nested locations
         obj.listing?.photos,
         obj.listing?.images,
         obj.listing?.image,
+        obj.listing?.primary_photo,
         obj.node?.photos,
         obj.node?.images,
+        obj.node?.image,
+        obj.node?.primary_photo,
         obj.marketplace_listing?.photos,
+        obj.marketplace_listing?.images,
         obj.target?.photos,
+        obj.target?.images,
+        obj.target?.primary_photo,
       ];
 
       for (const imageField of imageFields) {
@@ -328,16 +379,43 @@
       return images;
     }
 
-    // ============= VALIDATE LISTING OBJECT =============
-    // Stricter validation to prevent non-listing objects from being emitted
+    // ============= RELAXED VALIDATION (v2.1.0) =============
+    // More permissive to catch listings with new field names
     function isValidListingObject(obj) {
       if (!obj || typeof obj !== 'object') return false;
 
-      // Must have an ID
-      const id = obj.id || obj.listing_id || obj.marketplace_listing_id || obj.primary_listing_id;
-      if (!id || String(id).length < 5) return false;
+      // EXPANDED ID detection - 15+ patterns
+      const id = obj.id || obj.listing_id || obj.marketplace_listing_id || 
+                 obj.primary_listing_id || obj.story_id || obj.product_id ||
+                 obj.item_id || obj.entity_id;
+      
+      // Also check nested ID patterns Facebook might use now
+      const nestedId = obj.node?.id || obj.listing?.id || obj.target?.id || 
+                       obj.data?.id || obj.marketplace_listing?.id ||
+                       obj.edge?.node?.id || obj.story_node?.id ||
+                       obj.item?.id || obj.product?.id;
+      
+      const finalId = id || nestedId;
+      
+      if (!finalId || String(finalId).length < 5) return false;
 
-      // Should have at least one marketplace indicator
+      // Skip obvious non-listing IDs
+      const idStr = String(finalId);
+      if (idStr.startsWith('m_') || idStr.startsWith('thread_') || 
+          idStr.startsWith('msg_') || idStr.startsWith('notif_')) {
+        return false;
+      }
+
+      // RELAXED: Accept if __typename contains listing-related words
+      const typename = obj.__typename || '';
+      const typenameLC = typename.toLowerCase();
+      if (typenameLC.includes('listing') || typenameLC.includes('marketplace') || 
+          typenameLC.includes('product') || typenameLC.includes('item') ||
+          typenameLC.includes('feedunit') || typenameLC.includes('seller')) {
+        return true;
+      }
+
+      // Check for marketplace-specific fields
       const marketplaceIndicators = [
         obj.marketplace_listing_id,
         obj.marketplace_listing_title,
@@ -348,21 +426,38 @@
         obj.listing_photos,
         obj.seller_id,
         obj.buyer_id,
-        // TypeName checks
-        obj.__typename === 'MarketplaceListing',
-        obj.__typename === 'Listing',
-        obj.__typename === 'MarketplaceProductItem',
+        obj.primary_listing_photo,
+        obj.listing_state,
+        obj.marketplace_listing_state,
+        // NEW indicators
+        obj.formatted_price,
+        obj.current_price,
+        obj.sale_price,
+        obj.cover_photo,
+        obj.primary_photo,
+        obj.selling_state,
+        obj.is_live,
       ];
 
       const hasMarketplaceIndicator = marketplaceIndicators.some(Boolean);
+      if (hasMarketplaceIndicator) return true;
       
-      // Also allow if it has typical listing structure (price + images + title)
-      const hasListingStructure = (
-        (obj.price || obj.listing_price || obj.amount) &&
-        (obj.title || obj.marketplace_listing_title || obj.name)
-      );
+      // RELAXED: Accept if has typical listing structure (ANY of: title, price, images)
+      const hasTitle = !!(obj.title || obj.marketplace_listing_title || obj.name || 
+                         obj.product_title || obj.item_title || obj.label ||
+                         obj.listing?.title || obj.node?.title);
+      
+      const hasPrice = !!(obj.price || obj.listing_price || obj.amount || 
+                         obj.formatted_price || obj.current_price || obj.sale_price ||
+                         obj.listing?.price || obj.node?.price);
+      
+      const hasImage = !!(obj.image || obj.images || obj.photo || obj.photos || 
+                         obj.cover_photo || obj.primary_photo || obj.primary_listing_photo ||
+                         obj.listing?.photos || obj.node?.photos);
 
-      return hasMarketplaceIndicator || hasListingStructure;
+      // Accept if has at least 2 of the 3 signals
+      const signalCount = (hasTitle ? 1 : 0) + (hasPrice ? 1 : 0) + (hasImage ? 1 : 0);
+      return signalCount >= 2;
     }
 
     // ============= MAIN EMIT FUNCTION =============
@@ -370,12 +465,18 @@
       try {
         if (!isValidListingObject(obj)) return;
 
+        // EXPANDED ID extraction
         const idRaw =
           obj.marketplace_listing_id ||
           obj.listing_id ||
           obj.id ||
           obj.primary_listing_id ||
           obj.story_id ||
+          obj.product_id ||
+          obj.item_id ||
+          obj.node?.id ||
+          obj.listing?.id ||
+          obj.target?.id ||
           '';
 
         const id = String(idRaw || '').trim();
@@ -392,7 +493,9 @@
         // STRICT: Skip if no title found
         if (!title) {
           listingsSkipped++;
-          console.log(`FB Importer: Skipped ${id.slice(0,15)}... - no title (skipped: ${listingsSkipped})`);
+          if (listingsSkipped <= 5) {
+            console.log(`FB Importer: Skipped ${id.slice(0,15)}... - no title found`);
+          }
           return;
         }
 
@@ -403,11 +506,10 @@
             titleLower.includes('replied to') ||
             titleLower.includes('notification')) {
           listingsSkipped++;
-          console.log(`FB Importer: Skipped ${id.slice(0,15)}... - message/notification title`);
           return;
         }
 
-        // Price extraction
+        // Price extraction - EXPANDED
         let price = null;
         const priceField =
           obj.listing_price ||
@@ -415,11 +517,14 @@
           obj.formatted_price ||
           obj.current_price ||
           obj.sale_price ||
-          obj.amount;
+          obj.amount ||
+          obj.listing?.price ||
+          obj.node?.price ||
+          obj.node?.listing_price;
 
         if (priceField) {
           let raw = priceField;
-          if (typeof raw === 'object') raw = raw.amount || raw.text || raw.formatted_amount || '';
+          if (typeof raw === 'object') raw = raw.amount || raw.text || raw.formatted_amount || raw.value || '';
           const num = String(raw || '').replace(/[^0-9.]/g, '');
           if (num) {
             const parsed = parseFloat(num);
@@ -438,6 +543,8 @@
           obj.message,
           obj.story_message,
           obj.custom_sub_titles_with_rendering_flags,
+          obj.listing?.description,
+          obj.node?.description,
         ];
         for (const df of descFields) {
           const txt = extractText(df);
@@ -454,6 +561,8 @@
           obj.listing_condition,
           obj.condition_type,
           obj.product_condition,
+          obj.listing?.condition,
+          obj.node?.condition,
         ];
         for (const cf of condFields) {
           const txt = extractText(cf);
@@ -471,6 +580,8 @@
           obj.listing_category,
           obj.category_type,
           obj.product_type,
+          obj.listing?.category,
+          obj.node?.category,
         ];
         for (const catf of catFields) {
           const txt = extractText(catf);
@@ -482,11 +593,11 @@
 
         // Location
         let location = '';
-        const locFields = [obj.location, obj.listing_location, obj.location_text, obj.location_name];
+        const locFields = [obj.location, obj.listing_location, obj.location_text, obj.location_name, obj.listing?.location, obj.node?.location];
         for (const lf of locFields) {
           if (lf) {
             if (typeof lf === 'object') {
-              location = extractText(lf.name) || extractText(lf.city) || extractText(lf.reverse_geocode);
+              location = extractText(lf.name) || extractText(lf.city) || extractText(lf.reverse_geocode) || extractText(lf.text);
             } else {
               location = extractText(lf);
             }
@@ -525,7 +636,8 @@
         );
 
         console.log(
-          `FB Importer: ✓ Captured #${listingsEmitted}:`,
+          `%cFB Importer: ✓ Captured #${listingsEmitted}:`,
+          'color: #10b981; font-weight: bold',
           id.slice(0, 12),
           `"${title.slice(0, 35)}..."`,
           `($${price || '?'})`,
@@ -537,9 +649,36 @@
       }
     }
 
-    // ============= RECURSIVE WALKER =============
+    // ============= RECURSIVE WALKER WITH DIAGNOSTICS =============
     function walk(obj, depth) {
       if (!obj || typeof obj !== 'object' || depth > 12) return;
+      
+      // DIAGNOSTIC: Log first few objects with ID-like fields
+      if (diagnosticCandidates < MAX_DIAGNOSTIC && depth < 5) {
+        const possibleId = obj.id || obj.listing_id || obj.marketplace_listing_id || 
+                           obj.node?.id || obj.primary_listing_id || obj.story_id ||
+                           obj.product_id || obj.item_id || obj.entity_id;
+        
+        if (possibleId && String(possibleId).length > 5) {
+          const idStr = String(possibleId);
+          // Skip known non-listing patterns
+          if (!idStr.startsWith('m_') && !idStr.startsWith('thread_') && !idStr.startsWith('msg_')) {
+            diagnosticCandidates++;
+            console.log(`%c🔍 FB Importer: DIAGNOSTIC CANDIDATE #${diagnosticCandidates}`, 'color: #f59e0b; font-weight: bold');
+            console.log('  Object keys:', Object.keys(obj).slice(0, 25).join(', '));
+            console.log('  __typename:', obj.__typename || 'undefined');
+            console.log('  ID found:', idStr.slice(0, 20) + '...');
+            console.log('  Has title?:', !!(obj.title || obj.marketplace_listing_title || obj.name || obj.node?.title || obj.listing?.title));
+            console.log('  Has price?:', !!(obj.price || obj.listing_price || obj.amount || obj.formatted_price));
+            console.log('  Has photos?:', !!(obj.photos || obj.images || obj.primary_photo || obj.cover_photo || obj.listing_photos));
+            
+            // Try to emit this candidate
+            maybeEmitListing(obj);
+            return; // Don't double-process
+          }
+        }
+      }
+      
       maybeEmitListing(obj);
 
       if (Array.isArray(obj)) {
@@ -578,6 +717,35 @@
 
             responsesAccepted++;
             parsedCount++;
+            
+            // DIAGNOSTIC: Log response structure for first few responses
+            if (responseStructuresLogged < MAX_STRUCTURE_LOGS) {
+              responseStructuresLogged++;
+              console.log(`%c📦 FB Importer: RESPONSE STRUCTURE #${responseStructuresLogged}`, 'color: #a855f7; font-weight: bold');
+              console.log('  Operation:', requestInfo?.operationName || 'unknown');
+              console.log('  Top-level keys:', Object.keys(data).slice(0, 15).join(', '));
+              
+              if (data.data) {
+                console.log('  data keys:', Object.keys(data.data).slice(0, 15).join(', '));
+                // Look for edges/nodes pattern
+                for (const key of Object.keys(data.data)) {
+                  const val = data.data[key];
+                  if (val && typeof val === 'object') {
+                    if (val.edges) {
+                      console.log(`  data.${key}.edges:`, Array.isArray(val.edges) ? `[${val.edges.length} items]` : typeof val.edges);
+                      if (val.edges[0]?.node) {
+                        console.log(`  First node keys:`, Object.keys(val.edges[0].node).slice(0, 15).join(', '));
+                        console.log(`  First node __typename:`, val.edges[0].node.__typename);
+                      }
+                    }
+                    if (val.__typename) {
+                      console.log(`  data.${key}.__typename:`, val.__typename);
+                    }
+                  }
+                }
+              }
+            }
+            
             walk(data, 0);
           } catch (e) {
             // ignore parse errors
@@ -585,7 +753,7 @@
         }
         
         if (parsedCount > 0) {
-          console.log(`FB Importer: Processed ${parsedCount} marketplace response(s). Total: ${listingsEmitted} listings`);
+          console.log(`%cFB Importer: Processed ${parsedCount} response(s). Total captured: ${listingsEmitted}, skipped: ${listingsSkipped}`, 'color: #60a5fa');
         }
       } catch (e) {
         // ignore
@@ -624,10 +792,9 @@
                               OPERATION_KEYWORDS.some(kw => operationName.includes(kw));
             if (!isAllowed) {
               responsesRejected++;
-              console.log(`FB Importer: Skipped operation: ${operationName}`);
               return res;
             }
-            console.log(`FB Importer: ✓ Processing operation: ${operationName}`);
+            console.log(`%cFB Importer: ✓ Processing operation: ${operationName}`, 'color: #10b981');
           }
 
           const clone = res.clone();
@@ -701,18 +868,18 @@
     // ============= READY SIGNAL =============
     window.postMessage({ source: 'fb-importer', type: 'READY', version: VERSION }, '*');
     
-    console.log(`%cFB Importer v${VERSION} - BULLETPROOF EDITION`, 'color: #10b981; font-weight: bold; font-size: 14px');
-    console.log('%c✓ GraphQL operationName filtering (no junk data)', 'color: #60a5fa');
-    console.log('%c✓ Enhanced 30+ image pattern extraction', 'color: #60a5fa');
-    console.log('%c✓ Strict marketplace validation', 'color: #60a5fa');
+    console.log(`%c🔧 FB Importer v${VERSION} - DIAGNOSTIC EDITION`, 'color: #10b981; font-weight: bold; font-size: 16px');
+    console.log('%c✓ DIAGNOSTIC MODE: Will log response structures', 'color: #f59e0b');
+    console.log('%c✓ RELAXED VALIDATION: Accepts 15+ ID patterns', 'color: #60a5fa');
+    console.log('%c✓ EXPANDED FIELDS: 40+ image patterns, 30+ title patterns', 'color: #60a5fa');
     console.log('FB Importer: Watching for Marketplace GraphQL requests...');
 
     // Periodic stats logging
     setInterval(() => {
-      if (listingsEmitted > 0 || responsesRejected > 0) {
-        console.log(`FB Importer Stats: ${listingsEmitted} captured, ${listingsSkipped} skipped, ${responsesRejected} non-marketplace rejected`);
+      if (graphqlResponsesSeen > 0 || listingsEmitted > 0) {
+        console.log(`%cFB Importer Stats: ${listingsEmitted} captured, ${listingsSkipped} skipped, ${responsesRejected} rejected, ${graphqlResponsesSeen} total responses seen`, 'color: #888');
       }
-    }, 30000);
+    }, 15000);
 
   } catch (e) {
     console.log('FB Importer: Injection failed', e);
