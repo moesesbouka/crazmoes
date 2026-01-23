@@ -1,14 +1,13 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 2.1.0 - DIAGNOSTIC DASHBOARD EDITION
+// Version 3.0.0 - FULL ENRICHMENT EDITION
 // Key improvements:
-// - Visual progress dashboard with real-time stats
-// - Activity log showing what's happening
-// - Elapsed timer and phase tracking
-// - Better error visibility
+// - Phase 1: Fast scan to collect ALL listing IDs (no 270 limit)
+// - Phase 2: Enrichment - fetch each listing's detail page for ALL photos
+// - Balanced throttling to avoid FB rate limits
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "2.2.0";
+  const EXTENSION_VERSION = "3.0.0";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -21,10 +20,11 @@
 
   // GraphQL captured listings Map
   const capturedListings = new Map();
+  const enrichedListings = new Map();
   let interceptorReady = false;
 
   // Dashboard state
-  let currentPhase = "idle"; // idle, scanning, saving, complete, error
+  let currentPhase = "idle"; // idle, scanning, enriching, saving, complete, error
   let startTime = null;
   let elapsedTimer = null;
   let activityLog = [];
@@ -77,23 +77,29 @@
       if (msg.type === "LISTING") {
         const listing = msg.payload;
         if (listing && listing.facebook_id) {
-          // Check for duplicates
           if (!capturedListings.has(listing.facebook_id)) {
             capturedListings.set(listing.facebook_id, listing);
             updateDashboard();
             
-            // Show activity for first few listings
-            if (capturedListings.size <= 5) {
-              addActivity(`📦 Found: "${listing.title?.slice(0, 30)}..."`);
-            } else if (capturedListings.size % 10 === 0) {
-              addActivity(`📦 ${capturedListings.size} listings detected`);
+            if (capturedListings.size <= 3) {
+              addActivity(`📋 Found: "${listing.title?.slice(0, 25)}..."`);
+            } else if (capturedListings.size % 25 === 0) {
+              addActivity(`📦 ${capturedListings.size} listings found`);
             }
           }
         }
       }
+
+      if (msg.type === "ENRICHED_LISTING") {
+        const listing = msg.payload;
+        if (listing && listing.facebook_id) {
+          enrichedListings.set(listing.facebook_id, listing);
+          updateDashboard();
+        }
+      }
     });
 
-    // Inject the script into page context using web_accessible_resources
+    // Inject the script into page context
     const script = document.createElement("script");
     script.src = chrome.runtime.getURL("page-graphql-interceptor.js");
     script.onload = () => {
@@ -110,7 +116,7 @@
 
   function addActivity(text) {
     activityLog.unshift({ text, time: Date.now() });
-    if (activityLog.length > 8) activityLog.pop();
+    if (activityLog.length > 10) activityLog.pop();
     updateActivityLog();
   }
 
@@ -153,7 +159,7 @@
     const logEl = document.querySelector("#fb-importer-activity-log");
     if (!logEl) return;
     
-    logEl.innerHTML = activityLog.slice(0, 5).map(entry => 
+    logEl.innerHTML = activityLog.slice(0, 6).map(entry => 
       `<div class="activity-entry">${entry.text}</div>`
     ).join('');
   }
@@ -175,10 +181,14 @@
     const listingsCount = document.querySelector("#fb-importer-listings-count");
     if (listingsCount) listingsCount.textContent = capturedListings.size;
 
+    // Update enriched count
+    const enrichedCount = document.querySelector("#fb-importer-enriched-count");
+    if (enrichedCount) enrichedCount.textContent = enrichedListings.size;
+
     // Update images count
     const imagesCount = document.querySelector("#fb-importer-images-count");
     if (imagesCount) {
-      const totalImages = Array.from(capturedListings.values())
+      const totalImages = Array.from(enrichedListings.size > 0 ? enrichedListings.values() : capturedListings.values())
         .reduce((sum, l) => sum + (l.images?.length || 0), 0);
       imagesCount.textContent = totalImages;
     }
@@ -189,7 +199,8 @@
     if (phaseEl) {
       const phaseLabels = {
         idle: "Ready to Import",
-        scanning: "Scanning Listings",
+        scanning: "Scanning Feed...",
+        enriching: "Enriching Photos...",
         saving: "Saving to Database",
         complete: "Import Complete",
         error: "Error Occurred"
@@ -241,24 +252,31 @@
 
       <div class="dashboard-stats">
         <div class="stat-box">
-          <div class="stat-icon">✓</div>
+          <div class="stat-icon">📋</div>
           <div class="stat-content">
             <span class="stat-value" id="fb-importer-listings-count">${capturedListings.size}</span>
-            <span class="stat-label">Listings</span>
+            <span class="stat-label">Found</span>
+          </div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-icon">✨</div>
+          <div class="stat-content">
+            <span class="stat-value" id="fb-importer-enriched-count">0</span>
+            <span class="stat-label">Enriched</span>
           </div>
         </div>
         <div class="stat-box">
           <div class="stat-icon">📸</div>
           <div class="stat-content">
             <span class="stat-value" id="fb-importer-images-count">0</span>
-            <span class="stat-label">Images</span>
+            <span class="stat-label">Photos</span>
           </div>
         </div>
         <div class="stat-box">
           <div class="stat-icon">⏱️</div>
           <div class="stat-content">
             <span class="stat-value" id="fb-importer-elapsed">0:00</span>
-            <span class="stat-label">Elapsed</span>
+            <span class="stat-label">Time</span>
           </div>
         </div>
       </div>
@@ -290,7 +308,7 @@
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
         </svg>
-        <span class="button-text">Start Import</span>
+        <span class="button-text">Start Full Import</span>
       </button>
     `;
 
@@ -306,7 +324,7 @@
         top: 80px;
         right: 20px;
         z-index: 999999;
-        width: 300px;
+        width: 320px;
         background: linear-gradient(135deg, rgba(20, 20, 35, 0.98) 0%, rgba(25, 25, 45, 0.98) 100%);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
@@ -332,14 +350,8 @@
         gap: 8px;
       }
 
-      .logo-icon {
-        font-size: 20px;
-      }
-
-      .title-text {
-        font-size: 15px;
-        font-weight: 700;
-      }
+      .logo-icon { font-size: 20px; }
+      .title-text { font-size: 15px; font-weight: 700; }
 
       .version-badge {
         font-size: 10px;
@@ -369,9 +381,7 @@
         color: #c084fc;
       }
 
-      .dashboard-phase {
-        margin-bottom: 14px;
-      }
+      .dashboard-phase { margin-bottom: 14px; }
 
       .phase-row {
         display: flex;
@@ -392,9 +402,13 @@
         background: #3b82f6; 
         animation: pulse-blue 1.5s ease-in-out infinite;
       }
-      .phase-dot.saving { 
+      .phase-dot.enriching { 
         background: #f59e0b; 
         animation: pulse-orange 1.5s ease-in-out infinite;
+      }
+      .phase-dot.saving { 
+        background: #8b5cf6; 
+        animation: pulse-purple 1.5s ease-in-out infinite;
       }
       .phase-dot.complete { background: #10b981; }
       .phase-dot.error { background: #ef4444; }
@@ -407,6 +421,11 @@
       @keyframes pulse-orange {
         0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
         50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+      }
+
+      @keyframes pulse-purple {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.5); }
+        50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0); }
       }
 
       .phase-label {
@@ -440,46 +459,39 @@
       .progress-text {
         font-size: 11px;
         color: #888;
-        min-width: 45px;
+        min-width: 60px;
+        text-align: right;
       }
 
       .dashboard-stats {
-        display: flex;
-        gap: 8px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
         margin-bottom: 12px;
       }
 
       .stat-box {
-        flex: 1;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        padding: 10px 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        border-radius: 8px;
+        padding: 8px 6px;
+        text-align: center;
       }
 
-      .stat-icon {
-        font-size: 16px;
-      }
-
-      .stat-content {
-        display: flex;
-        flex-direction: column;
-      }
+      .stat-icon { font-size: 14px; margin-bottom: 4px; }
 
       .stat-value {
         font-size: 16px;
         font-weight: 700;
         color: #10b981;
+        display: block;
       }
 
       .stat-label {
-        font-size: 9px;
+        font-size: 8px;
         color: #888;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
       }
 
       .dashboard-interceptor {
@@ -493,31 +505,28 @@
         font-size: 12px;
       }
 
-      .interceptor-label {
-        color: #888;
-      }
-
+      .interceptor-label { color: #888; }
       .status-ok { color: #10b981; }
       .status-pending { color: #f59e0b; }
 
-      .dashboard-activity {
-        margin-bottom: 12px;
+      .dashboard-activity, .dashboard-errors {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
       }
 
       .section-header {
         font-size: 11px;
         font-weight: 600;
         color: #888;
+        margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 8px;
       }
 
-      .activity-log {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        padding: 8px;
-        max-height: 100px;
+      .activity-log, .error-list {
+        max-height: 80px;
         overflow-y: auto;
       }
 
@@ -528,35 +537,17 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
 
-      .activity-entry:last-child {
-        border-bottom: none;
-      }
-
-      .dashboard-errors {
-        margin-bottom: 14px;
-      }
-
-      .error-list {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        padding: 8px;
-        max-height: 60px;
-        overflow-y: auto;
-      }
-
       .error-entry {
         font-size: 11px;
-        color: #ef4444;
+        color: #f87171;
         padding: 3px 0;
       }
 
-      .error-entry.success {
-        color: #10b981;
-      }
+      .error-entry.success { color: #10b981; }
 
       .dashboard-button {
         width: 100%;
-        padding: 12px;
+        padding: 12px 16px;
         border: none;
         border-radius: 10px;
         font-size: 14px;
@@ -598,190 +589,205 @@
     addActivity("Dashboard initialized");
   }
 
-  // ============= IMPROVED COLLECTION WITH MOMENTUM DETECTION =============
-  async function collectAllListings() {
-    console.log("%c=== FB IMPORTER v2.1.0 DIAGNOSTIC MODE ===", "color: #f59e0b; font-weight: bold; font-size: 16px");
-    console.log("FB Importer: URL:", window.location.href);
-    console.log(`FB Importer: Account: ${selectedAccount}`);
-    console.log(`FB Importer: Already captured: ${capturedListings.size}`);
-    console.log(`FB Importer: Interceptor ready: ${interceptorReady}`);
+  // ============= PHASE 1: FAST SCAN TO COLLECT ALL IDs =============
+  async function scanAllListings() {
+    console.log("%c=== FB IMPORTER v3.0.0 - PHASE 1: SCANNING ===", "color: #3b82f6; font-weight: bold; font-size: 16px");
+    addActivity(`🔍 Scanning for all ${selectedAccount} listings...`);
 
-    addActivity(`Scanning for ${selectedAccount} listings...`);
-
-    // Wait for interceptor to be ready
     if (!interceptorReady) {
       addActivity("⏳ Waiting for interceptor...");
       await sleep(2000);
-      console.log(`FB Importer: Interceptor status after wait: ${interceptorReady}`);
     }
 
-    // Phase 1: AGGRESSIVE scrolling to trigger ALL GraphQL pagination
-    // For thousands of listings, we need MANY more scroll attempts
+    // Fast aggressive scrolling - no stopping until we hit the end
     let noNewData = 0;
-    let lastHeight = 0;
     let lastCapturedCount = 0;
     let scrollAttempts = 0;
-    const maxScrollAttempts = 500; // Much higher limit for large inventories
-    const stallThreshold = 15; // More patience before giving up
-    let lastError = null;
-    let consecutiveStalls = 0;
+    const maxScrollAttempts = 1000; // Very high limit
+    const stallThreshold = 25; // Very patient
 
-    // Clear any old captures from different page loads
-    const startingCount = capturedListings.size;
-    console.log(`FB Importer: Starting collection with ${startingCount} pre-captured listings`);
-    console.log(`FB Importer: Max scroll attempts: ${maxScrollAttempts}, stall threshold: ${stallThreshold}`);
+    const progressFill = document.querySelector("#fb-importer-progress-fill");
+    const progressText = document.querySelector("#fb-importer-progress-text");
 
     while (noNewData < stallThreshold && scrollAttempts < maxScrollAttempts) {
       scrollAttempts++;
       
       try {
-        // Scroll with slight randomization to avoid detection
-        const scrollVariation = Math.random() * 500;
-        const targetScroll = document.documentElement.scrollHeight + scrollVariation;
+        // Aggressive scroll
+        window.scrollTo({ top: document.documentElement.scrollHeight + 2000, behavior: 'auto' });
         
-        // Smooth scroll to bottom
-        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
-        
-        // Also try scrolling specific containers (FB sometimes uses these)
-        try {
-          const mainContent = document.querySelector('[role="main"]');
-          if (mainContent) {
-            mainContent.scrollTop = mainContent.scrollHeight;
-          }
-          // Try common FB scroll containers
-          const scrollContainers = document.querySelectorAll('[data-pagelet], [role="feed"], .x1lliihq');
-          scrollContainers.forEach(container => {
-            try { container.scrollTop = container.scrollHeight; } catch (e) {}
-          });
-        } catch (containerErr) {
-          // Ignore container scroll errors
-        }
+        // Also scroll any feed containers
+        document.querySelectorAll('[role="feed"], [data-pagelet*="Feed"], .x1lliihq').forEach(el => {
+          try { el.scrollTop = el.scrollHeight; } catch (e) {}
+        });
 
-        // Faster scrolling with shorter delays for efficiency
-        await sleep(800 + Math.random() * 400);
+        await sleep(400); // Fast scrolling
 
-        const currentHeight = document.documentElement.scrollHeight;
         const currentCapturedCount = capturedListings.size;
 
-        // Update progress - show listings count prominently
-        const progressPercent = Math.min((scrollAttempts / maxScrollAttempts) * 100, 100);
-        const progressFill = document.querySelector("#fb-importer-progress-fill");
-        const progressText = document.querySelector("#fb-importer-progress-text");
-        if (progressFill) progressFill.style.width = `${progressPercent}%`;
+        // Update progress
+        if (progressFill) progressFill.style.width = `${Math.min((scrollAttempts / 200) * 50, 50)}%`;
         if (progressText) progressText.textContent = `${currentCapturedCount} found`;
 
-        // Update dashboard every 5 scrolls to reduce overhead
-        if (scrollAttempts % 5 === 0) {
+        if (scrollAttempts % 10 === 0) {
           updateDashboard();
-          addActivity(`📜 Scroll #${scrollAttempts}: ${currentCapturedCount} listings`);
         }
 
-        // Check for new data
-        if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
+        if (currentCapturedCount === lastCapturedCount) {
           noNewData++;
-          consecutiveStalls++;
           
-          if (noNewData === 5) {
-            addActivity(`⏳ Waiting for more content...`);
-            // Try clicking "See more" or "Load more" buttons
-            try {
-              const loadMoreBtns = document.querySelectorAll('[role="button"]');
-              loadMoreBtns.forEach(btn => {
-                const text = btn.textContent?.toLowerCase() || '';
-                if (text.includes('see more') || text.includes('load more') || text.includes('show more')) {
-                  console.log('FB Importer: Clicking load more button');
-                  btn.click();
-                }
-              });
-            } catch (e) {}
+          // Click load more buttons
+          if (noNewData === 5 || noNewData === 15) {
+            document.querySelectorAll('[role="button"]').forEach(btn => {
+              const text = btn.textContent?.toLowerCase() || '';
+              if (text.includes('see more') || text.includes('load more') || text.includes('show more')) {
+                btn.click();
+              }
+            });
+            await sleep(1500);
           }
-          
-          if (noNewData === 10) {
-            addActivity(`⚠️ Stall detected (${noNewData}/${stallThreshold})`);
-          }
-          
-          // Longer wait during stalls to let content load
-          await sleep(2000);
         } else {
-          // Reset stall counter on new data
           noNewData = 0;
-          consecutiveStalls = 0;
-          lastHeight = currentHeight;
           lastCapturedCount = currentCapturedCount;
+          
+          if (scrollAttempts % 50 === 0) {
+            addActivity(`📦 ${currentCapturedCount} listings found...`);
+          }
         }
-      } catch (scrollErr) {
-        lastError = scrollErr;
-        console.error(`FB Importer: ❌ SCROLL ERROR at attempt #${scrollAttempts}:`, scrollErr);
-        addError(`Scroll error: ${scrollErr.message}`);
-        
+      } catch (err) {
         noNewData++;
-        if (noNewData >= stallThreshold) {
-          console.warn(`FB Importer: Too many errors, stopping scroll loop`);
-          break;
-        }
-        await sleep(1000);
+        await sleep(500);
       }
     }
-    
-    console.log(`FB Importer: Scroll loop exited - attempts: ${scrollAttempts}, stalls: ${noNewData}, lastError: ${lastError?.message || 'none'}`);
-    addActivity(`Scan complete: ${scrollAttempts} scrolls`);
 
-    // Scroll back to top safely
-    try {
-      window.scrollTo(0, 0);
-    } catch (e) {
-      console.warn("FB Importer: Could not scroll to top:", e.message);
-    }
+    window.scrollTo(0, 0);
+    console.log(`FB Importer: Scan complete - found ${capturedListings.size} listings in ${scrollAttempts} scrolls`);
+    addActivity(`✓ Scan complete: ${capturedListings.size} listings`);
 
-    console.log("%c=== SCROLL PHASE COMPLETE ===", "color: #10b981; font-weight: bold");
-    console.log(`FB Importer: Total scroll attempts: ${scrollAttempts}`);
-    console.log(`FB Importer: Total GraphQL captured: ${capturedListings.size} listings`);
-    console.log(`FB Importer: Last error: ${lastError?.message || 'none'}`);
-
-    // Phase 2: Convert to array with account tag
-    let listings = [];
-    try {
-      listings = Array.from(capturedListings.values()).map((gql) => ({
-        ...gql,
-        account_tag: selectedAccount,
-        source: "graphql",
-      }));
-    } catch (mapErr) {
-      console.error("FB Importer: ❌ Failed to convert listings:", mapErr);
-      addError("Failed to process captured listings");
-      return [];
-    }
-
-    // Log data quality stats
-    const withDesc = listings.filter((l) => l.description).length;
-    const withImages = listings.filter((l) => l.images && l.images.length > 0).length;
-    const withMultipleImages = listings.filter((l) => l.images && l.images.length > 1).length;
-    const avgImages = listings.length > 0
-      ? listings.reduce((sum, l) => sum + (l.images?.length || 0), 0) / listings.length
-      : 0;
-
-    console.log(`%c=== DATA QUALITY REPORT ===`, "color: #3b82f6; font-weight: bold");
-    console.log(`  Total listings: ${listings.length}`);
-    console.log(`  With description: ${withDesc}/${listings.length} (${Math.round((withDesc/listings.length)*100) || 0}%)`);
-    console.log(`  With images: ${withImages}/${listings.length} (${Math.round((withImages/listings.length)*100) || 0}%)`);
-    console.log(`  With 2+ images: ${withMultipleImages}/${listings.length}`);
-    console.log(`  Average images: ${avgImages.toFixed(1)}`);
-
-    if (listings.length === 0) {
-      console.warn("FB Importer: ⚠️ No listings captured!");
-      console.warn("Troubleshooting:");
-      console.warn("  1. Make sure you're on facebook.com/marketplace/you/selling");
-      console.warn("  2. Try scrolling manually first, then click Import");
-      console.warn("  3. Check browser console for interceptor errors");
-      addActivity("⚠️ No listings found");
-      addError("No listings detected - check console for diagnostics");
-    } else {
-      addActivity(`✓ Found ${listings.length} listings to save`);
-    }
-
-    return listings;
+    return Array.from(capturedListings.values());
   }
 
+  // ============= PHASE 2: ENRICH EACH LISTING =============
+  async function enrichListings(listings) {
+    console.log("%c=== FB IMPORTER v3.0.0 - PHASE 2: ENRICHING ===", "color: #f59e0b; font-weight: bold; font-size: 16px");
+    addActivity(`✨ Enriching ${listings.length} listings for full photos...`);
+
+    const progressFill = document.querySelector("#fb-importer-progress-fill");
+    const progressText = document.querySelector("#fb-importer-progress-text");
+
+    // Create hidden iframe for fetching detail pages
+    let iframe = document.getElementById('fb-importer-enricher');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'fb-importer-enricher';
+      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;visibility:hidden;';
+      document.body.appendChild(iframe);
+    }
+
+    const enrichedResults = [];
+    let enrichedCount = 0;
+    const batchSize = 5; // Process in batches for balance
+
+    for (let i = 0; i < listings.length; i++) {
+      const listing = listings[i];
+      
+      try {
+        // Fetch the detail page
+        const detailUrl = `https://www.facebook.com/marketplace/item/${listing.facebook_id}`;
+        
+        const response = await fetch(detailUrl, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          }
+        });
+
+        if (response.ok) {
+          const html = await response.text();
+          
+          // Extract ALL image URLs from the page HTML
+          const imageUrls = [];
+          
+          // Pattern 1: scontent URLs (FB CDN)
+          const scontentMatches = html.match(/https:\/\/scontent[^"'\s\\]+\.jpg[^"'\s\\]*/gi) || [];
+          scontentMatches.forEach(url => {
+            const clean = url.replace(/\\u0025/g, '%').replace(/\\/g, '');
+            if (clean.includes('fbcdn') || clean.includes('scontent')) {
+              if (!imageUrls.includes(clean) && imageUrls.length < 30) {
+                imageUrls.push(clean);
+              }
+            }
+          });
+
+          // Pattern 2: fbcdn URLs
+          const fbcdnMatches = html.match(/https:\/\/[^"'\s\\]*fbcdn[^"'\s\\]*\.jpg[^"'\s\\]*/gi) || [];
+          fbcdnMatches.forEach(url => {
+            const clean = url.replace(/\\u0025/g, '%').replace(/\\/g, '');
+            if (!imageUrls.includes(clean) && imageUrls.length < 30) {
+              imageUrls.push(clean);
+            }
+          });
+
+          // Pattern 3: Look for image JSON in scripts
+          const jsonMatches = html.match(/"uri"\s*:\s*"(https:[^"]+)"/gi) || [];
+          jsonMatches.forEach(match => {
+            const urlMatch = match.match(/"uri"\s*:\s*"(https:[^"]+)"/i);
+            if (urlMatch && urlMatch[1]) {
+              let url = urlMatch[1].replace(/\\u0025/g, '%').replace(/\\/g, '');
+              if ((url.includes('fbcdn') || url.includes('scontent')) && url.includes('.jpg')) {
+                if (!imageUrls.includes(url) && imageUrls.length < 30) {
+                  imageUrls.push(url);
+                }
+              }
+            }
+          });
+
+          // Dedupe and filter - keep only large images
+          const uniqueImages = [...new Set(imageUrls)].filter(url => {
+            // Skip thumbnails (usually have small dimensions in URL)
+            return !url.includes('_t.') && !url.includes('_s.') && !url.includes('_n.');
+          });
+
+          // If we found more images, use them
+          if (uniqueImages.length > (listing.images?.length || 0)) {
+            listing.images = uniqueImages;
+            listing.is_enriched = true;
+            console.log(`FB Importer: ✨ Enriched ${listing.facebook_id} with ${uniqueImages.length} photos`);
+          }
+        }
+
+        enrichedCount++;
+        enrichedListings.set(listing.facebook_id, listing);
+        enrichedResults.push(listing);
+
+        // Update progress
+        const percent = 50 + ((enrichedCount / listings.length) * 30);
+        if (progressFill) progressFill.style.width = `${percent}%`;
+        if (progressText) progressText.textContent = `${enrichedCount}/${listings.length}`;
+        
+        if (enrichedCount % 10 === 0) {
+          addActivity(`✨ Enriched ${enrichedCount}/${listings.length} listings`);
+          updateDashboard();
+        }
+
+        // Balanced throttling - 800ms between requests
+        await sleep(800);
+
+      } catch (err) {
+        console.warn(`FB Importer: Failed to enrich ${listing.facebook_id}:`, err.message);
+        enrichedResults.push(listing); // Still save the basic listing
+        enrichedCount++;
+        await sleep(400);
+      }
+    }
+
+    console.log(`FB Importer: Enrichment complete - ${enrichedCount} listings processed`);
+    addActivity(`✓ Enrichment complete`);
+
+    return enrichedResults;
+  }
+
+  // ============= SAVE LISTING =============
   async function saveListing(listing) {
     try {
       const payload = {
@@ -797,11 +803,10 @@
         listing_url: listing.listing_url || null,
         status: listing.status || "active",
         imported_at: listing.imported_at || new Date().toISOString(),
-        source: listing.source || "graphql",
+        source: "graphql-enriched",
         last_seen_at: new Date().toISOString(),
       };
 
-      // Upsert using composite unique constraint
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/marketplace_listings?on_conflict=account_tag,facebook_id`,
         {
@@ -828,10 +833,10 @@
     }
   }
 
+  // ============= MAIN IMPORT =============
   async function startImport() {
     if (isImporting) return;
 
-    // Reload account in case it changed
     await loadSelectedAccount();
 
     isImporting = true;
@@ -839,6 +844,8 @@
     currentPhase = "scanning";
     clearErrors();
     startElapsedTimer();
+    capturedListings.clear();
+    enrichedListings.clear();
     updateDashboard();
 
     const button = document.querySelector("#fb-importer-button");
@@ -847,11 +854,12 @@
 
     button.disabled = true;
     buttonText.textContent = `Scanning ${selectedAccount}...`;
-    addActivity(`▶️ Starting import for ${selectedAccount}`);
+    addActivity(`▶️ Starting FULL import for ${selectedAccount}`);
 
     try {
-      const listings = await collectAllListings();
-      totalCount = listings.length;
+      // Phase 1: Scan all listings
+      const scannedListings = await scanAllListings();
+      totalCount = scannedListings.length;
 
       if (totalCount === 0) {
         currentPhase = "error";
@@ -863,16 +871,23 @@
         return;
       }
 
+      // Phase 2: Enrich with full photos
+      currentPhase = "enriching";
+      updateDashboard();
+      buttonText.textContent = `Enriching ${totalCount} listings...`;
+      
+      const enrichedList = await enrichListings(scannedListings);
+
+      // Phase 3: Save to database
       currentPhase = "saving";
       updateDashboard();
-      buttonText.textContent = `Saving to ${selectedAccount}...`;
-      addActivity(`💾 Saving ${totalCount} listings...`);
+      buttonText.textContent = `Saving ${enrichedList.length} listings...`;
+      addActivity(`💾 Saving ${enrichedList.length} listings...`);
 
-      // Batch save with progress
       let successCount = 0;
       let errorCount = 0;
 
-      for (const item of listings) {
+      for (const item of enrichedList) {
         const ok = await saveListing(item);
         if (ok) {
           successCount++;
@@ -881,16 +896,17 @@
           errorCount++;
         }
         
-        const savePercent = ((successCount + errorCount) / totalCount) * 100;
+        const savePercent = 80 + ((successCount + errorCount) / enrichedList.length) * 20;
         if (progressFill) progressFill.style.width = `${savePercent}%`;
         
         const progressText = document.querySelector("#fb-importer-progress-text");
-        if (progressText) progressText.textContent = `${successCount + errorCount}/${totalCount}`;
+        if (progressText) progressText.textContent = `${successCount}/${enrichedList.length}`;
         
-        updateDashboard();
+        if ((successCount + errorCount) % 50 === 0) {
+          updateDashboard();
+        }
         
-        // Small delay to avoid rate limiting
-        await sleep(80);
+        await sleep(50);
       }
 
       // Success state
@@ -898,9 +914,9 @@
       buttonText.textContent = `✓ ${successCount} saved`;
       button.classList.add("success");
 
-      const totalImages = listings.reduce((sum, l) => sum + (l.images?.length || 0), 0);
-      addActivity(`✓ Complete: ${successCount}/${totalCount} saved`);
-      addActivity(`📸 ${totalImages} images captured`);
+      const totalImages = enrichedList.reduce((sum, l) => sum + (l.images?.length || 0), 0);
+      addActivity(`✓ Complete: ${successCount}/${enrichedList.length} saved`);
+      addActivity(`📸 ${totalImages} total photos captured`);
 
       if (errorCount > 0) {
         addError(`${errorCount} listings failed to save`);
@@ -915,6 +931,7 @@
             account: selectedAccount,
             date: new Date().toISOString(),
             errors: errorCount,
+            totalImages: totalImages,
           },
           totalImported: currentTotal + successCount,
         });
@@ -927,13 +944,13 @@
       setTimeout(() => {
         button.disabled = false;
         button.classList.remove("success");
-        buttonText.textContent = "Start Import";
+        buttonText.textContent = "Start Full Import";
         currentPhase = "idle";
         isImporting = false;
         if (progressFill) progressFill.style.width = "0%";
         
-        // Clear captured listings for fresh next run
         capturedListings.clear();
+        enrichedListings.clear();
         updateDashboard();
       }, 5000);
 
@@ -951,7 +968,6 @@
 
   // ============= INITIALIZATION =============
   async function init() {
-    // Check if we're on the correct page
     const url = window.location.href;
     const isYourListings = url.includes("facebook.com/marketplace/you");
     
@@ -960,19 +976,15 @@
       return;
     }
 
-    // Load account first
     await loadSelectedAccount();
 
     console.log(`FB Importer v${EXTENSION_VERSION}: Initializing for ${selectedAccount}...`);
 
-    // Inject GraphQL interceptor FIRST (before any network requests)
     injectGraphQLInterceptor();
 
-    // Create dashboard after a short delay for page to settle
     setTimeout(createDashboard, 1500);
   }
 
-  // Start initialization
   init();
 
   // Watch for URL changes (FB is a SPA)
@@ -982,6 +994,7 @@
       lastUrl = location.href;
       console.log("FB Importer: URL changed, re-initializing...");
       capturedListings.clear();
+      enrichedListings.clear();
       activityLog = [];
       errorLog = [];
       currentPhase = "idle";
