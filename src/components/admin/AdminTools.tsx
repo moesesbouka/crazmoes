@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Chrome, Upload, Package, Loader2, CheckCircle } from "lucide-react";
+import { Download, Chrome, Upload, Package, Loader2, CheckCircle, FileJson } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Extension metadata - versions are read dynamically from manifest.json files
 const EXTENSIONS = {
@@ -53,6 +54,7 @@ export function AdminTools() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState<string | null>(null);
   const [versions, setVersions] = useState<Record<string, string>>({});
+  const [exportingInventory, setExportingInventory] = useState(false);
 
   // Fetch versions from manifest.json files on mount
   useEffect(() => {
@@ -177,8 +179,90 @@ export function AdminTools() {
     }
   };
 
+  const exportShopifyInventory = async () => {
+    setExportingInventory(true);
+    try {
+      toast({
+        title: "Exporting inventory...",
+        description: "Fetching all products from Shopify. This may take a moment.",
+      });
+
+      const { data, error } = await supabase.functions.invoke('export-shopify-inventory');
+      
+      if (error) throw error;
+      
+      // Create and download JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `shopify-inventory-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export complete!",
+        description: `Downloaded ${data.exportInfo?.totalProducts || 0} products with ${data.exportInfo?.totalImages || 0} images.`,
+      });
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export failed",
+        description: error.message || "Could not export inventory. Check console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingInventory(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Shopify Export Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileJson className="h-5 w-5 text-primary" />
+            Export Shopify Inventory
+          </CardTitle>
+          <CardDescription>
+            Download your complete Shopify inventory as a JSON file with all product details
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2 text-sm">
+            <h4 className="font-medium">Includes:</h4>
+            <ul className="list-disc list-inside text-muted-foreground space-y-1">
+              <li>All product titles, descriptions, and handles</li>
+              <li>Full image URLs with dimensions</li>
+              <li>All variants with pricing and inventory</li>
+              <li>Tags, categories, and vendor info</li>
+              <li>Direct Shopify admin links</li>
+            </ul>
+          </div>
+
+          <Button 
+            className="w-full" 
+            onClick={exportShopifyInventory}
+            disabled={exportingInventory}
+          >
+            {exportingInventory ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Export Full Inventory (JSON)
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* FB Lister Extension */}
         <Card>
