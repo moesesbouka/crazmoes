@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "2.0.0";
+  const EXTENSION_VERSION = "2.0.1";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -198,17 +198,19 @@
 
   // ============= IMPROVED COLLECTION WITH MOMENTUM DETECTION =============
   async function collectAllListings() {
-    console.log("FB Importer: === STARTING BULLETPROOF COLLECTION v2.0 ===");
+    console.log("%c=== FB IMPORTER v2.0.1 DIAGNOSTIC MODE ===", "color: #f59e0b; font-weight: bold; font-size: 16px");
     console.log("FB Importer: URL:", window.location.href);
     console.log(`FB Importer: Account: ${selectedAccount}`);
     console.log(`FB Importer: Already captured: ${capturedListings.size}`);
+    console.log(`FB Importer: Interceptor ready: ${interceptorReady}`);
 
     updateStatus(`Scrolling to capture all ${selectedAccount} listings...`);
 
     // Wait for interceptor to be ready
     if (!interceptorReady) {
-      console.log("FB Importer: Waiting for interceptor to initialize...");
+      console.log("FB Importer: ⏳ Waiting for interceptor to initialize...");
       await sleep(2000);
+      console.log(`FB Importer: Interceptor status after wait: ${interceptorReady}`);
     }
 
     // Phase 1: Aggressive scrolling to trigger ALL GraphQL pagination
@@ -217,63 +219,110 @@
     let lastCapturedCount = 0;
     let scrollAttempts = 0;
     const maxScrollAttempts = 50; // Safety limit
+    let lastError = null;
 
     // Clear any old captures from different page loads
     const startingCount = capturedListings.size;
+    console.log(`FB Importer: Starting collection with ${startingCount} pre-captured listings`);
 
     while (noNewData < 8 && scrollAttempts < maxScrollAttempts) {
       scrollAttempts++;
       
-      // Scroll with slight randomization to avoid detection
-      const scrollVariation = Math.random() * 200;
-      window.scrollTo(0, document.documentElement.scrollHeight + scrollVariation);
-      
-      // Also try scrolling specific containers (FB sometimes uses these)
-      const mainContent = document.querySelector('[role="main"]');
-      if (mainContent) {
-        mainContent.scrollTop = mainContent.scrollHeight;
-      }
-
-      await sleep(2000 + Math.random() * 500); // Variable delay
-
-      const currentHeight = document.documentElement.scrollHeight;
-      const currentCapturedCount = capturedListings.size;
-
-      updateStatus(`Scanning... ${currentCapturedCount} listings captured (scroll #${scrollAttempts})`);
-      updateLiveCounter();
-
-      // Check for new data
-      if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
-        noNewData++;
-        console.log(`FB Importer: No new content (attempt ${noNewData}/8)`);
+      try {
+        // Scroll with slight randomization to avoid detection
+        const scrollVariation = Math.random() * 200;
+        const targetScroll = document.documentElement.scrollHeight + scrollVariation;
         
-        // Try clicking "See More" or load more buttons
-        const loadMoreButtons = document.querySelectorAll('[aria-label*="more"], [aria-label*="More"], button:contains("See more")');
-        for (const btn of loadMoreButtons) {
-          try {
-            btn.click();
-            await sleep(1000);
-          } catch (e) {}
+        console.log(`FB Importer: [Scroll #${scrollAttempts}] Scrolling to ${Math.round(targetScroll)}px`);
+        window.scrollTo(0, targetScroll);
+        
+        // Also try scrolling specific containers (FB sometimes uses these)
+        try {
+          const mainContent = document.querySelector('[role="main"]');
+          if (mainContent) {
+            mainContent.scrollTop = mainContent.scrollHeight;
+          }
+        } catch (containerErr) {
+          console.warn(`FB Importer: Container scroll failed:`, containerErr.message);
         }
-      } else {
-        noNewData = 0;
-        lastHeight = currentHeight;
-        lastCapturedCount = currentCapturedCount;
+
+        await sleep(2000 + Math.random() * 500); // Variable delay
+
+        const currentHeight = document.documentElement.scrollHeight;
+        const currentCapturedCount = capturedListings.size;
+
+        console.log(`FB Importer: [Scroll #${scrollAttempts}] Captured: ${currentCapturedCount}, Height: ${currentHeight}`);
+        updateStatus(`Scanning... ${currentCapturedCount} listings captured (scroll #${scrollAttempts})`);
+        updateLiveCounter();
+
+        // Check for new data
+        if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
+          noNewData++;
+          console.log(`FB Importer: ⚠️ No new content (stall ${noNewData}/8)`);
+          
+          // Try clicking "See More" or load more buttons
+          try {
+            const loadMoreButtons = document.querySelectorAll('[aria-label*="more"], [aria-label*="More"]');
+            console.log(`FB Importer: Found ${loadMoreButtons.length} potential load-more buttons`);
+            for (const btn of loadMoreButtons) {
+              try {
+                btn.click();
+                await sleep(1000);
+              } catch (btnErr) {
+                // Ignore individual button click errors
+              }
+            }
+          } catch (btnSearchErr) {
+            console.warn(`FB Importer: Button search failed:`, btnSearchErr.message);
+          }
+        } else {
+          noNewData = 0;
+          lastHeight = currentHeight;
+          lastCapturedCount = currentCapturedCount;
+        }
+      } catch (scrollErr) {
+        lastError = scrollErr;
+        console.error(`FB Importer: ❌ SCROLL ERROR at attempt #${scrollAttempts}:`, scrollErr);
+        console.error(`FB Importer: Error stack:`, scrollErr.stack);
+        console.error(`FB Importer: Current state - Captured: ${capturedListings.size}, noNewData: ${noNewData}`);
+        
+        // Try to continue despite error
+        noNewData++;
+        if (noNewData >= 8) {
+          console.warn(`FB Importer: Too many errors, stopping scroll loop`);
+          break;
+        }
+        await sleep(1000);
       }
     }
+    
+    console.log(`FB Importer: Scroll loop exited - attempts: ${scrollAttempts}, stalls: ${noNewData}, lastError: ${lastError?.message || 'none'}`);
+    
 
-    // Scroll back to top
-    window.scrollTo(0, 0);
+    // Scroll back to top safely
+    try {
+      window.scrollTo(0, 0);
+    } catch (e) {
+      console.warn("FB Importer: Could not scroll to top:", e.message);
+    }
 
-    console.log(`FB Importer: Scroll complete after ${scrollAttempts} attempts`);
+    console.log("%c=== SCROLL PHASE COMPLETE ===", "color: #10b981; font-weight: bold");
+    console.log(`FB Importer: Total scroll attempts: ${scrollAttempts}`);
     console.log(`FB Importer: Total GraphQL captured: ${capturedListings.size} listings`);
+    console.log(`FB Importer: Last error: ${lastError?.message || 'none'}`);
 
     // Phase 2: Convert to array with account tag
-    const listings = Array.from(capturedListings.values()).map((gql) => ({
-      ...gql,
-      account_tag: selectedAccount,
-      source: "graphql",
-    }));
+    let listings = [];
+    try {
+      listings = Array.from(capturedListings.values()).map((gql) => ({
+        ...gql,
+        account_tag: selectedAccount,
+        source: "graphql",
+      }));
+    } catch (mapErr) {
+      console.error("FB Importer: ❌ Failed to convert listings:", mapErr);
+      return [];
+    }
 
     // Log data quality stats
     const withDesc = listings.filter((l) => l.description).length;
@@ -283,10 +332,10 @@
       ? listings.reduce((sum, l) => sum + (l.images?.length || 0), 0) / listings.length
       : 0;
 
-    console.log(`FB Importer: === DATA QUALITY REPORT ===`);
+    console.log(`%c=== DATA QUALITY REPORT ===`, "color: #3b82f6; font-weight: bold");
     console.log(`  Total listings: ${listings.length}`);
-    console.log(`  With description: ${withDesc}/${listings.length} (${Math.round(withDesc/listings.length*100)}%)`);
-    console.log(`  With images: ${withImages}/${listings.length} (${Math.round(withImages/listings.length*100)}%)`);
+    console.log(`  With description: ${withDesc}/${listings.length} (${Math.round((withDesc/listings.length)*100) || 0}%)`);
+    console.log(`  With images: ${withImages}/${listings.length} (${Math.round((withImages/listings.length)*100) || 0}%)`);
     console.log(`  With 2+ images: ${withMultipleImages}/${listings.length}`);
     console.log(`  Average images: ${avgImages.toFixed(1)}`);
 
