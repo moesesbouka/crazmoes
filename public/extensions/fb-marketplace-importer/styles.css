@@ -1,4 +1,4 @@
-/* FB Marketplace Importer Styles v1.1.0 */
+/* FB Marketplace Importer Styles v2.1.0 - Dashboard Edition */
 
 #fb-importer-container {
   position: fixed;
@@ -94,4 +94,61 @@
 @keyframes statusPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+/* Legacy badge styles (for backward compatibility) */
+.fb-importer-account-badge {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: inline-block;
+  letter-spacing: 0.5px;
+}
+
+.fb-importer-account-badge.mbfb {
+  background: rgba(59, 130, 246, 0.3);
+  border: 2px solid rgba(59, 130, 246, 0.6);
+  color: #60a5fa;
+}
+
+.fb-importer-account-badge.cmfb {
+  background: rgba(168, 85, 247, 0.3);
+  border: 2px solid rgba(168, 85, 247, 0.6);
+  color: #c084fc;
+}
+
+.fb-importer-btn.mbfb {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+}
+
+.fb-importer-btn.cmfb {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%) !important;
+}
+
+.fb-importer-live-capture {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #34d399;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
 }
