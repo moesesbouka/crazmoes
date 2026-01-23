@@ -112,81 +112,86 @@ Deno.serve(async (req) => {
 
     console.log(`Export complete: ${allProducts.length} products fetched across ${pageCount} pages`);
 
-    // Build comprehensive export data
-    const exportData = {
-      exportInfo: {
-        exportedAt: new Date().toISOString(),
-        shopDomain: SHOPIFY_DOMAIN,
-        totalProducts: allProducts.length,
-        totalImages: allProducts.reduce((sum, p) => sum + p.images.length, 0),
-        totalVariants: allProducts.reduce((sum, p) => sum + p.variants.length, 0),
-      },
-      products: allProducts.map(product => ({
-        // Core info
-        id: product.id,
-        handle: product.handle,
-        title: product.title,
-        description: product.body_html,
-        descriptionPlainText: product.body_html?.replace(/<[^>]*>/g, '').trim() || '',
-        
-        // Categorization
-        vendor: product.vendor,
-        productType: product.product_type,
-        tags: product.tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
-        status: product.status,
-        
-        // Timestamps
-        createdAt: product.created_at,
-        updatedAt: product.updated_at,
-        publishedAt: product.published_at,
-        
-        // Pricing (from first variant)
-        price: product.variants[0]?.price || '0.00',
-        compareAtPrice: product.variants[0]?.compare_at_price || null,
-        
-        // All images with full details
-        images: product.images.map(img => ({
-          id: img.id,
-          url: img.src,
-          alt: img.alt,
-          position: img.position,
-          width: img.width,
-          height: img.height,
-        })),
-        
-        // All variants
-        variants: product.variants.map(v => ({
-          id: v.id,
-          title: v.title,
-          price: v.price,
-          compareAtPrice: v.compare_at_price,
-          sku: v.sku,
-          inventoryQuantity: v.inventory_quantity,
-          weight: v.weight,
-          weightUnit: v.weight_unit,
-        })),
-        
-        // Product options
-        options: product.options.map(opt => ({
-          id: opt.id,
-          name: opt.name,
-          values: opt.values,
-        })),
-        
-        // Direct links
-        shopifyAdminUrl: `https://${SHOPIFY_DOMAIN}/admin/products/${product.id}`,
-        storefrontUrl: product.published_at ? `https://${SHOPIFY_DOMAIN}/products/${product.handle}` : null,
-      })),
+    // Build CSV rows
+    const csvHeaders = [
+      "Product ID",
+      "Handle",
+      "Title",
+      "Description",
+      "Vendor",
+      "Product Type",
+      "Tags",
+      "Status",
+      "Price",
+      "Compare At Price",
+      "SKU",
+      "Inventory Quantity",
+      "Weight",
+      "Weight Unit",
+      "Image 1 URL",
+      "Image 2 URL",
+      "Image 3 URL",
+      "Image 4 URL",
+      "Image 5 URL",
+      "Created At",
+      "Updated At",
+      "Published At",
+      "Shopify Admin URL",
+      "Storefront URL"
+    ];
+
+    const escapeCSV = (value: string | number | null | undefined): string => {
+      if (value === null || value === undefined) return "";
+      const str = String(value);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
     };
 
+    const csvRows = allProducts.map(product => {
+      const firstVariant = product.variants[0];
+      const images = product.images || [];
+      const plainDescription = product.body_html?.replace(/<[^>]*>/g, '').trim() || '';
+      
+      return [
+        product.id,
+        product.handle,
+        product.title,
+        plainDescription,
+        product.vendor,
+        product.product_type,
+        product.tags,
+        product.status,
+        firstVariant?.price || "0.00",
+        firstVariant?.compare_at_price || "",
+        firstVariant?.sku || "",
+        firstVariant?.inventory_quantity || 0,
+        firstVariant?.weight || "",
+        firstVariant?.weight_unit || "",
+        images[0]?.src || "",
+        images[1]?.src || "",
+        images[2]?.src || "",
+        images[3]?.src || "",
+        images[4]?.src || "",
+        product.created_at,
+        product.updated_at,
+        product.published_at || "",
+        `https://${SHOPIFY_DOMAIN}/admin/products/${product.id}`,
+        product.published_at ? `https://${SHOPIFY_DOMAIN}/products/${product.handle}` : ""
+      ].map(escapeCSV).join(",");
+    });
+
+    const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
+
     return new Response(
-      JSON.stringify(exportData, null, 2),
+      csvContent,
       { 
         status: 200, 
         headers: { 
           ...corsHeaders, 
-          "Content-Type": "application/json",
-          "Content-Disposition": `attachment; filename="shopify-inventory-${new Date().toISOString().split('T')[0]}.json"`,
+          "Content-Type": "text/csv",
+          "Content-Disposition": `attachment; filename="shopify-inventory-${new Date().toISOString().split('T')[0]}.csv"`,
         } 
       }
     );
