@@ -4,12 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, MessageSquare, Calendar, Tags, Users, Package, Wrench } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Tags, Users, ShoppingBag, Wrench } from "lucide-react";
 import { AdminChatConsole } from "@/components/admin/AdminChatConsole";
 import { AdminCategoryManager } from "@/components/admin/AdminCategoryManager";
 import { AdminPickupSchedules } from "@/components/admin/AdminPickupSchedules";
 import { AdminSubscribers } from "@/components/admin/AdminSubscribers";
-import { AdminMarketplaceInventory } from "@/components/admin/AdminMarketplaceInventory";
+import { AdminShopifyInventory } from "@/components/admin/AdminShopifyInventory";
 import { AdminTools } from "@/components/admin/AdminTools";
 
 const Admin = () => {
@@ -100,8 +100,8 @@ const Admin = () => {
               <span className="hidden sm:inline">Subscribers</span>
             </TabsTrigger>
             <TabsTrigger value="inventory" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">Inventory</span>
+              <ShoppingBag className="h-4 w-4" />
+              <span className="hidden sm:inline">Shopify</span>
             </TabsTrigger>
             <TabsTrigger value="tools" className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
@@ -126,7 +126,7 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="inventory">
-            <AdminMarketplaceInventory />
+            <AdminShopifyInventory />
           </TabsContent>
 
           <TabsContent value="tools">
