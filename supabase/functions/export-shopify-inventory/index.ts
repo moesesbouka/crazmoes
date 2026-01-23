@@ -52,6 +52,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Parse request body for format preference
+    let format = 'csv'; // default to CSV
+    try {
+      const body = await req.json();
+      if (body?.format === 'json') format = 'json';
+    } catch {
+      // No body or invalid JSON, use default
+    }
+
     const shopifyToken = Deno.env.get("SHOPIFY_ACCESS_TOKEN");
     
     if (!shopifyToken) {
@@ -62,7 +71,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("Starting Shopify inventory export...");
+    console.log(`Starting Shopify inventory export (format: ${format})...`);
     
     const allProducts: ShopifyProduct[] = [];
     let pageInfo: string | null = null;
@@ -111,6 +120,71 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Export complete: ${allProducts.length} products fetched across ${pageCount} pages`);
+
+    // Return JSON format if requested
+    if (format === 'json') {
+      const exportData = {
+        exportInfo: {
+          exportedAt: new Date().toISOString(),
+          shopDomain: SHOPIFY_DOMAIN,
+          totalProducts: allProducts.length,
+          totalImages: allProducts.reduce((sum, p) => sum + p.images.length, 0),
+          totalVariants: allProducts.reduce((sum, p) => sum + p.variants.length, 0),
+        },
+        products: allProducts.map(product => ({
+          id: product.id,
+          handle: product.handle,
+          title: product.title,
+          description: product.body_html,
+          vendor: product.vendor,
+          productType: product.product_type,
+          tags: product.tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          status: product.status,
+          createdAt: product.created_at,
+          updatedAt: product.updated_at,
+          publishedAt: product.published_at,
+          price: product.variants[0]?.price || '0.00',
+          compareAtPrice: product.variants[0]?.compare_at_price || null,
+          images: product.images.map(img => ({
+            id: img.id,
+            url: img.src,
+            alt: img.alt,
+            position: img.position,
+            width: img.width,
+            height: img.height,
+          })),
+          variants: product.variants.map(v => ({
+            id: v.id,
+            title: v.title,
+            price: v.price,
+            compareAtPrice: v.compare_at_price,
+            sku: v.sku,
+            inventoryQuantity: v.inventory_quantity,
+            weight: v.weight,
+            weightUnit: v.weight_unit,
+          })),
+          options: product.options.map(opt => ({
+            id: opt.id,
+            name: opt.name,
+            values: opt.values,
+          })),
+          shopifyAdminUrl: `https://${SHOPIFY_DOMAIN}/admin/products/${product.id}`,
+          storefrontUrl: product.published_at ? `https://${SHOPIFY_DOMAIN}/products/${product.handle}` : null,
+        })),
+      };
+
+      return new Response(
+        JSON.stringify(exportData, null, 2),
+        { 
+          status: 200, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Content-Disposition": `attachment; filename="shopify-inventory-${new Date().toISOString().split('T')[0]}.json"`,
+          } 
+        }
+      );
+    }
 
     // Build CSV rows
     const csvHeaders = [
