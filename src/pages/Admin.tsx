@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, MessageSquare, Calendar, Tags, Users, ShoppingBag, Wrench } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Tags, Users, ShoppingBag, Wrench, Store } from "lucide-react";
 import { AdminChatConsole } from "@/components/admin/AdminChatConsole";
 import { AdminCategoryManager } from "@/components/admin/AdminCategoryManager";
 import { AdminPickupSchedules } from "@/components/admin/AdminPickupSchedules";
 import { AdminSubscribers } from "@/components/admin/AdminSubscribers";
 import { AdminShopifyInventory } from "@/components/admin/AdminShopifyInventory";
+import { AdminMarketplaceInventory } from "@/components/admin/AdminMarketplaceInventory";
 import { AdminTools } from "@/components/admin/AdminTools";
 
 const Admin = () => {
@@ -81,8 +82,12 @@ const Admin = () => {
       </header>
 
       <main className="container py-8">
-        <Tabs defaultValue="chats" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
+        <Tabs defaultValue="marketplace" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7 max-w-5xl">
+            <TabsTrigger value="marketplace" className="flex items-center gap-2">
+              <Store className="h-4 w-4" />
+              <span className="hidden sm:inline">Marketplace</span>
+            </TabsTrigger>
             <TabsTrigger value="chats" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               <span className="hidden sm:inline">Chats</span>
@@ -108,6 +113,10 @@ const Admin = () => {
               <span className="hidden sm:inline">Tools</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="marketplace">
+            <AdminMarketplaceInventory />
+          </TabsContent>
 
           <TabsContent value="chats">
             <AdminChatConsole />
