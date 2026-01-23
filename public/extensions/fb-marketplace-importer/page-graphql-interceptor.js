@@ -1,15 +1,15 @@
 // FB Marketplace Importer - Page Context GraphQL Interceptor
-// Version 2.1.0 - DIAGNOSTIC EDITION
+// Version 3.0.0 - FULL ENRICHMENT EDITION
 // Key improvements:
-// - DIAGNOSTIC LOGGING: Logs response structures and candidate objects
-// - RELAXED VALIDATION: Accepts 15+ ID patterns and any listing signals
-// - BETTER FIELD DETECTION: Expanded title, price, and image patterns
+// - Captures listing IDs quickly from feed
+// - Tracks which listings need enrichment
+// - Listens for detail page data
 (function () {
   try {
     if (window.__fbImporterInjected) return;
     window.__fbImporterInjected = true;
 
-    const VERSION = '2.1.0';
+    const VERSION = '3.0.0';
 
     // Diagnostic counters
     let graphqlResponsesSeen = 0;
@@ -18,15 +18,12 @@
     let responsesAccepted = 0;
     let responsesRejected = 0;
 
-    // DIAGNOSTIC: Track candidate objects for debugging
-    let diagnosticCandidates = 0;
-    const MAX_DIAGNOSTIC = 5;
-    let responseStructuresLogged = 0;
-    const MAX_STRUCTURE_LOGS = 3;
+    // Track listing IDs for enrichment
+    const seenListingIds = new Set();
+    let enrichmentMode = false;
+    let enrichmentTargetId = null;
 
     // ============= OPERATION NAME WHITELIST =============
-    // Only process GraphQL responses from these operations
-    // This PREVENTS Messenger notifications and other junk from being captured
     const ALLOWED_OPERATIONS = [
       'CometMarketplaceSellingInventoryPaginationQuery',
       'CometMarketplaceSellingInventoryQuery',
@@ -36,10 +33,14 @@
       'CometMarketplaceBuyerListingQuery',
       'MarketplaceListingQuery',
       'CometMarketplaceListingQuery',
-      // Additional patterns
       'MarketplaceSellerHomeQuery',
       'CometMarketplaceSellerHomeQuery',
       'MarketplaceCategoryFeedQuery',
+      // Detail page queries
+      'CometMarketplaceItemDetailRootQuery',
+      'MarketplaceItemDetailQuery',
+      'CometMarketplacePDPRootQuery',
+      'MarketplacePDPQuery',
     ];
 
     const OPERATION_KEYWORDS = [
@@ -50,12 +51,13 @@
       'your_listings',
       'SellerHome',
       'MarketplaceItem',
+      'ItemDetail',
+      'PDP',
     ];
 
     function cleanJsonText(t) {
       if (!t) return '';
       const s = String(t);
-      // Facebook prefixes responses with: for(;;);
       if (s.startsWith('for(;;);')) {
         return s.slice(8);
       }
@@ -65,8 +67,7 @@
     function pushUrl(arr, u) {
       if (!u || typeof u !== 'string') return;
       if (!u.startsWith('http')) return;
-      // Only FB CDN images
-      if (!u.includes('fbcdn') && !u.includes('facebook') && !u.includes('fbsbx')) return;
+      if (!u.includes('fbcdn') && !u.includes('facebook') && !u.includes('fbsbx') && !u.includes('scontent')) return;
       if (arr.indexOf(u) !== -1) return;
       arr.push(u);
     }
@@ -83,18 +84,8 @@
     // ============= CHECK IF RESPONSE IS MARKETPLACE-RELEVANT =============
     function isMarketplaceOperation(data) {
       try {
-        // Method 1: Check for explicit operationName in response data
-        if (data && data.extensions && data.extensions.server_metadata) {
-          const metadata = data.extensions.server_metadata;
-          if (metadata.request_id || metadata.is_final !== undefined) {
-            // This is a proper GraphQL response structure
-          }
-        }
-
-        // Method 2: Stringify and check for operation patterns
-        const dataStr = JSON.stringify(data).substring(0, 8000);
+        const dataStr = JSON.stringify(data).substring(0, 10000);
         
-        // Check for marketplace-specific field names that ONLY exist in listings
         const marketplaceSignals = [
           'marketplace_listing_id',
           'marketplace_listing_title',
@@ -113,10 +104,14 @@
           'your_listings',
           'selling_inventory',
           'seller_home',
-          // Additional patterns for detection
           'marketplace_product',
           'listing_id',
           'product_item',
+          // Detail page signals
+          'listing_photos',
+          'all_photos',
+          'photo_gallery',
+          'marketplace_listing_photos',
         ];
 
         for (const signal of marketplaceSignals) {
@@ -125,7 +120,6 @@
           }
         }
 
-        // Check for negative signals - things that indicate NON-marketplace data
         const nonMarketplaceSignals = [
           '"__typename":"Message"',
           '"__typename":"Thread"',
@@ -142,16 +136,14 @@
           }
         }
 
-        // Default: Allow if we couldn't determine (legacy behavior)
         return true;
       } catch (e) {
         return true;
       }
     }
 
-    // ============= ENHANCED TITLE EXTRACTION (30+ fields) =============
+    // ============= ENHANCED TITLE EXTRACTION =============
     function findTitle(obj) {
-      // Direct fields - check all common title locations
       const directFields = [
         obj.marketplace_listing_title,
         obj.title,
@@ -165,7 +157,6 @@
         obj.product_name,
         obj.listing_title,
         obj.custom_title,
-        // NEW patterns
         obj.formatted_title,
         obj.text_title,
         obj.item_name,
@@ -177,7 +168,6 @@
         if (txt && txt.length > 2 && txt.length < 300) return txt;
       }
 
-      // Nested paths - Facebook nests data inconsistently
       const nestedPaths = [
         obj.listing?.title,
         obj.listing?.marketplace_listing_title,
@@ -203,31 +193,16 @@
         obj.listing?.node?.title,
         obj.marketplace_listing?.node?.title,
         obj.marketplace_listing?.marketplace_listing_title,
-        // Even deeper nesting
         obj.data?.node?.title,
         obj.data?.marketplace_listing?.title,
         obj.data?.listing?.title,
-        // New Facebook patterns
         obj.story_node?.title,
         obj.feed_unit?.title,
-        obj.primary_photo?.accessibility_caption,
       ];
 
       for (const field of nestedPaths) {
         const txt = extractText(field);
         if (txt && txt.length > 2 && txt.length < 300) return txt;
-      }
-
-      // Last resort: First line of description (since FB requires titles)
-      const descFields = [obj.description, obj.redacted_description, obj.body, obj.message, obj.custom_sub_titles_with_rendering_flags];
-      for (const df of descFields) {
-        const descText = extractText(df);
-        if (descText && descText.length > 5) {
-          const firstLine = descText.split('\n')[0].trim();
-          if (firstLine.length > 3 && firstLine.length < 100) {
-            return firstLine.slice(0, 80);
-          }
-        }
       }
 
       return null;
@@ -261,135 +236,103 @@
       
       if (obj.is_deleted === true || obj.is_hidden === true || obj.deleted === true) return 'deleted';
       
-      const availability = obj.availability || obj.availability_status || obj.stock_status;
-      if (availability) {
-        const a = String(availability).toUpperCase();
-        if (a === 'OUT_OF_STOCK' || a === 'SOLD' || a === 'UNAVAILABLE') return 'sold';
-        if (a === 'RESERVED' || a === 'PENDING') return 'pending';
-      }
-      
       return 'active';
     }
 
-    // ============= ENHANCED IMAGE EXTRACTION (40+ patterns) =============
-    function extractAllImages(obj) {
-      const images = [];
-
-      // Helper to recursively extract from image-like objects
-      function extractFromImageObj(imgObj) {
-        if (!imgObj) return;
-        if (typeof imgObj === 'string') {
-          pushUrl(images, imgObj);
-          return;
+    // ============= DEEP IMAGE EXTRACTION (v3.0.0) =============
+    // Recursively finds ALL image URLs in any object structure
+    function extractAllImagesDeep(obj, images = [], depth = 0) {
+      if (!obj || typeof obj !== 'object' || depth > 15) return images;
+      
+      // Check for direct image URL fields
+      const urlFields = ['uri', 'url', 'src', 'image_uri', 'source', 'original_uri', 
+                         'full_size_uri', 'large_uri', 'medium_uri', 'scaled_uri', 
+                         'preview_uri', 'image', 'photo', 'picture', 'full_image',
+                         'large_image', 'listing_image', 'product_image'];
+      
+      for (const field of urlFields) {
+        if (obj[field] && typeof obj[field] === 'string') {
+          pushUrl(images, obj[field]);
         }
-        if (typeof imgObj !== 'object') return;
-
-        // Direct URI fields
-        pushUrl(images, imgObj.uri);
-        pushUrl(images, imgObj.url);
-        pushUrl(images, imgObj.src);
-        pushUrl(images, imgObj.image_uri);
-        pushUrl(images, imgObj.source);
-        pushUrl(images, imgObj.original_uri);
-        pushUrl(images, imgObj.full_size_uri);
-        pushUrl(images, imgObj.large_uri);
-        pushUrl(images, imgObj.medium_uri);
-        pushUrl(images, imgObj.scaled_uri);
-        pushUrl(images, imgObj.preview_uri);
-
-        // Nested image object
-        if (imgObj.image) extractFromImageObj(imgObj.image);
-        if (imgObj.photo) extractFromImageObj(imgObj.photo);
-        if (imgObj.node) extractFromImageObj(imgObj.node);
+      }
+      
+      // Recurse into arrays
+      if (Array.isArray(obj)) {
+        for (const item of obj) {
+          extractAllImagesDeep(item, images, depth + 1);
+        }
+        return images;
+      }
+      
+      // Recurse into objects
+      for (const key in obj) {
+        const val = obj[key];
+        if (!val) continue;
         
-        // Size variants
-        if (imgObj.large) extractFromImageObj(imgObj.large);
-        if (imgObj.medium) extractFromImageObj(imgObj.medium);
-        if (imgObj.full) extractFromImageObj(imgObj.full);
-        if (imgObj.scaled) extractFromImageObj(imgObj.scaled);
-      }
-
-      // All possible image field names
-      const imageFields = [
-        obj.image,
-        obj.images,
-        obj.primary_photo,
-        obj.photo,
-        obj.photos,
-        obj.listing_photos,
-        obj.primary_listing_photo,
-        obj.all_photos,
-        obj.media,
-        obj.attachments,
-        obj.cover_photo,
-        obj.thumbnail,
-        obj.thumbnails,
-        obj.gallery,
-        obj.photo_set,
-        obj.media_set,
-        obj.listing_images,
-        obj.product_images,
-        obj.marketplace_listing_photos,
-        // NEW patterns
-        obj.scaled_image,
-        obj.preview_image,
-        obj.hero_image,
-        obj.photo_image,
-        obj.picture,
-        obj.pictures,
-        obj.visual_media,
-        // Nested locations
-        obj.listing?.photos,
-        obj.listing?.images,
-        obj.listing?.image,
-        obj.listing?.primary_photo,
-        obj.node?.photos,
-        obj.node?.images,
-        obj.node?.image,
-        obj.node?.primary_photo,
-        obj.marketplace_listing?.photos,
-        obj.marketplace_listing?.images,
-        obj.target?.photos,
-        obj.target?.images,
-        obj.target?.primary_photo,
-      ];
-
-      for (const imageField of imageFields) {
-        if (!imageField) continue;
-
-        if (Array.isArray(imageField)) {
-          for (const img of imageField) {
-            extractFromImageObj(img);
+        // Special handling for edges/nodes pattern
+        if (key === 'edges' && Array.isArray(val)) {
+          for (const edge of val) {
+            extractAllImagesDeep(edge, images, depth + 1);
+            if (edge?.node) extractAllImagesDeep(edge.node, images, depth + 1);
           }
-        } else if (typeof imageField === 'object') {
-          // Check for edges pattern (FB GraphQL relay)
-          if (imageField.edges && Array.isArray(imageField.edges)) {
-            for (const edge of imageField.edges) {
-              extractFromImageObj(edge);
-              extractFromImageObj(edge?.node);
-            }
-          } else {
-            extractFromImageObj(imageField);
-          }
-        } else if (typeof imageField === 'string') {
-          pushUrl(images, imageField);
+        } else if (typeof val === 'object') {
+          extractAllImagesDeep(val, images, depth + 1);
         }
       }
-
+      
       return images;
     }
 
-    // ============= RELAXED VALIDATION (v2.1.0) =============
-    // More permissive to catch listings with new field names
+    // Targeted extraction for common FB structures
+    function extractAllImages(obj) {
+      const images = [];
+      
+      // Top-level photo arrays
+      const photoArrayFields = [
+        'photos', 'images', 'listing_photos', 'all_photos', 'photo_set', 
+        'media', 'attachments', 'gallery', 'media_set', 'listing_images',
+        'product_images', 'marketplace_listing_photos', 'thumbnails', 'pictures',
+      ];
+      
+      for (const field of photoArrayFields) {
+        const arr = obj[field] || obj.listing?.[field] || obj.node?.[field] || 
+                    obj.marketplace_listing?.[field] || obj.target?.[field];
+        if (arr) {
+          extractAllImagesDeep(arr, images);
+        }
+      }
+      
+      // Single photo fields
+      const singlePhotoFields = [
+        'image', 'photo', 'primary_photo', 'cover_photo', 'thumbnail',
+        'primary_listing_photo', 'scaled_image', 'preview_image', 'hero_image',
+        'picture', 'visual_media',
+      ];
+      
+      for (const field of singlePhotoFields) {
+        const photo = obj[field] || obj.listing?.[field] || obj.node?.[field] ||
+                      obj.marketplace_listing?.[field] || obj.target?.[field];
+        if (photo) {
+          extractAllImagesDeep(photo, images);
+        }
+      }
+      
+      // If still no images, do a deep search of the entire object
+      if (images.length === 0) {
+        extractAllImagesDeep(obj, images);
+      }
+      
+      return images;
+    }
+
+    // ============= VALIDATION =============
     function isValidListingObject(obj) {
       if (!obj || typeof obj !== 'object') return false;
 
-      // EXPANDED ID detection - 15+ patterns
       const id = obj.id || obj.listing_id || obj.marketplace_listing_id || 
                  obj.primary_listing_id || obj.story_id || obj.product_id ||
                  obj.item_id || obj.entity_id;
       
-      // Also check nested ID patterns Facebook might use now
       const nestedId = obj.node?.id || obj.listing?.id || obj.target?.id || 
                        obj.data?.id || obj.marketplace_listing?.id ||
                        obj.edge?.node?.id || obj.story_node?.id ||
@@ -399,14 +342,12 @@
       
       if (!finalId || String(finalId).length < 5) return false;
 
-      // Skip obvious non-listing IDs
       const idStr = String(finalId);
       if (idStr.startsWith('m_') || idStr.startsWith('thread_') || 
           idStr.startsWith('msg_') || idStr.startsWith('notif_')) {
         return false;
       }
 
-      // RELAXED: Accept if __typename contains listing-related words
       const typename = obj.__typename || '';
       const typenameLC = typename.toLowerCase();
       if (typenameLC.includes('listing') || typenameLC.includes('marketplace') || 
@@ -415,7 +356,6 @@
         return true;
       }
 
-      // Check for marketplace-specific fields
       const marketplaceIndicators = [
         obj.marketplace_listing_id,
         obj.marketplace_listing_title,
@@ -429,7 +369,6 @@
         obj.primary_listing_photo,
         obj.listing_state,
         obj.marketplace_listing_state,
-        // NEW indicators
         obj.formatted_price,
         obj.current_price,
         obj.sale_price,
@@ -439,10 +378,8 @@
         obj.is_live,
       ];
 
-      const hasMarketplaceIndicator = marketplaceIndicators.some(Boolean);
-      if (hasMarketplaceIndicator) return true;
+      if (marketplaceIndicators.some(Boolean)) return true;
       
-      // RELAXED: Accept if has typical listing structure (ANY of: title, price, images)
       const hasTitle = !!(obj.title || obj.marketplace_listing_title || obj.name || 
                          obj.product_title || obj.item_title || obj.label ||
                          obj.listing?.title || obj.node?.title);
@@ -455,17 +392,15 @@
                          obj.cover_photo || obj.primary_photo || obj.primary_listing_photo ||
                          obj.listing?.photos || obj.node?.photos);
 
-      // Accept if has at least 2 of the 3 signals
       const signalCount = (hasTitle ? 1 : 0) + (hasPrice ? 1 : 0) + (hasImage ? 1 : 0);
       return signalCount >= 2;
     }
 
     // ============= MAIN EMIT FUNCTION =============
-    function maybeEmitListing(obj) {
+    function maybeEmitListing(obj, isDetailPage = false) {
       try {
         if (!isValidListingObject(obj)) return;
 
-        // EXPANDED ID extraction
         const idRaw =
           obj.marketplace_listing_id ||
           obj.listing_id ||
@@ -482,24 +417,23 @@
         const id = String(idRaw || '').trim();
         if (!id || id.length < 5) return;
 
-        // Skip messenger-like IDs
         if (id.startsWith('m_') || id.startsWith('thread_') || id.startsWith('msg_')) {
           listingsSkipped++;
           return;
         }
 
-        const title = findTitle(obj);
-
-        // STRICT: Skip if no title found
-        if (!title) {
-          listingsSkipped++;
-          if (listingsSkipped <= 5) {
-            console.log(`FB Importer: Skipped ${id.slice(0,15)}... - no title found`);
-          }
+        // For feed scanning, just capture basic info
+        if (!isDetailPage && seenListingIds.has(id)) {
           return;
         }
 
-        // Skip if title looks like a message or notification
+        const title = findTitle(obj);
+
+        if (!title) {
+          listingsSkipped++;
+          return;
+        }
+
         const titleLower = title.toLowerCase();
         if (titleLower.includes('sent you a message') || 
             titleLower.includes('new message') ||
@@ -509,7 +443,7 @@
           return;
         }
 
-        // Price extraction - EXPANDED
+        // Price extraction
         let price = null;
         const priceField =
           obj.listing_price ||
@@ -605,13 +539,14 @@
           }
         }
 
-        // Images - use enhanced extraction
+        // Images - DEEP extraction for ALL photos
         const images = extractAllImages(obj);
 
-        // Status
         const status = extractStatus(obj);
 
+        seenListingIds.add(id);
         listingsEmitted++;
+        
         const payload = {
           facebook_id: id,
           title: title.slice(0, 255),
@@ -620,74 +555,49 @@
           condition: condition || null,
           category: category || null,
           location: location || null,
-          images: images.slice(0, 20),
+          images: images.slice(0, 30), // Allow more images
           listing_url: 'https://www.facebook.com/marketplace/item/' + id,
           status: status,
           imported_at: new Date().toISOString(),
+          is_enriched: isDetailPage,
+          image_count: images.length,
         };
 
         window.postMessage(
           {
             source: 'fb-importer',
-            type: 'LISTING',
+            type: isDetailPage ? 'ENRICHED_LISTING' : 'LISTING',
             payload: payload,
           },
           '*'
         );
 
+        const logStyle = isDetailPage ? 'color: #10b981; font-weight: bold' : 'color: #60a5fa';
         console.log(
-          `%cFB Importer: ✓ Captured #${listingsEmitted}:`,
-          'color: #10b981; font-weight: bold',
+          `%cFB Importer: ${isDetailPage ? '✓ ENRICHED' : '📋 Found'} #${listingsEmitted}:`,
+          logStyle,
           id.slice(0, 12),
-          `"${title.slice(0, 35)}..."`,
+          `"${title.slice(0, 30)}..."`,
           `($${price || '?'})`,
-          `[${images.length} imgs]`,
-          `(${status})`
+          `[${images.length} imgs]`
         );
       } catch (e) {
         // ignore
       }
     }
 
-    // ============= RECURSIVE WALKER WITH DIAGNOSTICS =============
-    function walk(obj, depth) {
-      if (!obj || typeof obj !== 'object' || depth > 12) return;
+    // ============= RECURSIVE WALKER =============
+    function walk(obj, depth, isDetailPage = false) {
+      if (!obj || typeof obj !== 'object' || depth > 15) return;
       
-      // DIAGNOSTIC: Log first few objects with ID-like fields
-      if (diagnosticCandidates < MAX_DIAGNOSTIC && depth < 5) {
-        const possibleId = obj.id || obj.listing_id || obj.marketplace_listing_id || 
-                           obj.node?.id || obj.primary_listing_id || obj.story_id ||
-                           obj.product_id || obj.item_id || obj.entity_id;
-        
-        if (possibleId && String(possibleId).length > 5) {
-          const idStr = String(possibleId);
-          // Skip known non-listing patterns
-          if (!idStr.startsWith('m_') && !idStr.startsWith('thread_') && !idStr.startsWith('msg_')) {
-            diagnosticCandidates++;
-            console.log(`%c🔍 FB Importer: DIAGNOSTIC CANDIDATE #${diagnosticCandidates}`, 'color: #f59e0b; font-weight: bold');
-            console.log('  Object keys:', Object.keys(obj).slice(0, 25).join(', '));
-            console.log('  __typename:', obj.__typename || 'undefined');
-            console.log('  ID found:', idStr.slice(0, 20) + '...');
-            console.log('  Has title?:', !!(obj.title || obj.marketplace_listing_title || obj.name || obj.node?.title || obj.listing?.title));
-            console.log('  Has price?:', !!(obj.price || obj.listing_price || obj.amount || obj.formatted_price));
-            console.log('  Has photos?:', !!(obj.photos || obj.images || obj.primary_photo || obj.cover_photo || obj.listing_photos));
-            
-            // Try to emit this candidate
-            maybeEmitListing(obj);
-            return; // Don't double-process
-          }
-        }
-      }
-      
-      maybeEmitListing(obj);
+      maybeEmitListing(obj, isDetailPage);
 
       if (Array.isArray(obj)) {
-        for (const it of obj) walk(it, depth + 1);
+        for (const it of obj) walk(it, depth + 1, isDetailPage);
       } else {
         for (const k in obj) {
-          // Skip known non-listing keys to improve performance
           if (k === 'extensions' || k === 'errors' || k === '__typename') continue;
-          walk(obj[k], depth + 1);
+          walk(obj[k], depth + 1, isDetailPage);
         }
       }
     }
@@ -698,7 +608,11 @@
         const cleaned = cleanJsonText(text);
         if (!cleaned) return;
 
-        // Parse JSON blocks (FB sometimes sends multiple)
+        // Check if this is a detail page request
+        const isDetailPage = requestInfo?.url?.includes('/item/') || 
+                            requestInfo?.operationName?.includes('ItemDetail') ||
+                            requestInfo?.operationName?.includes('PDP');
+
         const parts = cleaned.split('\n');
         let parsedCount = 0;
         
@@ -710,50 +624,21 @@
           try {
             const data = JSON.parse(s);
             
-            // CHECK: Is this a marketplace-relevant response?
             if (!isMarketplaceOperation(data)) {
-              continue; // Skip non-marketplace responses
+              continue;
             }
 
             responsesAccepted++;
             parsedCount++;
             
-            // DIAGNOSTIC: Log response structure for first few responses
-            if (responseStructuresLogged < MAX_STRUCTURE_LOGS) {
-              responseStructuresLogged++;
-              console.log(`%c📦 FB Importer: RESPONSE STRUCTURE #${responseStructuresLogged}`, 'color: #a855f7; font-weight: bold');
-              console.log('  Operation:', requestInfo?.operationName || 'unknown');
-              console.log('  Top-level keys:', Object.keys(data).slice(0, 15).join(', '));
-              
-              if (data.data) {
-                console.log('  data keys:', Object.keys(data.data).slice(0, 15).join(', '));
-                // Look for edges/nodes pattern
-                for (const key of Object.keys(data.data)) {
-                  const val = data.data[key];
-                  if (val && typeof val === 'object') {
-                    if (val.edges) {
-                      console.log(`  data.${key}.edges:`, Array.isArray(val.edges) ? `[${val.edges.length} items]` : typeof val.edges);
-                      if (val.edges[0]?.node) {
-                        console.log(`  First node keys:`, Object.keys(val.edges[0].node).slice(0, 15).join(', '));
-                        console.log(`  First node __typename:`, val.edges[0].node.__typename);
-                      }
-                    }
-                    if (val.__typename) {
-                      console.log(`  data.${key}.__typename:`, val.__typename);
-                    }
-                  }
-                }
-              }
-            }
-            
-            walk(data, 0);
+            walk(data, 0, isDetailPage);
           } catch (e) {
             // ignore parse errors
           }
         }
         
         if (parsedCount > 0) {
-          console.log(`%cFB Importer: Processed ${parsedCount} response(s). Total captured: ${listingsEmitted}, skipped: ${listingsSkipped}`, 'color: #60a5fa');
+          console.log(`%cFB Importer: Processed ${parsedCount} response(s). Total: ${listingsEmitted} listings`, 'color: #60a5fa');
         }
       } catch (e) {
         // ignore
@@ -761,127 +646,77 @@
     }
 
     // ============= FETCH INTERCEPTOR =============
-    const origFetch = window.fetch;
-    window.fetch = async function () {
-      const res = await origFetch.apply(this, arguments);
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+      const response = await originalFetch.apply(this, args);
       try {
-        const firstArg = arguments[0];
-        const url = typeof firstArg === 'string' ? firstArg : (firstArg && firstArg.url);
-        
-        // Only intercept GraphQL requests
-        if (url && (url.indexOf('graphql') !== -1 || url.indexOf('/api/graphql') !== -1)) {
+        const url = (args[0] instanceof Request) ? args[0].url : String(args[0]);
+        if (url.includes('graphql')) {
           graphqlResponsesSeen++;
-          
-          // Check request body for operation name (if POST)
-          let operationName = null;
-          if (arguments[1] && arguments[1].body) {
-            try {
-              const bodyStr = typeof arguments[1].body === 'string' 
-                ? arguments[1].body 
-                : JSON.stringify(arguments[1].body);
-              const bodyMatch = bodyStr.match(/"operationName"\s*:\s*"([^"]+)"/);
-              if (bodyMatch) {
-                operationName = bodyMatch[1];
-              }
-            } catch (e) {}
-          }
-
-          // Quick filter by operation name if available
-          if (operationName) {
-            const isAllowed = ALLOWED_OPERATIONS.includes(operationName) ||
-                              OPERATION_KEYWORDS.some(kw => operationName.includes(kw));
-            if (!isAllowed) {
-              responsesRejected++;
-              return res;
-            }
-            console.log(`%cFB Importer: ✓ Processing operation: ${operationName}`, 'color: #10b981');
-          }
-
-          const clone = res.clone();
-          const text = await clone.text();
-          if (text && text.length > 50) {
-            parseAndWalk(text, { url, operationName });
-          }
+          const clone = response.clone();
+          clone.text().then((t) => parseAndWalk(t, { url })).catch(() => {});
         }
-      } catch (e) {
-        console.log('FB Importer: Fetch intercept error:', e.message);
-      }
-      return res;
+      } catch (e) {}
+      return response;
     };
 
     // ============= XHR INTERCEPTOR =============
-    const origOpen = XMLHttpRequest.prototype.open;
-    const origSend = XMLHttpRequest.prototype.send;
-    let xhrRequestBody = null;
+    const XHR = XMLHttpRequest.prototype;
+    const origOpen = XHR.open;
+    const origSend = XHR.send;
 
-    XMLHttpRequest.prototype.open = function (method, url) {
-      this.__fbImpUrl = url;
-      this.__fbImpMethod = method;
+    XHR.open = function (method, url) {
+      this._fbImporterUrl = url;
       return origOpen.apply(this, arguments);
     };
 
-    XMLHttpRequest.prototype.send = function (body) {
-      this.__fbImpBody = body;
-      try {
-        this.addEventListener('load', function () {
-          try {
-            const url = this.__fbImpUrl || '';
-            if (url && (url.indexOf('graphql') !== -1 || url.indexOf('/api/graphql') !== -1)) {
-              graphqlResponsesSeen++;
-              
-              // Check operation name in request body
-              let operationName = null;
-              if (this.__fbImpBody) {
-                try {
-                  const bodyStr = typeof this.__fbImpBody === 'string' 
-                    ? this.__fbImpBody 
-                    : JSON.stringify(this.__fbImpBody);
-                  const bodyMatch = bodyStr.match(/"operationName"\s*:\s*"([^"]+)"/);
-                  if (bodyMatch) {
-                    operationName = bodyMatch[1];
-                  }
-                } catch (e) {}
-              }
-
-              // Quick filter
-              if (operationName) {
-                const isAllowed = ALLOWED_OPERATIONS.includes(operationName) ||
-                                  OPERATION_KEYWORDS.some(kw => operationName.includes(kw));
-                if (!isAllowed) {
-                  responsesRejected++;
-                  return;
-                }
-              }
-
-              if (this.responseText && this.responseText.length > 50) {
-                parseAndWalk(this.responseText, { url, operationName });
-              }
-            }
-          } catch (e) {
-            console.log('FB Importer: XHR intercept error:', e.message);
+    XHR.send = function (body) {
+      this.addEventListener('load', function () {
+        try {
+          const url = this._fbImporterUrl || '';
+          if (url.includes('graphql')) {
+            graphqlResponsesSeen++;
+            parseAndWalk(this.responseText, { url });
           }
-        });
-      } catch (e) {}
+        } catch (e) {}
+      });
       return origSend.apply(this, arguments);
     };
 
-    // ============= READY SIGNAL =============
-    window.postMessage({ source: 'fb-importer', type: 'READY', version: VERSION }, '*');
-    
-    console.log(`%c🔧 FB Importer v${VERSION} - DIAGNOSTIC EDITION`, 'color: #10b981; font-weight: bold; font-size: 16px');
-    console.log('%c✓ DIAGNOSTIC MODE: Will log response structures', 'color: #f59e0b');
-    console.log('%c✓ RELAXED VALIDATION: Accepts 15+ ID patterns', 'color: #60a5fa');
-    console.log('%c✓ EXPANDED FIELDS: 40+ image patterns, 30+ title patterns', 'color: #60a5fa');
-    console.log('FB Importer: Watching for Marketplace GraphQL requests...');
-
-    // Periodic stats logging
-    setInterval(() => {
-      if (graphqlResponsesSeen > 0 || listingsEmitted > 0) {
-        console.log(`%cFB Importer Stats: ${listingsEmitted} captured, ${listingsSkipped} skipped, ${responsesRejected} rejected, ${graphqlResponsesSeen} total responses seen`, 'color: #888');
+    // ============= LISTEN FOR COMMANDS FROM CONTENT SCRIPT =============
+    window.addEventListener('message', (event) => {
+      if (event.source !== window) return;
+      const msg = event.data;
+      if (!msg || msg.source !== 'fb-importer-command') return;
+      
+      if (msg.type === 'GET_STATS') {
+        window.postMessage({
+          source: 'fb-importer',
+          type: 'STATS',
+          payload: {
+            seen: graphqlResponsesSeen,
+            emitted: listingsEmitted,
+            skipped: listingsSkipped,
+            accepted: responsesAccepted,
+            rejected: responsesRejected,
+          }
+        }, '*');
       }
-    }, 15000);
+      
+      if (msg.type === 'CLEAR_SEEN') {
+        seenListingIds.clear();
+        listingsEmitted = 0;
+        listingsSkipped = 0;
+        console.log('FB Importer: Cleared seen listings');
+      }
+    });
+
+    // Ready signal
+    window.postMessage({ source: 'fb-importer', type: 'READY', version: VERSION }, '*');
+    console.log(`%c📦 FB Importer Interceptor v${VERSION} initialized`, 'color: #10b981; font-weight: bold; font-size: 14px');
+    console.log('%c🔍 FULL ENRICHMENT MODE: Will capture ALL photos from each listing', 'color: #f59e0b; font-weight: bold');
 
   } catch (e) {
-    console.log('FB Importer: Injection failed', e);
+    console.error('FB Importer: Interceptor initialization error:', e);
   }
 })();
