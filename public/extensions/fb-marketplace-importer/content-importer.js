@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "2.1.0";
+  const EXTENSION_VERSION = "2.2.0";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -615,27 +615,32 @@
       console.log(`FB Importer: Interceptor status after wait: ${interceptorReady}`);
     }
 
-    // Phase 1: Aggressive scrolling to trigger ALL GraphQL pagination
+    // Phase 1: AGGRESSIVE scrolling to trigger ALL GraphQL pagination
+    // For thousands of listings, we need MANY more scroll attempts
     let noNewData = 0;
     let lastHeight = 0;
     let lastCapturedCount = 0;
     let scrollAttempts = 0;
-    const maxScrollAttempts = 50; // Safety limit
+    const maxScrollAttempts = 500; // Much higher limit for large inventories
+    const stallThreshold = 15; // More patience before giving up
     let lastError = null;
+    let consecutiveStalls = 0;
 
     // Clear any old captures from different page loads
     const startingCount = capturedListings.size;
     console.log(`FB Importer: Starting collection with ${startingCount} pre-captured listings`);
+    console.log(`FB Importer: Max scroll attempts: ${maxScrollAttempts}, stall threshold: ${stallThreshold}`);
 
-    while (noNewData < 8 && scrollAttempts < maxScrollAttempts) {
+    while (noNewData < stallThreshold && scrollAttempts < maxScrollAttempts) {
       scrollAttempts++;
       
       try {
         // Scroll with slight randomization to avoid detection
-        const scrollVariation = Math.random() * 200;
+        const scrollVariation = Math.random() * 500;
         const targetScroll = document.documentElement.scrollHeight + scrollVariation;
         
-        window.scrollTo(0, targetScroll);
+        // Smooth scroll to bottom
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
         
         // Also try scrolling specific containers (FB sometimes uses these)
         try {
@@ -643,33 +648,64 @@
           if (mainContent) {
             mainContent.scrollTop = mainContent.scrollHeight;
           }
+          // Try common FB scroll containers
+          const scrollContainers = document.querySelectorAll('[data-pagelet], [role="feed"], .x1lliihq');
+          scrollContainers.forEach(container => {
+            try { container.scrollTop = container.scrollHeight; } catch (e) {}
+          });
         } catch (containerErr) {
           // Ignore container scroll errors
         }
 
-        await sleep(2000 + Math.random() * 500); // Variable delay
+        // Faster scrolling with shorter delays for efficiency
+        await sleep(800 + Math.random() * 400);
 
         const currentHeight = document.documentElement.scrollHeight;
         const currentCapturedCount = capturedListings.size;
 
-        // Update progress
+        // Update progress - show listings count prominently
         const progressPercent = Math.min((scrollAttempts / maxScrollAttempts) * 100, 100);
         const progressFill = document.querySelector("#fb-importer-progress-fill");
         const progressText = document.querySelector("#fb-importer-progress-text");
         if (progressFill) progressFill.style.width = `${progressPercent}%`;
-        if (progressText) progressText.textContent = `Scroll ${scrollAttempts}/${maxScrollAttempts}`;
+        if (progressText) progressText.textContent = `${currentCapturedCount} found`;
 
-        updateDashboard();
+        // Update dashboard every 5 scrolls to reduce overhead
+        if (scrollAttempts % 5 === 0) {
+          updateDashboard();
+          addActivity(`📜 Scroll #${scrollAttempts}: ${currentCapturedCount} listings`);
+        }
 
         // Check for new data
         if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
           noNewData++;
-          if (noNewData === 3) {
-            addActivity(`⚠️ No new content (stall ${noNewData}/8)`);
+          consecutiveStalls++;
+          
+          if (noNewData === 5) {
+            addActivity(`⏳ Waiting for more content...`);
+            // Try clicking "See more" or "Load more" buttons
+            try {
+              const loadMoreBtns = document.querySelectorAll('[role="button"]');
+              loadMoreBtns.forEach(btn => {
+                const text = btn.textContent?.toLowerCase() || '';
+                if (text.includes('see more') || text.includes('load more') || text.includes('show more')) {
+                  console.log('FB Importer: Clicking load more button');
+                  btn.click();
+                }
+              });
+            } catch (e) {}
           }
-          await sleep(1500);
+          
+          if (noNewData === 10) {
+            addActivity(`⚠️ Stall detected (${noNewData}/${stallThreshold})`);
+          }
+          
+          // Longer wait during stalls to let content load
+          await sleep(2000);
         } else {
+          // Reset stall counter on new data
           noNewData = 0;
+          consecutiveStalls = 0;
           lastHeight = currentHeight;
           lastCapturedCount = currentCapturedCount;
         }
@@ -679,7 +715,7 @@
         addError(`Scroll error: ${scrollErr.message}`);
         
         noNewData++;
-        if (noNewData >= 8) {
+        if (noNewData >= stallThreshold) {
           console.warn(`FB Importer: Too many errors, stopping scroll loop`);
           break;
         }
