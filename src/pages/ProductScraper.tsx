@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/safeClient";
+import { supabase } from "@/integrations/supabase/client";
 import { Link2, Loader2, Copy, Download, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 

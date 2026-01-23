@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/safeClient";
+import { supabase } from "@/integrations/supabase/client";
 
 let disabledUntil = 0;
 
