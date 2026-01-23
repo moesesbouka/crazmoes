@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "2.0.1";
+  const EXTENSION_VERSION = "2.0.2";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -259,22 +259,8 @@
         if (currentHeight === lastHeight && currentCapturedCount === lastCapturedCount) {
           noNewData++;
           console.log(`FB Importer: ⚠️ No new content (stall ${noNewData}/8)`);
-          
-          // Try clicking "See More" or load more buttons
-          try {
-            const loadMoreButtons = document.querySelectorAll('[aria-label*="more"], [aria-label*="More"]');
-            console.log(`FB Importer: Found ${loadMoreButtons.length} potential load-more buttons`);
-            for (const btn of loadMoreButtons) {
-              try {
-                btn.click();
-                await sleep(1000);
-              } catch (btnErr) {
-                // Ignore individual button click errors
-              }
-            }
-          } catch (btnSearchErr) {
-            console.warn(`FB Importer: Button search failed:`, btnSearchErr.message);
-          }
+          // Just wait longer on stalls - no button clicking to avoid triggering ads/links
+          await sleep(1500);
         } else {
           noNewData = 0;
           lastHeight = currentHeight;
