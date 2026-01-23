@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchAllProducts, formatPrice, ShopifyProduct } from "@/lib/shopify";
-import { supabase } from "@/integrations/supabase/safeClient";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -104,9 +104,9 @@ export function AdminShopifyInventory() {
     if (override) return override.category;
     return resolveProductCategory(
       product.node.title,
-      product.node.description,
-      product.node.category?.name,
-      product.node.productType
+      product.node.description ?? "",
+      undefined,
+      undefined
     );
   };
 

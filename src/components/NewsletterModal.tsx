@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/safeClient";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NewsletterModalProps {
   open: boolean;
