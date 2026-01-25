@@ -1,15 +1,15 @@
 // FB Marketplace Importer - Page Context GraphQL Interceptor
-// Version 3.0.0 - FULL ENRICHMENT EDITION
-// Key improvements:
-// - Captures listing IDs quickly from feed
-// - Tracks which listings need enrichment
-// - Listens for detail page data
+// Version 3.1.0 - FIXED EXTRACTION EDITION
+// Key fixes:
+// - Support for webp/png image formats
+// - Fixed pushUrl to accept all image formats
+// - Better image URL validation
 (function () {
   try {
     if (window.__fbImporterInjected) return;
     window.__fbImporterInjected = true;
 
-    const VERSION = '3.0.0';
+    const VERSION = '3.1.0';
 
     // Diagnostic counters
     let graphqlResponsesSeen = 0;
@@ -68,6 +68,8 @@
       if (!u || typeof u !== 'string') return;
       if (!u.startsWith('http')) return;
       if (!u.includes('fbcdn') && !u.includes('facebook') && !u.includes('fbsbx') && !u.includes('scontent')) return;
+      // v3.1.0: Accept all common image formats
+      if (!u.match(/\.(jpg|jpeg|png|webp|gif)(\?|$|\\)/i)) return;
       if (arr.indexOf(u) !== -1) return;
       arr.push(u);
     }
