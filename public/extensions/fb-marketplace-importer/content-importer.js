@@ -1,13 +1,14 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 3.0.0 - FULL ENRICHMENT EDITION
-// Key improvements:
-// - Phase 1: Fast scan to collect ALL listing IDs (no 270 limit)
-// - Phase 2: Enrichment - fetch each listing's detail page for ALL photos
-// - Balanced throttling to avoid FB rate limits
+// Version 3.1.0 - FIXED EXTRACTION EDITION
+// Key fixes:
+// - Fixed image filter that was blocking ALL real photos (_n.jpg = full size!)
+// - Added support for webp/png image formats
+// - Improved scroll container targeting for FB seller inventory page
+// - Better "Load More" button detection
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "3.0.0";
+  const EXTENSION_VERSION = "3.1.0";
 
   const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
   const SUPABASE_ANON_KEY =
@@ -591,7 +592,7 @@
 
   // ============= PHASE 1: FAST SCAN TO COLLECT ALL IDs =============
   async function scanAllListings() {
-    console.log("%c=== FB IMPORTER v3.0.0 - PHASE 1: SCANNING ===", "color: #3b82f6; font-weight: bold; font-size: 16px");
+    console.log("%c=== FB IMPORTER v3.1.0 - PHASE 1: SCANNING ===", "color: #3b82f6; font-weight: bold; font-size: 16px");
     addActivity(`🔍 Scanning for all ${selectedAccount} listings...`);
 
     if (!interceptorReady) {
@@ -604,24 +605,54 @@
     let lastCapturedCount = 0;
     let scrollAttempts = 0;
     const maxScrollAttempts = 1000; // Very high limit
-    const stallThreshold = 25; // Very patient
+    const stallThreshold = 30; // Very patient - increased from 25
 
     const progressFill = document.querySelector("#fb-importer-progress-fill");
     const progressText = document.querySelector("#fb-importer-progress-text");
+
+    // v3.1.0: Improved scroll container selectors for FB seller inventory
+    const scrollContainerSelectors = [
+      '[role="main"]',
+      '[data-pagelet="MainFeed"]',
+      '[data-pagelet*="Selling"]',
+      '[data-pagelet*="Inventory"]',
+      '[data-pagelet*="Marketplace"]',
+      'div[style*="overflow: auto"]',
+      'div[style*="overflow-y: auto"]',
+      'div[style*="overflow-y: scroll"]',
+      '.x78zum5',
+      '.x1y1aw1k',
+      '.x1n2onr6',
+      '[role="feed"]',
+      '[data-pagelet*="Feed"]',
+    ];
 
     while (noNewData < stallThreshold && scrollAttempts < maxScrollAttempts) {
       scrollAttempts++;
       
       try {
-        // Aggressive scroll
-        window.scrollTo({ top: document.documentElement.scrollHeight + 2000, behavior: 'auto' });
+        // v3.1.0: Multi-target aggressive scrolling
+        // 1. Window scroll
+        window.scrollTo({ top: document.body.scrollHeight + 5000, behavior: 'instant' });
         
-        // Also scroll any feed containers
-        document.querySelectorAll('[role="feed"], [data-pagelet*="Feed"], .x1lliihq').forEach(el => {
-          try { el.scrollTop = el.scrollHeight; } catch (e) {}
+        // 2. Document element scroll
+        document.documentElement.scrollTop = document.documentElement.scrollHeight;
+        
+        // 3. Body scroll
+        document.body.scrollTop = document.body.scrollHeight;
+        
+        // 4. Scroll all potential feed containers
+        scrollContainerSelectors.forEach(selector => {
+          document.querySelectorAll(selector).forEach(el => {
+            try {
+              if (el.scrollHeight > el.clientHeight) {
+                el.scrollTop = el.scrollHeight;
+              }
+            } catch (e) {}
+          });
         });
 
-        await sleep(400); // Fast scrolling
+        await sleep(350); // Slightly faster scrolling
 
         const currentCapturedCount = capturedListings.size;
 
@@ -636,14 +667,30 @@
         if (currentCapturedCount === lastCapturedCount) {
           noNewData++;
           
-          // Click load more buttons
-          if (noNewData === 5 || noNewData === 15) {
-            document.querySelectorAll('[role="button"]').forEach(btn => {
-              const text = btn.textContent?.toLowerCase() || '';
-              if (text.includes('see more') || text.includes('load more') || text.includes('show more')) {
-                btn.click();
-              }
+          // v3.1.0: Improved load more button detection
+          if (noNewData === 5 || noNewData === 10 || noNewData === 20) {
+            // Multiple selector patterns for FB's various button styles
+            const loadMoreSelectors = [
+              '[role="button"]',
+              'div[tabindex="0"]',
+              'span[role="button"]',
+              'a[role="button"]',
+            ];
+            
+            loadMoreSelectors.forEach(selector => {
+              document.querySelectorAll(selector).forEach(btn => {
+                const text = (btn.textContent || '').toLowerCase();
+                if (text.includes('see more') || text.includes('load more') || 
+                    text.includes('show more') || text.includes('view more') ||
+                    text.includes('see all') || text.includes('load all')) {
+                  try {
+                    btn.click();
+                    console.log('FB Importer: Clicked load more button:', text.slice(0, 30));
+                  } catch (e) {}
+                }
+              });
             });
+            
             await sleep(1500);
           }
         } else {
@@ -669,7 +716,7 @@
 
   // ============= PHASE 2: ENRICH EACH LISTING =============
   async function enrichListings(listings) {
-    console.log("%c=== FB IMPORTER v3.0.0 - PHASE 2: ENRICHING ===", "color: #f59e0b; font-weight: bold; font-size: 16px");
+    console.log("%c=== FB IMPORTER v3.1.0 - PHASE 2: ENRICHING ===", "color: #f59e0b; font-weight: bold; font-size: 16px");
     addActivity(`✨ Enriching ${listings.length} listings for full photos...`);
 
     const progressFill = document.querySelector("#fb-importer-progress-fill");
@@ -705,11 +752,11 @@
         if (response.ok) {
           const html = await response.text();
           
-          // Extract ALL image URLs from the page HTML
+          // v3.1.0: FIXED image extraction - support ALL formats including _n.jpg (full size!)
           const imageUrls = [];
           
-          // Pattern 1: scontent URLs (FB CDN)
-          const scontentMatches = html.match(/https:\/\/scontent[^"'\s\\]+\.jpg[^"'\s\\]*/gi) || [];
+          // Pattern 1: scontent URLs - ALL image formats (jpg, jpeg, png, webp)
+          const scontentMatches = html.match(/https:\/\/scontent[^"'\s\\]+\.(jpg|jpeg|png|webp)[^"'\s\\]*/gi) || [];
           scontentMatches.forEach(url => {
             const clean = url.replace(/\\u0025/g, '%').replace(/\\/g, '');
             if (clean.includes('fbcdn') || clean.includes('scontent')) {
@@ -719,8 +766,8 @@
             }
           });
 
-          // Pattern 2: fbcdn URLs
-          const fbcdnMatches = html.match(/https:\/\/[^"'\s\\]*fbcdn[^"'\s\\]*\.jpg[^"'\s\\]*/gi) || [];
+          // Pattern 2: fbcdn URLs - ALL formats
+          const fbcdnMatches = html.match(/https:\/\/[^"'\s\\]*fbcdn[^"'\s\\]+\.(jpg|jpeg|png|webp)[^"'\s\\]*/gi) || [];
           fbcdnMatches.forEach(url => {
             const clean = url.replace(/\\u0025/g, '%').replace(/\\/g, '');
             if (!imageUrls.includes(clean) && imageUrls.length < 30) {
@@ -728,13 +775,14 @@
             }
           });
 
-          // Pattern 3: Look for image JSON in scripts
+          // Pattern 3: Look for image JSON in scripts - ALL formats
           const jsonMatches = html.match(/"uri"\s*:\s*"(https:[^"]+)"/gi) || [];
           jsonMatches.forEach(match => {
             const urlMatch = match.match(/"uri"\s*:\s*"(https:[^"]+)"/i);
             if (urlMatch && urlMatch[1]) {
               let url = urlMatch[1].replace(/\\u0025/g, '%').replace(/\\/g, '');
-              if ((url.includes('fbcdn') || url.includes('scontent')) && url.includes('.jpg')) {
+              if ((url.includes('fbcdn') || url.includes('scontent')) && 
+                  url.match(/\.(jpg|jpeg|png|webp)/i)) {
                 if (!imageUrls.includes(url) && imageUrls.length < 30) {
                   imageUrls.push(url);
                 }
@@ -742,10 +790,21 @@
             }
           });
 
-          // Dedupe and filter - keep only large images
+          // v3.1.0: FIXED filter - KEEP _n.jpg (these are the REAL full-size images!)
+          // Only filter out obvious tiny thumbnails
           const uniqueImages = [...new Set(imageUrls)].filter(url => {
-            // Skip thumbnails (usually have small dimensions in URL)
-            return !url.includes('_t.') && !url.includes('_s.') && !url.includes('_n.');
+            // Skip explicit tiny thumbnails
+            if (url.includes('_t.jpg') || url.includes('_t.png') || url.includes('_t.webp')) return false;
+            if (url.includes('_s.jpg') || url.includes('_s.png') || url.includes('_s.webp')) return false;
+            // Skip by dimension markers (tiny sizes)
+            if (url.includes('p50x50')) return false;
+            if (url.includes('p60x60')) return false;
+            if (url.includes('p75x75')) return false;
+            if (url.includes('p100x100')) return false;
+            if (url.includes('c0.0.50.50')) return false;  // Cropped tiny
+            if (url.includes('c0.0.100.100')) return false;
+            // KEEP _n.jpg - these are full-size images! (this was the v3.0.0 bug)
+            return true;
           });
 
           // If we found more images, use them

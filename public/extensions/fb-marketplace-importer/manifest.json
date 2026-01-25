@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FB Marketplace Importer - Crazy Moe's",
-  "version": "3.0.0",
-  "description": "FULL ENRICHMENT EDITION - Import ALL photos from each listing with balanced throttling",
+  "version": "3.1.0",
+  "description": "FIXED - Full photo extraction with improved scrolling for all listings",
   "permissions": [
     "activeTab",
     "storage",
