@@ -5,7 +5,7 @@ import { CategorySection } from "@/components/CategorySection";
 import { ProductGrid } from "@/components/ProductGrid";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
-import { ImageProcessingProgress } from "@/components/ImageProcessingProgress";
+
 import { fetchAllProducts, ShopifyProduct } from "@/lib/shopify";
 import { resolveProductCategory } from "@/lib/categoryMapper";
 import { useImageProcessingStore } from "@/lib/imageProcessingStore";
@@ -165,7 +165,7 @@ const Shop = () => {
       
       <Footer />
       
-      <ImageProcessingProgress />
+      
       
       <NewsletterModal
         open={newsletterOpen}
