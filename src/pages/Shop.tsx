@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import { CategorySection } from "@/components/CategorySection";
@@ -6,38 +6,51 @@ import { ProductGrid } from "@/components/ProductGrid";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 
-import { fetchAllProducts, ShopifyProduct } from "@/lib/shopify";
+import { fetchProductsProgressive, ShopifyProduct } from "@/lib/shopify";
 import { resolveProductCategory } from "@/lib/categoryMapper";
-import { useImageProcessingStore } from "@/lib/imageProcessingStore";
 
 const Shop = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("title-asc");
   const [newsletterOpen, setNewsletterOpen] = useState(false);
-  const setTotalImages = useImageProcessingStore((state) => state.setTotalImages);
 
   useEffect(() => {
     document.title = "Shop All Products | Crazy Moe's";
   }, []);
 
   useEffect(() => {
-    async function loadProducts() {
+    let cancelled = false;
+    
+    const loadProducts = () => {
       setIsLoading(true);
-      try {
-        const data = await fetchAllProducts();
-        setProducts(data);
-        // Count images for progress tracking
-        const imageCount = data.filter(p => p.node.images.edges.length > 0).length;
-        setTotalImages(imageCount);
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+      
+      fetchProductsProgressive((batchProducts, isComplete) => {
+        if (cancelled) return;
+        
+        setProducts(batchProducts);
+        
+        if (batchProducts.length > 0 && isLoading) {
+          setIsLoading(false);
+          if (!isComplete) {
+            setIsLoadingMore(true);
+          }
+        }
+        
+        if (isComplete) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
+      });
+    };
+    
     loadProducts();
+    
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredAndSortedProducts = useMemo(() => {
@@ -158,6 +171,14 @@ const Shop = () => {
             
             {productsByCategory.length === 0 && (
               <ProductGrid products={[]} isLoading={false} />
+            )}
+            
+            {isLoadingMore && (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Loading more products...
+                </p>
+              </div>
             )}
           </div>
         )}
