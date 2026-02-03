@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import { CategorySection } from "@/components/CategorySection";
@@ -10,12 +11,37 @@ import { fetchProductsProgressive, ShopifyProduct } from "@/lib/shopify";
 import { resolveProductCategory } from "@/lib/categoryMapper";
 
 const Shop = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState("title-asc");
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+
+  // Read search/sort from URL params
+  const searchQuery = searchParams.get("q") || "";
+  const sortOption = searchParams.get("sort") || "title-asc";
+
+  // Update URL when search changes
+  const handleSearchChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set("q", value);
+    } else {
+      newParams.delete("q");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
+  // Update URL when sort changes
+  const handleSortChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value && value !== "title-asc") {
+      newParams.set("sort", value);
+    } else {
+      newParams.delete("sort");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
 
   useEffect(() => {
     document.title = "Shop All Products | Crazy Moe's";
@@ -142,9 +168,9 @@ const Shop = () => {
       <main className="container pb-8">
         <SearchFilterBar
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           sortOption={sortOption}
-          onSortChange={setSortOption}
+          onSortChange={handleSortChange}
           totalProducts={filteredAndSortedProducts.length}
         />
         
