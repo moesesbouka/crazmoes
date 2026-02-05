@@ -21,7 +21,7 @@ const ProductDetail = () => {
     async function loadProduct() {
       setIsLoading(true);
       try {
-        const products = await fetchProducts(100);
+        const products = await fetchProducts(1000);
         const found = products.find((p) => p.node.handle === handle);
         setProduct(found || null);
         if (found) {
