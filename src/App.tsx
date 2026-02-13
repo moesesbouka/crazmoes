@@ -13,6 +13,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminSetup from "./pages/AdminSetup";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import BulkImportBlueprint from "./pages/BulkImportBlueprint";
 import { ChatWidget } from "./components/ChatWidget";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/setup" element={<AdminSetup />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/bulk-import-blueprint" element={<BulkImportBlueprint />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatWidget />
