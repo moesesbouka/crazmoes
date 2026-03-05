@@ -24,7 +24,7 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
     const { data, error } = await supabase
       .from("marketplace_listings")
       .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
-      .eq("status", "Active")
+      .eq("status", "active")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
 
@@ -54,7 +54,7 @@ export async function fetchActiveListingsProgressive(
     const { data, error } = await supabase
       .from("marketplace_listings")
       .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
-      .eq("status", "Active")
+      .eq("status", "active")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
 
@@ -81,7 +81,7 @@ export async function fetchListingByFacebookId(facebookId: string): Promise<Mark
     .from("marketplace_listings")
     .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
     .eq("facebook_id", facebookId)
-    .eq("status", "Active")
+    .eq("status", "active")
     .single();
 
   if (error || !data) return null;
