@@ -8,7 +8,8 @@ import { NewsAndUpdates } from "@/components/NewsAndUpdates";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { FloatingParticles } from "@/components/FloatingParticles";
-import { fetchProducts, ShopifyProduct } from "@/lib/shopify";
+import { fetchActiveListings, listingToShopifyShape } from "@/lib/supabase-listings";
+import type { ShopifyProduct } from "@/lib/shopify";
 
 const Index = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -23,10 +24,11 @@ const Index = () => {
     async function loadProducts() {
       setIsLoading(true);
       try {
-        const data = await fetchProducts(20);
-        setProducts(data);
+        const listings = await fetchActiveListings(20);
+        const shaped = listings.map(listingToShopifyShape) as unknown as ShopifyProduct[];
+        setProducts(shaped);
       } catch (error) {
-        console.error("Failed to fetch products:", error);
+        console.error("Failed to fetch featured products:", error);
       } finally {
         setIsLoading(false);
       }
@@ -36,9 +38,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Background floating particles */}
       <FloatingParticles count={12} />
-      
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
       <HeroSection />
       <PickupInfoSection />
@@ -46,11 +46,7 @@ const Index = () => {
       <ShopByCategory />
       <NewsAndUpdates />
       <Footer />
-      
-      <NewsletterModal
-        open={newsletterOpen}
-        onOpenChange={setNewsletterOpen}
-      />
+      <NewsletterModal open={newsletterOpen} onOpenChange={setNewsletterOpen} />
     </div>
   );
 };

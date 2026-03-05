@@ -11,7 +11,6 @@ export interface MarketplaceListing {
   images: string[] | null;
   listing_url: string | null;
   status: string;
-  is_active: boolean;
   imported_at: string;
   last_seen_at: string | null;
 }
@@ -24,8 +23,7 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
   while (true) {
     const { data, error } = await supabase
       .from("marketplace_listings")
-      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,is_active,imported_at,last_seen_at")
-      .eq("is_active", true)
+      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
       .eq("status", "Active")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
@@ -55,8 +53,7 @@ export async function fetchActiveListingsProgressive(
   while (true) {
     const { data, error } = await supabase
       .from("marketplace_listings")
-      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,is_active,imported_at,last_seen_at")
-      .eq("is_active", true)
+      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
       .eq("status", "Active")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
@@ -79,6 +76,18 @@ export async function fetchActiveListingsProgressive(
   }
 }
 
+export async function fetchListingByFacebookId(facebookId: string): Promise<MarketplaceListing | null> {
+  const { data, error } = await supabase
+    .from("marketplace_listings")
+    .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
+    .eq("facebook_id", facebookId)
+    .eq("status", "Active")
+    .single();
+
+  if (error || !data) return null;
+  return data as MarketplaceListing;
+}
+
 /** Convert a MarketplaceListing to match the ShopifyProduct shape so existing
  *  ProductCard / ProductGrid components work with zero changes. */
 export function listingToShopifyShape(l: MarketplaceListing) {
@@ -88,10 +97,10 @@ export function listingToShopifyShape(l: MarketplaceListing) {
       id: l.facebook_id,
       title: l.title,
       description: l.description ?? "",
-      handle: l.facebook_id,           // used for routing — we override link below
+      handle: l.facebook_id,
       productType: l.category ?? "",
       category: l.category ? { name: l.category } : null,
-      _listingUrl: l.listing_url,       // extra field for FB link
+      _listingUrl: l.listing_url,
       _condition: l.condition,
       _importedAt: l.imported_at,
       priceRange: {
