@@ -103,10 +103,6 @@ const Admin = () => {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Subscribers</span>
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4" />
-              <span className="hidden sm:inline">Shopify</span>
-            </TabsTrigger>
             <TabsTrigger value="tools" className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
               <span className="hidden sm:inline">Tools</span>
