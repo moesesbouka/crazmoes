@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Tags, Search, Save, Trash2 } from "lucide-react";
-import { fetchAllProducts, ShopifyProduct } from "@/lib/shopify";
+import { fetchActiveListings, listingToShopifyShape, ShopifyProduct } from "@/lib/supabase-listings";
 import { CATEGORY_KEYWORDS, resolveProductCategory } from "@/lib/categoryMapper";
 
 interface CategoryOverride {
@@ -32,7 +32,7 @@ export function AdminCategoryManager() {
   const loadData = async () => {
     setIsLoading(true);
     const [productsData, overridesData] = await Promise.all([
-      fetchAllProducts(),
+      fetchActiveListings().then((listings) => listings.map(listingToShopifyShape) as unknown as ShopifyProduct[]),
       supabase.from("category_overrides").select("*"),
     ]);
 

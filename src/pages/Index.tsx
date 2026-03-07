@@ -8,8 +8,7 @@ import { NewsAndUpdates } from "@/components/NewsAndUpdates";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { FloatingParticles } from "@/components/FloatingParticles";
-import { fetchActiveListings, listingToShopifyShape } from "@/lib/supabase-listings";
-import type { ShopifyProduct } from "@/lib/shopify";
+import { fetchActiveListings, listingToShopifyShape, ShopifyProduct } from "@/lib/supabase-listings";
 
 const Index = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);

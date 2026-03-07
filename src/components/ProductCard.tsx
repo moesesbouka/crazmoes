@@ -1,4 +1,4 @@
-import { ShopifyProduct, formatPrice } from "@/lib/shopify";
+import { ShopifyProduct, formatPrice } from "@/lib/supabase-listings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
