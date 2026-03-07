@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MapPin, Clock, Building, CalendarIcon, Phone } from "lucide-react";
 import { format, addDays, isSunday, isSaturday } from "date-fns";
-import { fetchAllProducts, ShopifyProduct } from "@/lib/shopify";
+import { fetchActiveListings, listingToShopifyShape, ShopifyProduct } from "@/lib/supabase-listings";
 import warehouseImage from "@/assets/warehouse.jpg";
 import { NewsletterModal } from "@/components/NewsletterModal";
 
