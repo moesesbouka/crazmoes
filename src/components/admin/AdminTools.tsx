@@ -54,8 +54,6 @@ export function AdminTools() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState<string | null>(null);
   const [versions, setVersions] = useState<Record<string, string>>({});
-  const [exportingJson, setExportingJson] = useState(false);
-  const [exportingCsv, setExportingCsv] = useState(false);
 
   // Fetch versions from manifest.json files on mount
   useEffect(() => {
