@@ -44,7 +44,7 @@ const SchedulePickup = () => {
 
   useEffect(() => {
     document.title = "Schedule Pickup | Crazy Moe's";
-    fetchAllProducts().then(setProducts);
+    fetchActiveListings().then((listings) => setProducts(listings.map(listingToShopifyShape) as unknown as ShopifyProduct[]));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

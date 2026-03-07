@@ -7,8 +7,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { ProductImage } from "@/components/ProductImage";
-import { fetchListingByFacebookId, listingToShopifyShape } from "@/lib/supabase-listings";
-import { formatPrice } from "@/lib/shopify";
+import { fetchListingByFacebookId, listingToShopifyShape, formatPrice } from "@/lib/supabase-listings";
 import { toast } from "sonner";
 
 const ProductDetail = () => {

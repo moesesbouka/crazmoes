@@ -1,4 +1,4 @@
-import { ShopifyProduct } from "@/lib/shopify";
+import { ShopifyProduct } from "@/lib/supabase-listings";
 import { ProductCard } from "./ProductCard";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";

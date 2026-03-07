@@ -129,10 +129,6 @@ const Admin = () => {
             <AdminSubscribers />
           </TabsContent>
 
-          <TabsContent value="inventory">
-            <AdminShopifyInventory />
-          </TabsContent>
-
           <TabsContent value="tools">
             <AdminTools />
           </TabsContent>

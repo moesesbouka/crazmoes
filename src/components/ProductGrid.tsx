@@ -1,4 +1,4 @@
-import { ShopifyProduct } from "@/lib/shopify";
+import { ShopifyProduct } from "@/lib/supabase-listings";
 import { ProductCard } from "./ProductCard";
 import { Package } from "lucide-react";
 

@@ -101,7 +101,7 @@ const Shop = () => {
         const { data, error } = await supabase
           .from("marketplace_listings")
           .select("id,facebook_id,title,price,category,images,listing_url,description")
-          .eq("status", "Active")
+          .eq("status", "active")
           .eq("is_active", true)
           .order("imported_at", { ascending: false })
           .range(offset, offset + PAGE - 1);

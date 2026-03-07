@@ -32,7 +32,7 @@ export function AdminCategoryManager() {
   const loadData = async () => {
     setIsLoading(true);
     const [productsData, overridesData] = await Promise.all([
-      fetchAllProducts(),
+      fetchActiveListings().then((listings) => listings.map(listingToShopifyShape) as unknown as ShopifyProduct[]),
       supabase.from("category_overrides").select("*"),
     ]);
 

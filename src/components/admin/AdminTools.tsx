@@ -270,68 +270,6 @@ export function AdminTools() {
 
   return (
     <div className="space-y-6">
-      {/* Shopify Export Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-primary" />
-            Export Shopify Inventory
-          </CardTitle>
-          <CardDescription>
-            Download your complete Shopify inventory as CSV or JSON
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2 text-sm">
-            <h4 className="font-medium">Includes:</h4>
-            <ul className="list-disc list-inside text-muted-foreground space-y-1">
-              <li>All product titles, descriptions, and handles</li>
-              <li>Full image URLs</li>
-              <li>Pricing and inventory quantities</li>
-              <li>Tags, categories, and vendor info</li>
-              <li>Direct Shopify admin links</li>
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="default"
-              onClick={exportShopifyInventoryCsv}
-              disabled={exportingCsv || exportingJson}
-            >
-              {exportingCsv ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export CSV
-                </>
-              )}
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={exportShopifyInventoryJson}
-              disabled={exportingJson || exportingCsv}
-            >
-              {exportingJson ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <FileJson className="h-4 w-4 mr-2" />
-                  Export JSON
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid gap-6 md:grid-cols-2">
         {/* FB Lister Extension */}
         <Card>
