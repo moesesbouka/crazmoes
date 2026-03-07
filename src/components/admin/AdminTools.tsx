@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Chrome, Upload, Package, Loader2, CheckCircle, FileJson, FileSpreadsheet } from "lucide-react";
+import { Download, Chrome, Upload, Package, Loader2, CheckCircle } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
