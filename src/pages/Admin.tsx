@@ -4,12 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, MessageSquare, Calendar, Tags, Users, ShoppingBag, Wrench, Store } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Tags, Users, Wrench, Store } from "lucide-react";
 import { AdminChatConsole } from "@/components/admin/AdminChatConsole";
 import { AdminCategoryManager } from "@/components/admin/AdminCategoryManager";
 import { AdminPickupSchedules } from "@/components/admin/AdminPickupSchedules";
 import { AdminSubscribers } from "@/components/admin/AdminSubscribers";
-import { AdminShopifyInventory } from "@/components/admin/AdminShopifyInventory";
 import { AdminMarketplaceInventory } from "@/components/admin/AdminMarketplaceInventory";
 import { AdminTools } from "@/components/admin/AdminTools";
 
