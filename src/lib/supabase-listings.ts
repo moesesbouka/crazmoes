@@ -110,10 +110,11 @@ export async function fetchActiveListingsProgressive(
   let offset = 0;
 
   while (true) {
-    const { data, error } = await supabase
+    const { data, error } = await marketplaceDb
       .from("marketplace_listings")
       .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
       .eq("status", "active")
+      .eq("is_active", true)
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
 
