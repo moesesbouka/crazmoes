@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
+import { marketplaceDb } from "@/lib/marketplace-client";
 import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, ExternalLink } from "lucide-react";
 
 interface Listing {
@@ -98,10 +98,11 @@ const Shop = () => {
       let offset = 0;
       const PAGE = 1000;
       while (true) {
-        const { data, error } = await supabase
+        const { data, error } = await marketplaceDb
           .from("marketplace_listings")
           .select("id,facebook_id,title,price,category,images,listing_url,description")
           .eq("status", "active")
+          .eq("is_active", true)
           .order("imported_at", { ascending: false })
           .range(offset, offset + PAGE - 1);
         if (error || !data?.length) break;
