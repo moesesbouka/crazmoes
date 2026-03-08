@@ -137,12 +137,12 @@ export async function fetchActiveListingsProgressive(
 }
 
 export async function fetchListingByFacebookId(facebookId: string): Promise<MarketplaceListing | null> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase
     .from("marketplace_listings")
     .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
     .eq("facebook_id", facebookId)
-    .eq("status", "active")
-    .eq("is_active" as any, true)
+    .eq("status", "active") as any)
+    .eq("is_active", true)
     .single();
 
   if (error || !data) return null;
