@@ -98,11 +98,10 @@ const Shop = () => {
       let offset = 0;
       const PAGE = 1000;
       while (true) {
-        const { data, error } = await (supabase
+        const { data, error } = await supabase
           .from("marketplace_listings")
           .select("id,facebook_id,title,price,category,images,listing_url,description")
-          .eq("status", "active") as any)
-          .eq("is_active", true)
+          .eq("status", "active")
           .order("imported_at", { ascending: false })
           .range(offset, offset + PAGE - 1);
         if (error || !data?.length) break;
