@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { marketplaceDb } from "@/lib/marketplace-client";
 
 export interface ShopifyProduct {
   node: {
