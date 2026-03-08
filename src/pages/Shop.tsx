@@ -102,6 +102,7 @@ const Shop = () => {
           .from("marketplace_listings")
           .select("id,facebook_id,title,price,category,images,listing_url,description")
           .eq("status", "active")
+          .eq("is_active" as any, true)
           .order("imported_at", { ascending: false })
           .range(offset, offset + PAGE - 1);
         if (error || !data?.length) break;

@@ -142,6 +142,7 @@ export async function fetchListingByFacebookId(facebookId: string): Promise<Mark
     .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
     .eq("facebook_id", facebookId)
     .eq("status", "active")
+    .eq("is_active" as any, true)
     .single();
 
   if (error || !data) return null;
