@@ -1,15 +1,15 @@
-import { ShopifyProduct } from "@/lib/supabase-listings";
+import { MarketplaceListing } from "@/lib/supabase-listings";
 import { ProductCard } from "./ProductCard";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 
 interface FeaturedProductsProps {
-  products: ShopifyProduct[];
+  listings: MarketplaceListing[];
   isLoading: boolean;
 }
 
-export function FeaturedProducts({ products, isLoading }: FeaturedProductsProps) {
+export function FeaturedProducts({ listings, isLoading }: FeaturedProductsProps) {
   if (isLoading) {
     return (
       <section className="py-16">
@@ -30,15 +30,13 @@ export function FeaturedProducts({ products, isLoading }: FeaturedProductsProps)
     );
   }
 
-  // Show first 8 products as featured
-  const featured = products.slice(0, 8);
+  const featured = listings.slice(0, 8);
 
   return (
     <section className="py-16 relative overflow-hidden">
-      {/* Animated decorative blobs */}
       <div className="absolute -right-32 top-1/2 w-64 h-64 bg-fun-yellow/10 blob -z-10 animate-blob" />
       <div className="absolute -left-32 bottom-0 w-48 h-48 bg-fun-red/10 blob-2 -z-10 animate-blob" style={{ animationDelay: "-4s" }} />
-      
+
       <div className="container relative">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 gap-4">
           <div>
@@ -59,8 +57,8 @@ export function FeaturedProducts({ products, isLoading }: FeaturedProductsProps)
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {featured.map((product, index) => (
-            <ProductCard key={product.node.id} product={product} index={index} />
+          {featured.map((listing, index) => (
+            <ProductCard key={listing.facebook_id} listing={listing} index={index} />
           ))}
         </div>
       </div>

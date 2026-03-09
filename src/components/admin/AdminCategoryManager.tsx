@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Tags, Search, Save, Trash2 } from "lucide-react";
-import { fetchActiveListings, listingToShopifyShape, ShopifyProduct } from "@/lib/supabase-listings";
+import { fetchActiveListings, MarketplaceListing } from "@/lib/supabase-listings";
 import { CATEGORY_KEYWORDS, resolveProductCategory } from "@/lib/categoryMapper";
 
 interface CategoryOverride {
@@ -20,7 +20,7 @@ interface CategoryOverride {
 const AVAILABLE_CATEGORIES = Object.keys(CATEGORY_KEYWORDS);
 
 export function AdminCategoryManager() {
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
+  const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [overrides, setOverrides] = useState<CategoryOverride[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -31,24 +31,23 @@ export function AdminCategoryManager() {
 
   const loadData = async () => {
     setIsLoading(true);
-    const [productsData, overridesData] = await Promise.all([
-      fetchActiveListings().then((listings) => listings.map(listingToShopifyShape) as unknown as ShopifyProduct[]),
+    const [listingsData, overridesData] = await Promise.all([
+      fetchActiveListings(),
       supabase.from("category_overrides").select("*"),
     ]);
 
-    setProducts(productsData);
+    setListings(listingsData);
     if (overridesData.data) setOverrides(overridesData.data);
     setIsLoading(false);
   };
 
-  const handleCategoryChange = async (product: ShopifyProduct, newCategory: string) => {
+  const handleCategoryChange = async (listing: MarketplaceListing, newCategory: string) => {
     const existingOverride = overrides.find(
-      (o) => o.product_handle === product.node.handle
+      (o) => o.product_handle === listing.facebook_id
     );
 
     try {
       if (existingOverride) {
-        // Update existing override
         const { error } = await supabase
           .from("category_overrides")
           .update({ category: newCategory })
@@ -62,12 +61,11 @@ export function AdminCategoryManager() {
           )
         );
       } else {
-        // Create new override
         const { data, error } = await supabase
           .from("category_overrides")
           .insert({
-            product_handle: product.node.handle,
-            product_title: product.node.title,
+            product_handle: listing.facebook_id,
+            product_title: listing.title,
             category: newCategory,
           })
           .select()
@@ -99,23 +97,23 @@ export function AdminCategoryManager() {
     }
   };
 
-  const getProductCategory = (product: ShopifyProduct) => {
-    const override = overrides.find((o) => o.product_handle === product.node.handle);
+  const getListingCategory = (listing: MarketplaceListing) => {
+    const override = overrides.find((o) => o.product_handle === listing.facebook_id);
     if (override) return { category: override.category, isOverride: true };
 
     const autoCategory = resolveProductCategory(
-      product.node.title,
-      product.node.description || "",
-      product.node.category?.name,
-      product.node.productType
+      listing.title,
+      listing.description || "",
+      listing.category,
+      listing.category
     );
     return { category: autoCategory, isOverride: false };
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.node.handle.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredListings = listings.filter(
+    (l) =>
+      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.facebook_id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (isLoading) {
@@ -151,19 +149,19 @@ export function AdminCategoryManager() {
         </div>
 
         <div className="max-h-[500px] overflow-y-auto space-y-2">
-          {filteredProducts.map((product) => {
-            const { category, isOverride } = getProductCategory(product);
+          {filteredListings.map((listing) => {
+            const { category, isOverride } = getListingCategory(listing);
             const override = overrides.find(
-              (o) => o.product_handle === product.node.handle
+              (o) => o.product_handle === listing.facebook_id
             );
 
             return (
               <div
-                key={product.node.handle}
+                key={listing.facebook_id}
                 className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{product.node.title}</p>
+                  <p className="font-medium truncate">{listing.title}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant={isOverride ? "default" : "secondary"}>
                       {category}
@@ -179,7 +177,7 @@ export function AdminCategoryManager() {
                 <div className="flex items-center gap-2">
                   <Select
                     value={override?.category || ""}
-                    onValueChange={(value) => handleCategoryChange(product, value)}
+                    onValueChange={(value) => handleCategoryChange(listing, value)}
                   >
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Set category..." />

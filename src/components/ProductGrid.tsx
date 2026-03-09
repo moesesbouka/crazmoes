@@ -1,13 +1,13 @@
-import { ShopifyProduct } from "@/lib/supabase-listings";
+import { MarketplaceListing } from "@/lib/supabase-listings";
 import { ProductCard } from "./ProductCard";
 import { Package } from "lucide-react";
 
 interface ProductGridProps {
-  products: ShopifyProduct[];
+  listings: MarketplaceListing[];
   isLoading: boolean;
 }
 
-export function ProductGrid({ products, isLoading }: ProductGridProps) {
+export function ProductGrid({ listings, isLoading }: ProductGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -24,7 +24,7 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
     );
   }
 
-  if (products.length === 0) {
+  if (listings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -40,8 +40,8 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {products.map((product, index) => (
-        <ProductCard key={product.node.id} product={product} index={index} />
+      {listings.map((listing, index) => (
+        <ProductCard key={listing.facebook_id} listing={listing} index={index} />
       ))}
     </div>
   );
