@@ -1,17 +1,17 @@
-import { ShopifyProduct } from "@/lib/supabase-listings";
+import { MarketplaceListing } from "@/lib/supabase-listings";
 import { ProductCard } from "./ProductCard";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 interface CategorySectionProps {
   category: string;
-  products: ShopifyProduct[];
+  listings: MarketplaceListing[];
   startIndex: number;
 }
 
-export function CategorySection({ category, products, startIndex }: CategorySectionProps) {
+export function CategorySection({ category, listings, startIndex }: CategorySectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const displayProducts = isExpanded ? products : products.slice(0, 4);
+  const displayListings = isExpanded ? listings : listings.slice(0, 4);
 
   return (
     <section className="animate-fade-in-up opacity-0" style={{ animationDelay: '100ms' }}>
@@ -25,7 +25,7 @@ export function CategorySection({ category, products, startIndex }: CategorySect
             {category}
           </h2>
           <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full font-medium">
-            {products.length} items
+            {listings.length} items
           </span>
         </div>
         <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
@@ -44,10 +44,10 @@ export function CategorySection({ category, products, startIndex }: CategorySect
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {displayProducts.map((product, index) => (
+        {displayListings.map((listing, index) => (
           <ProductCard 
-            key={product.node.id} 
-            product={product} 
+            key={listing.facebook_id} 
+            listing={listing} 
             index={startIndex + index} 
           />
         ))}
