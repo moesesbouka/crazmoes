@@ -146,7 +146,12 @@ export async function fetchListingByFacebookId(facebookId: string): Promise<Mark
 /** Convert a MarketplaceListing to match the ShopifyProduct shape so existing
  *  ProductCard / ProductGrid components work with zero changes. */
 export function listingToShopifyShape(l: MarketplaceListing) {
-  const images = (l.images ?? []).filter(Boolean);
+  const images = (() => {
+    const raw = (l as unknown as { images?: unknown }).images;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
+  })();
+
   return {
     node: {
       id: l.facebook_id,

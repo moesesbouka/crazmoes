@@ -37,7 +37,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
   };
 
   return (
-    <Link to={`/product/${node.handle}`}>
+    <Link to={`/product/${node.id}`}>
       <Card 
         className="group overflow-hidden border-border/50 bg-card shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer rounded-2xl animate-fade-in-up opacity-0 tilt-3d glow-border"
         style={{ animationDelay: `${index * 50}ms` }}
