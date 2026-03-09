@@ -80,10 +80,8 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
 
   while (true) {
     const { data, error } = await marketplaceDb
-      .from("marketplace_listings")
-      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
-      .eq("status", "active")
-      .eq("is_active", true)
+      .from("public_listings")
+      .select("*")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
 
@@ -111,10 +109,8 @@ export async function fetchActiveListingsProgressive(
 
   while (true) {
     const { data, error } = await marketplaceDb
-      .from("marketplace_listings")
-      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
-      .eq("status", "active")
-      .eq("is_active", true)
+      .from("public_listings")
+      .select("*")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
 
@@ -138,11 +134,9 @@ export async function fetchActiveListingsProgressive(
 
 export async function fetchListingByFacebookId(facebookId: string): Promise<MarketplaceListing | null> {
   const { data, error } = await marketplaceDb
-    .from("marketplace_listings")
-    .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
+    .from("public_listings")
+    .select("*")
     .eq("facebook_id", facebookId)
-    .eq("status", "active")
-    .eq("is_active", true)
     .single();
 
   if (error || !data) return null;
@@ -152,7 +146,12 @@ export async function fetchListingByFacebookId(facebookId: string): Promise<Mark
 /** Convert a MarketplaceListing to match the ShopifyProduct shape so existing
  *  ProductCard / ProductGrid components work with zero changes. */
 export function listingToShopifyShape(l: MarketplaceListing) {
-  const images = (l.images ?? []).filter(Boolean);
+  const images = (() => {
+    const raw = (l as unknown as { images?: unknown }).images;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
+  })();
+
   return {
     node: {
       id: l.facebook_id,

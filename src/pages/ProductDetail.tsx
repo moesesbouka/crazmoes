@@ -11,7 +11,7 @@ import { fetchListingByFacebookId, listingToShopifyShape, formatPrice } from "@/
 import { toast } from "sonner";
 
 const ProductDetail = () => {
-  const { handle } = useParams<{ handle: string }>();
+  const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<ReturnType<typeof listingToShopifyShape> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
@@ -19,10 +19,10 @@ const ProductDetail = () => {
 
   useEffect(() => {
     async function loadProduct() {
-      if (!handle) return;
+      if (!id) return;
       setIsLoading(true);
       try {
-        const listing = await fetchListingByFacebookId(handle);
+        const listing = await fetchListingByFacebookId(id);
         if (listing) {
           const shaped = listingToShopifyShape(listing);
           setProduct(shaped);
@@ -37,7 +37,7 @@ const ProductDetail = () => {
       }
     }
     loadProduct();
-  }, [handle]);
+  }, [id]);
 
   const handleCashAppBuy = () => {
     if (!product) return;
