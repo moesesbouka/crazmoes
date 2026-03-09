@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { marketplaceDb } from "@/lib/marketplace-client";
-import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 
 interface Listing {
   id: string;
@@ -13,17 +13,18 @@ interface Listing {
   price: number | null;
   description: string | null;
   category: string | null;
-  images: string[] | null;
-  listing_url: string | null;
+  // `public_listings.images` is an array (JSON/text[] depending on backend view)
+  images: unknown;
 }
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
-function getCleanImages(images: string[] | null): string[] {
-  if (!images) return [];
-  return images.filter(
-    (u) => u && /^https:\/\/(scontent|z-p[0-9]+-shbz|lookaside).*\.(jpg|jpeg|png|webp)/i.test(u)
-  );
+function getCleanImages(images: unknown): string[] {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .filter((u): u is string => typeof u === "string" && !!u)
+    .filter((u) => /^https:\/\/(scontent|z-p[0-9]+-shbz|lookaside).*\.(jpg|jpeg|png|webp)/i.test(u));
 }
 
 function formatPrice(p: number | null) {
@@ -36,10 +37,8 @@ function ListingCard({ listing }: { listing: Listing }) {
   const img = imgs[0] || null;
 
   return (
-    <a
-      href={listing.listing_url || "#"}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      to={`/product/${listing.facebook_id}`}
       className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col"
     >
       <div className="aspect-square bg-gray-50 overflow-hidden">
@@ -49,7 +48,9 @@ function ListingCard({ listing }: { listing: Listing }) {
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
-            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/placeholder.svg";
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">📦</div>
@@ -58,11 +59,9 @@ function ListingCard({ listing }: { listing: Listing }) {
       <div className="p-3 flex flex-col gap-1 flex-1">
         <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-tight">{listing.title}</p>
         <p className="text-base font-bold text-primary mt-auto pt-1">{formatPrice(listing.price)}</p>
-        {listing.category && (
-          <span className="text-xs text-gray-400">{listing.category}</span>
-        )}
+        {listing.category && <span className="text-xs text-gray-400">{listing.category}</span>}
       </div>
-    </a>
+    </Link>
   );
 }
 
