@@ -8,10 +8,10 @@ import { NewsAndUpdates } from "@/components/NewsAndUpdates";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
 import { FloatingParticles } from "@/components/FloatingParticles";
-import { fetchActiveListings, listingToShopifyShape, ShopifyProduct } from "@/lib/supabase-listings";
+import { fetchActiveListings, MarketplaceListing } from "@/lib/supabase-listings";
 
 const Index = () => {
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
+  const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
 
@@ -23,9 +23,9 @@ const Index = () => {
     async function loadProducts() {
       setIsLoading(true);
       try {
-        const listings = await fetchActiveListings(20);
-        const shaped = listings.map(listingToShopifyShape) as unknown as ShopifyProduct[];
-        setProducts(shaped);
+        const data = await fetchActiveListings(20);
+        console.log("listings:", data?.length, data?.[0]);
+        setListings(data);
       } catch (error) {
         console.error("Failed to fetch featured products:", error);
       } finally {
@@ -41,7 +41,7 @@ const Index = () => {
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
       <HeroSection />
       <PickupInfoSection />
-      <FeaturedProducts products={products} isLoading={isLoading} />
+      <FeaturedProducts listings={listings} isLoading={isLoading} />
       <ShopByCategory />
       <NewsAndUpdates />
       <Footer />

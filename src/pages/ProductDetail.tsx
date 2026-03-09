@@ -7,12 +7,22 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { ProductImage } from "@/components/ProductImage";
-import { fetchListingByFacebookId, listingToShopifyShape, formatPrice } from "@/lib/supabase-listings";
+import { fetchListingByFacebookId, MarketplaceListing } from "@/lib/supabase-listings";
 import { toast } from "sonner";
+
+function getImages(images: unknown): string[] {
+  if (!Array.isArray(images)) return [];
+  return images.filter((u): u is string => typeof u === "string" && u.length > 0);
+}
+
+function formatPrice(price: number | null): string {
+  if (!price || price === 0) return "Make Offer";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(price);
+}
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<ReturnType<typeof listingToShopifyShape> | null>(null);
+  const [listing, setListing] = useState<MarketplaceListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -22,13 +32,13 @@ const ProductDetail = () => {
       if (!id) return;
       setIsLoading(true);
       try {
-        const listing = await fetchListingByFacebookId(id);
-        if (listing) {
-          const shaped = listingToShopifyShape(listing);
-          setProduct(shaped);
-          document.title = `${listing.title} - Crazy Moe's`;
+        const data = await fetchListingByFacebookId(id);
+        console.log("product detail:", data);
+        if (data) {
+          setListing(data);
+          document.title = `${data.title} - Crazy Moe's`;
         } else {
-          setProduct(null);
+          setListing(null);
         }
       } catch (error) {
         console.error("Failed to fetch product:", error);
@@ -40,10 +50,9 @@ const ProductDetail = () => {
   }, [id]);
 
   const handleCashAppBuy = () => {
-    if (!product) return;
-    const price = product.node.priceRange.minVariantPrice;
-    const amount = parseFloat(price.amount);
-    const note = encodeURIComponent(`Crazy Moe's - ${product.node.title}`);
+    if (!listing) return;
+    const amount = listing.price ?? 0;
+    const note = encodeURIComponent(`Crazy Moe's - ${listing.title}`);
     window.open(`https://cash.app/$MOEB1978/${amount}?note=${note}`, '_blank');
     toast.success("Opening Cash App", {
       description: "Complete your payment in Cash App, then schedule your pickup!",
@@ -72,7 +81,7 @@ const ProductDetail = () => {
     );
   }
 
-  if (!product) {
+  if (!listing) {
     return (
       <div className="min-h-screen bg-background">
         <Header onNewsletterClick={() => setNewsletterOpen(true)} />
@@ -91,9 +100,8 @@ const ProductDetail = () => {
     );
   }
 
-  const { node } = product;
-  const images = node.images.edges;
-  const price = node.priceRange.minVariantPrice;
+  const images = getImages(listing.images);
+  const displayImage = images[selectedImageIndex] || "/placeholder.svg";
 
   return (
     <div className="min-h-screen bg-background">
@@ -106,13 +114,13 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-4">
             <div className="aspect-square rounded-xl overflow-hidden bg-background shadow-card">
-              <ProductImage src={images[selectedImageIndex]?.node.url || ''} alt={images[selectedImageIndex]?.node.altText || node.title} className="h-full w-full p-4" />
+              <ProductImage src={displayImage} alt={listing.title} className="h-full w-full p-4" />
             </div>
             {images.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {images.map((img, index) => (
+                {images.map((url, index) => (
                   <button key={index} onClick={() => setSelectedImageIndex(index)} className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors bg-background ${index === selectedImageIndex ? "border-primary" : "border-transparent hover:border-border"}`}>
-                    <ProductImage src={img.node.url} alt={img.node.altText || `${node.title} ${index + 1}`} className="h-full w-full p-1" showProcessingIndicator={false} />
+                    <ProductImage src={url} alt={`${listing.title} ${index + 1}`} className="h-full w-full p-1" showProcessingIndicator={false} />
                   </button>
                 ))}
               </div>
@@ -122,13 +130,16 @@ const ProductDetail = () => {
           <div className="space-y-6">
             <div>
               <Badge className="hero-gradient border-0 mb-4">Available</Badge>
-              <h1 className="font-display text-3xl font-bold tracking-tight">{node.title}</h1>
+              <h1 className="font-display text-3xl font-bold tracking-tight">{listing.title}</h1>
             </div>
-            <p className="font-display text-4xl font-bold text-primary">{formatPrice(price.amount, price.currencyCode)}</p>
-            {node.description && (
+            <p className="font-display text-4xl font-bold text-primary">{formatPrice(listing.price)}</p>
+            {listing.description && (
               <div className="prose prose-sm max-w-none">
-                <p className="text-muted-foreground leading-relaxed">{node.description}</p>
+                <p className="text-muted-foreground leading-relaxed">{listing.description}</p>
               </div>
+            )}
+            {listing.condition && (
+              <p className="text-sm text-muted-foreground">Condition: <span className="font-medium text-foreground">{listing.condition}</span></p>
             )}
             <div className="space-y-3">
               <Button onClick={handleCashAppBuy} className="w-full bg-[#00D632] hover:bg-[#00B82B] text-white font-bold text-lg py-6 rounded-xl" size="lg">
