@@ -109,10 +109,8 @@ export async function fetchActiveListingsProgressive(
 
   while (true) {
     const { data, error } = await marketplaceDb
-      .from("marketplace_listings")
-      .select("id,facebook_id,title,price,description,category,condition,images,listing_url,status,imported_at,last_seen_at")
-      .eq("status", "active")
-      .eq("is_active", true)
+      .from("public_listings")
+      .select("*")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
 
