@@ -144,7 +144,7 @@ export function AdminMarketplaceInventory() {
   const fetchAccountCounts = useCallback(async () => {
     try {
       const { data, error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .select("status, shopify_product_id, account_tag");
 
       if (error) throw error;
@@ -176,7 +176,7 @@ export function AdminMarketplaceInventory() {
     setIsLoading(true);
     try {
       let query = marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .select("*", { count: "exact" })
         .order(sortField, { ascending: sortDirection === "asc" });
 
@@ -305,7 +305,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .update({
           title: editForm.title,
           description: editForm.description,
@@ -329,7 +329,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .delete()
         .eq("id", id);
 
@@ -347,7 +347,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .delete()
         .in("id", Array.from(selectedIds));
 
@@ -369,7 +369,7 @@ export function AdminMarketplaceInventory() {
     setIsClearing(true);
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
 
@@ -391,7 +391,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .update({ status: newStatus })
         .in("id", Array.from(selectedIds));
 

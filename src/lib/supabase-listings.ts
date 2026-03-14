@@ -22,7 +22,7 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
 
   while (true) {
     const { data, error } = await marketplaceDb
-      .from("public_listings")
+      .from("admin_listings")
       .select("*")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
@@ -43,7 +43,7 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
 
 export async function fetchListingByFacebookId(facebookId: string): Promise<MarketplaceListing | null> {
   const { data, error } = await marketplaceDb
-    .from("public_listings")
+    .from("admin_listings")
     .select("*")
     .eq("facebook_id", facebookId)
     .single();
