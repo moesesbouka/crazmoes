@@ -34,6 +34,7 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/setup" element={<AdminSetup />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/bulk-poster" element={<BulkPoster />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatWidget />

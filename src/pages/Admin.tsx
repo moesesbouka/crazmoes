@@ -82,7 +82,7 @@ const Admin = () => {
 
       <main className="container py-8">
         <Tabs defaultValue="marketplace" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 max-w-5xl">
+          <TabsList className="grid w-full grid-cols-7 max-w-5xl">
             <TabsTrigger value="marketplace" className="flex items-center gap-2">
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Marketplace</span>
@@ -106,6 +106,10 @@ const Admin = () => {
             <TabsTrigger value="tools" className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
               <span className="hidden sm:inline">Tools</span>
+            </TabsTrigger>
+            <TabsTrigger value="bulk-poster" className="flex items-center gap-2" onClick={() => navigate("/admin/bulk-poster")}>
+              <Send className="h-4 w-4" />
+              <span className="hidden sm:inline">📬 Bulk Poster</span>
             </TabsTrigger>
           </TabsList>
 
