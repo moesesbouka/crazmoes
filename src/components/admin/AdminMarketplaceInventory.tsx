@@ -236,21 +236,13 @@ export function AdminMarketplaceInventory() {
   }, [fetchListings, fetchAccountCounts]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel("marketplace-listings-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "marketplace_listings" },
-        () => {
-          fetchListings();
-          fetchAccountCounts();
-        }
-      )
-      .subscribe();
+    // Poll for changes every 30 seconds since we can't use realtime on external DB
+    const interval = setInterval(() => {
+      fetchListings();
+      fetchAccountCounts();
+    }, 30000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [fetchListings, fetchAccountCounts]);
 
   // Reset selection when filters change
