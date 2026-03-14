@@ -328,7 +328,7 @@ export function AdminMarketplaceInventory() {
     if (!confirm("Are you sure you want to delete this listing?")) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .delete()
         .eq("id", id);
