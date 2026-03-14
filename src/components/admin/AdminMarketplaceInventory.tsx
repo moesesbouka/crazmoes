@@ -143,7 +143,7 @@ export function AdminMarketplaceInventory() {
 
   const fetchAccountCounts = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await marketplaceDb
         .from("marketplace_listings")
         .select("status, shopify_product_id, account_tag");
 
