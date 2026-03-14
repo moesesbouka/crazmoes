@@ -390,7 +390,7 @@ export function AdminMarketplaceInventory() {
     if (selectedIds.size === 0) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .update({ status: newStatus })
         .in("id", Array.from(selectedIds));
