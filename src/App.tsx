@@ -12,6 +12,7 @@ import ProductScraper from "./pages/ProductScraper";
 import AdminLogin from "./pages/AdminLogin";
 import AdminSetup from "./pages/AdminSetup";
 import Admin from "./pages/Admin";
+import BulkPoster from "./pages/BulkPoster";
 import NotFound from "./pages/NotFound";
 import { ChatWidget } from "./components/ChatWidget";
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/setup" element={<AdminSetup />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/bulk-poster" element={<BulkPoster />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatWidget />
