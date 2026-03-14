@@ -369,7 +369,7 @@ export function AdminMarketplaceInventory() {
     setIsClearing(true);
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
 
