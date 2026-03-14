@@ -3,74 +3,81 @@ import { Link } from "react-router-dom";
 
 const categories = [
   { 
-    name: "Furniture", 
-    icon: Armchair, 
-    color: "bg-fun-blue/10 text-fun-blue",
-    bgGradient: "from-fun-blue/20 to-fun-blue/5",
-    count: "50+ items"
-  },
-  { 
     name: "Electronics", 
+    dbCategory: "Electronics",
     icon: Laptop, 
     color: "bg-fun-yellow/10 text-fun-orange",
     bgGradient: "from-fun-yellow/20 to-fun-yellow/5",
-    count: "80+ items"
   },
   { 
-    name: "Tools", 
-    icon: Wrench, 
-    color: "bg-fun-red/10 text-fun-red",
-    bgGradient: "from-fun-red/20 to-fun-red/5",
-    count: "40+ items"
-  },
-  { 
-    name: "Kitchen", 
+    name: "Kitchen & Appliances", 
+    dbCategory: "Kitchen & Appliances",
     icon: UtensilsCrossed, 
     color: "bg-fun-green/10 text-fun-green",
     bgGradient: "from-fun-green/20 to-fun-green/5",
-    count: "60+ items"
+  },
+  { 
+    name: "Furniture", 
+    dbCategory: "Furniture",
+    icon: Armchair, 
+    color: "bg-fun-blue/10 text-fun-blue",
+    bgGradient: "from-fun-blue/20 to-fun-blue/5",
+  },
+  { 
+    name: "Tools & Hardware", 
+    dbCategory: "Tools & Hardware",
+    icon: Wrench, 
+    color: "bg-fun-red/10 text-fun-red",
+    bgGradient: "from-fun-red/20 to-fun-red/5",
   },
   { 
     name: "Home & Garden", 
+    dbCategory: "Home & Garden",
     icon: Sparkles, 
     color: "bg-secondary/10 text-secondary",
     bgGradient: "from-secondary/20 to-secondary/5",
-    count: "30+ items"
   },
   { 
-    name: "Sports", 
+    name: "Sports & Fitness", 
+    dbCategory: "Sports & Fitness",
     icon: Shirt, 
     color: "bg-fun-orange/10 text-fun-orange",
     bgGradient: "from-fun-orange/20 to-fun-orange/5",
-    count: "45+ items"
   },
   { 
-    name: "Automotive", 
+    name: "Clothing", 
+    dbCategory: "Clothing & Accessories",
+    icon: Heart, 
+    color: "bg-fun-red/10 text-fun-red",
+    bgGradient: "from-fun-red/20 to-fun-red/5",
+  },
+  { 
+    name: "Auto & Vehicles", 
+    dbCategory: "Auto & Vehicles",
     icon: Car, 
     color: "bg-fun-blue/10 text-fun-blue",
     bgGradient: "from-fun-blue/20 to-fun-blue/5",
-    count: "25+ items"
   },
   { 
     name: "Baby & Kids", 
+    dbCategory: "Baby & Kids",
     icon: Baby, 
     color: "bg-fun-yellow/10 text-fun-orange",
     bgGradient: "from-fun-yellow/20 to-fun-yellow/5",
-    count: "35+ items"
   },
   { 
     name: "Pet Supplies", 
+    dbCategory: "Pet Supplies",
     icon: PawPrint, 
     color: "bg-fun-green/10 text-fun-green",
     bgGradient: "from-fun-green/20 to-fun-green/5",
-    count: "20+ items"
   },
   { 
     name: "All Items", 
+    dbCategory: "",
     icon: Package, 
     color: "bg-primary/10 text-primary",
     bgGradient: "from-primary/20 to-primary/5",
-    count: "500+ items"
   },
 ];
 
