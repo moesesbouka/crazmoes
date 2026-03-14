@@ -347,7 +347,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .delete()
         .in("id", Array.from(selectedIds));
 
