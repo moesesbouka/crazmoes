@@ -98,7 +98,7 @@ const Shop = () => {
       const PAGE = 1000;
       while (true) {
         const { data, error } = await marketplaceDb
-          .from("public_listings")
+          .from("public_active_listings")
           .select("id,facebook_id,title,price,category,images,description")
           .order("imported_at", { ascending: false })
           .range(offset, offset + PAGE - 1);

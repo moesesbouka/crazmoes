@@ -43,7 +43,7 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
 
 export async function fetchListingByFacebookId(facebookId: string): Promise<MarketplaceListing | null> {
   const { data, error } = await marketplaceDb
-    .from("public_listings")
+    .from("public_active_listings")
     .select("*")
     .eq("facebook_id", facebookId)
     .single();
