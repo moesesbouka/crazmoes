@@ -12,6 +12,7 @@ import ProductScraper from "./pages/ProductScraper";
 import AdminLogin from "./pages/AdminLogin";
 import AdminSetup from "./pages/AdminSetup";
 import Admin from "./pages/Admin";
+import BulkPoster from "./pages/BulkPoster";
 import NotFound from "./pages/NotFound";
 import { ChatWidget } from "./components/ChatWidget";
 
