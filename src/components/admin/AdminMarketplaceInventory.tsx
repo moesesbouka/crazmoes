@@ -304,7 +304,7 @@ export function AdminMarketplaceInventory() {
     if (!editingListing) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .update({
           title: editForm.title,
