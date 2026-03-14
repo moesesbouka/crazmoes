@@ -175,7 +175,7 @@ export function AdminMarketplaceInventory() {
   const fetchListings = useCallback(async () => {
     setIsLoading(true);
     try {
-      let query = supabase
+      let query = marketplaceDb
         .from("marketplace_listings")
         .select("*", { count: "exact" })
         .order(sortField, { ascending: sortDirection === "asc" });
