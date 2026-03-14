@@ -414,7 +414,7 @@ export function AdminMarketplaceInventory() {
     setShowLaunchDialog(false);
 
     try {
-      const { data, error } = await supabase.functions.invoke("launch-to-shopify", {
+      const { data, error } = await marketplaceDb.functions.invoke("launch-to-shopify", {
         body: { listing_ids: ids },
       });
 
