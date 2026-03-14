@@ -22,7 +22,7 @@ export async function fetchActiveListings(limit = 1000): Promise<MarketplaceList
 
   while (true) {
     const { data, error } = await marketplaceDb
-      .from("public_listings")
+      .from("public_active_listings")
       .select("*")
       .order("imported_at", { ascending: false })
       .range(offset, offset + PAGE - 1);
