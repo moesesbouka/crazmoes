@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { marketplaceDb } from "@/lib/marketplace-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,7 +143,7 @@ export function AdminMarketplaceInventory() {
 
   const fetchAccountCounts = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await marketplaceDb
         .from("marketplace_listings")
         .select("status, shopify_product_id, account_tag");
 
@@ -175,7 +175,7 @@ export function AdminMarketplaceInventory() {
   const fetchListings = useCallback(async () => {
     setIsLoading(true);
     try {
-      let query = supabase
+      let query = marketplaceDb
         .from("marketplace_listings")
         .select("*", { count: "exact" })
         .order(sortField, { ascending: sortDirection === "asc" });
@@ -236,21 +236,13 @@ export function AdminMarketplaceInventory() {
   }, [fetchListings, fetchAccountCounts]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel("marketplace-listings-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "marketplace_listings" },
-        () => {
-          fetchListings();
-          fetchAccountCounts();
-        }
-      )
-      .subscribe();
+    // Poll for changes every 30 seconds since we can't use realtime on external DB
+    const interval = setInterval(() => {
+      fetchListings();
+      fetchAccountCounts();
+    }, 30000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [fetchListings, fetchAccountCounts]);
 
   // Reset selection when filters change
@@ -312,7 +304,7 @@ export function AdminMarketplaceInventory() {
     if (!editingListing) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .update({
           title: editForm.title,
@@ -336,7 +328,7 @@ export function AdminMarketplaceInventory() {
     if (!confirm("Are you sure you want to delete this listing?")) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .delete()
         .eq("id", id);
@@ -354,7 +346,7 @@ export function AdminMarketplaceInventory() {
     if (selectedIds.size === 0) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .delete()
         .in("id", Array.from(selectedIds));
@@ -376,7 +368,7 @@ export function AdminMarketplaceInventory() {
 
     setIsClearing(true);
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
@@ -398,7 +390,7 @@ export function AdminMarketplaceInventory() {
     if (selectedIds.size === 0) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await marketplaceDb
         .from("marketplace_listings")
         .update({ status: newStatus })
         .in("id", Array.from(selectedIds));
@@ -422,7 +414,7 @@ export function AdminMarketplaceInventory() {
     setShowLaunchDialog(false);
 
     try {
-      const { data, error } = await supabase.functions.invoke("launch-to-shopify", {
+      const { data, error } = await marketplaceDb.functions.invoke("launch-to-shopify", {
         body: { listing_ids: ids },
       });
 
