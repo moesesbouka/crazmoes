@@ -114,7 +114,7 @@ export function ShopByCategory() {
                 <h3 className="font-display font-bold text-foreground group-hover:text-primary transition-colors">
                   {category.name}
                 </h3>
-                <p className="text-sm text-muted-foreground mt-1">{category.count}</p>
+                
                 <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-2 transition-all duration-300" />
               </div>
             </Link>
