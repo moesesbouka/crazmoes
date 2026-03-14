@@ -103,7 +103,7 @@ export function ShopByCategory() {
           {categories.map((category, index) => (
             <Link 
               key={category.name} 
-              to="/shop"
+              to={category.dbCategory ? `/shop?cat=${encodeURIComponent(category.dbCategory)}` : "/shop"}
               className="group animate-pop-in opacity-0"
               style={{ animationDelay: `${index * 80}ms` }}
             >
