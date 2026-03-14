@@ -176,7 +176,7 @@ export function AdminMarketplaceInventory() {
     setIsLoading(true);
     try {
       let query = marketplaceDb
-        .from("marketplace_listings")
+        .from("admin_listings")
         .select("*", { count: "exact" })
         .order(sortField, { ascending: sortDirection === "asc" });
 
