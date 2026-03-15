@@ -13,7 +13,6 @@ interface Listing {
   price: number | null;
   description: string | null;
   category: string | null;
-  // `public_listings.images` is an array (JSON/text[] depending on backend view)
   images: unknown;
 }
 
@@ -21,7 +20,6 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 function getCleanImages(images: unknown): string[] {
   if (!Array.isArray(images)) return [];
-
   return images
     .filter((u): u is string => typeof u === "string" && !!u)
     .filter((u) => /^https:\/\/(scontent|z-p[0-9]+-shbz|lookaside).*\.(jpg|jpeg|png|webp)/i.test(u));
@@ -39,9 +37,9 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       to={`/product/${listing.facebook_id}`}
-      className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col"
+      className="group rounded-2xl border border-border bg-card overflow-hidden hover:-translate-y-0.5 hover:border-foreground/20 transition-all duration-200 flex flex-col"
     >
-      <div className="aspect-square bg-gray-50 overflow-hidden">
+      <div className="aspect-square bg-secondary overflow-hidden">
         {img ? (
           <img
             src={img}
@@ -53,13 +51,13 @@ function ListingCard({ listing }: { listing: Listing }) {
             }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">📦</div>
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-4xl">📦</div>
         )}
       </div>
       <div className="p-3 flex flex-col gap-1 flex-1">
-        <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-tight">{listing.title}</p>
+        <p className="text-sm font-semibold line-clamp-2 leading-tight">{listing.title}</p>
         <p className="text-base font-bold text-primary mt-auto pt-1">{formatPrice(listing.price)}</p>
-        {listing.category && <span className="text-xs text-gray-400">{listing.category}</span>}
+        {listing.category && <span className="text-xs text-muted-foreground">{listing.category}</span>}
       </div>
     </Link>
   );
@@ -71,7 +69,6 @@ const Shop = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
 
-  // URL-driven state
   const searchQuery = searchParams.get("q") || "";
   const selectedCategory = searchParams.get("cat") || "All";
   const sortOption = searchParams.get("sort") || "newest";
@@ -86,10 +83,9 @@ const Shop = () => {
   };
 
   useEffect(() => {
-    document.title = "Shop All Inventory | Crazy Moe's";
+    document.title = "Inventory | Crazy Moe's";
   }, []);
 
-  // Load ALL active listings once (they're small JSON, ~500KB)
   useEffect(() => {
     async function load() {
       setIsLoading(true);
@@ -113,13 +109,11 @@ const Shop = () => {
     load();
   }, []);
 
-  // Unique categories
   const categories = useMemo(() => {
     const cats = new Set(allListings.map((l) => l.category).filter(Boolean) as string[]);
     return ["All", ...Array.from(cats).sort()];
   }, [allListings]);
 
-  // Filter + sort
   const filtered = useMemo(() => {
     let r = [...allListings];
     if (selectedCategory !== "All") r = r.filter((l) => l.category === selectedCategory);
@@ -132,19 +126,17 @@ const Shop = () => {
       case "price-desc": r.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)); break;
       case "title-asc":  r.sort((a, b) => a.title.localeCompare(b.title)); break;
       case "title-desc": r.sort((a, b) => b.title.localeCompare(a.title)); break;
-      default: break; // newest — already sorted by imported_at desc from DB
+      default: break;
     }
     return r;
   }, [allListings, selectedCategory, searchQuery, sortOption]);
 
-  // Paginate
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
   const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const goToPage = (n: number) => setParam("page", String(n), false);
 
-  // Page number range to show
   const pageNums = useMemo(() => {
     const pages: (number | "…")[] = [];
     const delta = 2;
@@ -159,13 +151,13 @@ const Shop = () => {
   }, [totalPages, safePage]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header onNewsletterClick={() => setNewsletterOpen(true)} />
+    <div className="min-h-screen bg-background">
+      <Header />
 
       {/* Page header */}
-      <div className="bg-white border-b border-gray-100 py-8">
+      <div className="border-b border-border py-8">
         <div className="container text-center">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-gradient-fun mb-1">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-1">
             Available Inventory
           </h1>
           <p className="text-muted-foreground text-sm">
@@ -175,27 +167,25 @@ const Shop = () => {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-20 shadow-sm">
+      <div className="border-b border-border sticky top-16 z-20 bg-background/95 backdrop-blur-sm">
         <div className="container py-3 flex flex-wrap gap-3 items-center">
-          {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search inventory…"
               value={searchQuery}
               onChange={(e) => setParam("q", e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-gray-50"
+              className="w-full pl-9 pr-3 py-2 rounded-full border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-secondary text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
-          {/* Category dropdown */}
           <div className="flex items-center gap-1.5">
-            <SlidersHorizontal className="h-4 w-4 text-gray-400" />
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
             <select
               value={selectedCategory}
               onChange={(e) => setParam("cat", e.target.value)}
-              className="py-2 pl-3 pr-7 rounded-lg border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+              className="py-2 pl-3 pr-7 rounded-full border border-border text-sm bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -203,11 +193,10 @@ const Shop = () => {
             </select>
           </div>
 
-          {/* Sort */}
           <select
             value={sortOption}
             onChange={(e) => setParam("sort", e.target.value)}
-            className="py-2 pl-3 pr-7 rounded-lg border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+            className="py-2 pl-3 pr-7 rounded-full border border-border text-sm bg-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
           >
             <option value="newest">Newest First</option>
             <option value="price-asc">Price: Low → High</option>
@@ -216,8 +205,7 @@ const Shop = () => {
             <option value="title-desc">Name Z→A</option>
           </select>
 
-          {/* Per page */}
-          <div className="flex items-center gap-1.5 text-sm text-gray-500">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <span className="hidden sm:inline">Show</span>
             {PAGE_SIZE_OPTIONS.map((n) => (
               <button
@@ -228,10 +216,10 @@ const Shop = () => {
                   p.delete("page");
                   setSearchParams(p, { replace: true });
                 }}
-                className={`px-2.5 py-1 rounded-md text-sm font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-full text-sm font-medium transition-colors ${
                   pageSize === n
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary hover:bg-muted text-muted-foreground"
                 }`}
               >
                 {n}
@@ -246,18 +234,18 @@ const Shop = () => {
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {Array.from({ length: pageSize }).map((_, i) => (
-              <div key={i} className="rounded-2xl bg-white border border-gray-100 aspect-square animate-pulse" />
+              <div key={i} className="rounded-2xl border border-border bg-card aspect-square animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
+          <div className="text-center py-20 text-muted-foreground">
             <p className="text-4xl mb-3">🔍</p>
             <p className="font-semibold text-lg">No listings found</p>
             <p className="text-sm mt-1">Try adjusting your search or category</p>
           </div>
         ) : (
           <>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Showing {((safePage - 1) * pageSize) + 1}–{Math.min(safePage * pageSize, filtered.length)} of {filtered.length.toLocaleString()} listings
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -266,28 +254,27 @@ const Shop = () => {
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-1.5 mt-10 flex-wrap">
                 <button
                   onClick={() => goToPage(safePage - 1)}
                   disabled={safePage === 1}
-                  className="p-2 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full border border-border disabled:opacity-30 hover:bg-secondary transition-colors"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
 
                 {pageNums.map((n, i) =>
                   n === "…" ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-gray-400">…</span>
+                    <span key={`ellipsis-${i}`} className="px-1 text-muted-foreground">…</span>
                   ) : (
                     <button
                       key={n}
                       onClick={() => goToPage(n as number)}
-                      className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      className={`min-w-[36px] h-9 px-3 rounded-full text-sm font-medium transition-colors ${
                         n === safePage
-                          ? "bg-primary text-white shadow-sm"
-                          : "border border-gray-200 hover:bg-gray-100 text-gray-600"
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border hover:bg-secondary text-muted-foreground"
                       }`}
                     >
                       {n}
@@ -298,7 +285,7 @@ const Shop = () => {
                 <button
                   onClick={() => goToPage(safePage + 1)}
                   disabled={safePage === totalPages}
-                  className="p-2 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full border border-border disabled:opacity-30 hover:bg-secondary transition-colors"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
