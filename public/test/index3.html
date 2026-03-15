@@ -1,176 +1,1087 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buffalo Deal Depot - Buffalo Deals</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
-        .hero { 
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
-                        url('https://blog.lugg.com/content/images/size/w2000/2026/02/discount-furniture-outlet-store.jpeg') 
-                        no-repeat center center; 
-            background-size: cover; 
-            color: white; 
-            padding: 120px 0; 
-            text-align: center; 
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.7); 
-        }
-        .category-card { 
-            transition: transform 0.3s ease, box-shadow 0.3s ease; 
-            border: none; 
-            box-shadow: 0 6px 12px rgba(0,0,0,0.1); 
-            overflow: hidden; 
-        }
-        .category-card:hover { 
-            transform: translateY(-8px); 
-            box-shadow: 0 12px 24px rgba(0,0,0,0.15); 
-        }
-        .badge-urgency { background-color: #e63946; font-size: 1.1em; padding: 0.6em 1.2em; }
-        img { loading: lazy; width: 100%; height: 220px; object-fit: cover; }
-        .urgency-badges { background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 50px; display: inline-block; margin: 20px 0; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crazy Moe's — Shock & Awe Overhaul</title>
+  <meta name="description" content="Premium liquidation and open-box storefront concept for Crazy Moe's in Buffalo, NY." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07070a;
+      --bg-2: #0f1117;
+      --panel: rgba(255,255,255,.06);
+      --panel-2: rgba(255,255,255,.08);
+      --line: rgba(255,255,255,.11);
+      --text: #f8fafc;
+      --muted: rgba(248,250,252,.72);
+      --soft: rgba(248,250,252,.52);
+      --orange: #ff6a00;
+      --orange-2: #ff8b38;
+      --red: #ff3d3d;
+      --green: #64f3b2;
+      --purple: #7c5cff;
+      --glow: 0 24px 60px rgba(255,106,0,.18);
+      --radius-xl: 32px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --shadow: 0 30px 80px rgba(0,0,0,.35);
+      --max: 1280px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(124,92,255,.18), transparent 30%),
+        radial-gradient(circle at 90% 0%, rgba(255,106,0,.18), transparent 24%),
+        linear-gradient(180deg, #09090c 0%, #0a0b10 35%, #08090d 100%);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: radial-gradient(circle at center, black 35%, transparent 88%);
+      pointer-events: none;
+      opacity: .35;
+      z-index: -2;
+    }
+
+    .cursor-glow {
+      position: fixed;
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,106,0,.22), rgba(124,92,255,.10) 42%, transparent 68%);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: -1;
+      filter: blur(18px);
+      transition: opacity .25s ease;
+      opacity: .95;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { display: block; width: 100%; }
+    .container { width: min(var(--max), calc(100% - 28px)); margin: 0 auto; }
+    .muted { color: var(--muted); }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(7,7,10,.62);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .nav-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .brand-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: var(--glow);
+    }
+    .brand-title {
+      font-weight: 900;
+      letter-spacing: -.05em;
+      font-size: 1.2rem;
+    }
+    .brand-sub {
+      font-size: .74rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--soft);
+      margin-top: 2px;
+    }
+    .nav {
+      display: flex;
+      gap: 24px;
+      color: rgba(255,255,255,.82);
+      font-weight: 500;
+    }
+    .nav a { position: relative; }
+    .nav a::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: -8px;
+      height: 2px;
+      transform: scaleX(0);
+      transform-origin: left;
+      background: linear-gradient(90deg, var(--orange), transparent);
+      transition: transform .24s ease;
+    }
+    .nav a:hover::after { transform: scaleX(1); }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255,255,255,.03);
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-weight: 700;
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.22); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      border-color: transparent;
+      box-shadow: 0 16px 30px rgba(255,106,0,.22);
+    }
+    .btn-primary:hover { box-shadow: 0 20px 40px rgba(255,106,0,.32); }
+    .btn-ghost { background: rgba(255,255,255,.02); }
+
+    .hero {
+      position: relative;
+      padding: 44px 0 34px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .hero-copy,
+    .hero-visual {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+    }
+    .hero-copy {
+      padding: 34px;
+      min-height: 700px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .hero-copy::before,
+    .hero-visual::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,106,0,.16), transparent 36%, rgba(124,92,255,.12));
+      pointer-events: none;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,106,0,.25);
+      background: rgba(255,106,0,.10);
+      color: #ffd1ae;
+      font-size: .82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+    }
+    h1 {
+      font-size: clamp(3rem, 8vw, 6.3rem);
+      line-height: .92;
+      letter-spacing: -.08em;
+      margin: 18px 0 0;
+      max-width: 9ch;
+    }
+    .hero-copy p {
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.85;
+      max-width: 62ch;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .stats {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .stat {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -60% auto;
+      width: 160px;
+      height: 160px;
+      background: radial-gradient(circle, rgba(255,106,0,.18), transparent 65%);
+      filter: blur(8px);
+    }
+    .stat-value {
+      font-size: clamp(1.4rem, 4vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -.05em;
+    }
+    .stat-label {
+      color: var(--soft);
+      font-size: .86rem;
+      margin-top: 4px;
+    }
+
+    .hero-visual {
+      min-height: 700px;
+      padding: 18px;
+      display: grid;
+      grid-template-rows: 1.2fr .8fr;
+      gap: 18px;
+    }
+    .hero-main-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 26px;
+      min-height: 430px;
+      background-image:
+        linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.72)),
+        url('https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80');
+      background-size: cover;
+      background-position: center;
+      border: 1px solid rgba(255,255,255,.10);
+      display: flex;
+      align-items: end;
+      padding: 22px;
+    }
+    .deal-float {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,0,0,.55);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 999px;
+      padding: 10px 14px;
+      backdrop-filter: blur(8px);
+      font-size: .86rem;
+      font-weight: 700;
+    }
+    .hot-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #ff5757;
+      box-shadow: 0 0 0 0 rgba(255,87,87,.6);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      70% { box-shadow: 0 0 0 12px rgba(255,87,87,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,87,87,0); }
+    }
+    .featured-copy h2 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      letter-spacing: -.06em;
+      max-width: 10ch;
+    }
+    .featured-copy p {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 38ch;
+    }
+    .feature-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .glass-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.04));
+      min-height: 160px;
+      position: relative;
+      overflow: hidden;
+    }
+    .glass-card::before {
+      content: "";
+      position: absolute;
+      inset: auto -20% -40% auto;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle, rgba(124,92,255,.25), transparent 65%);
+    }
+    .glass-card strong {
+      display: block;
+      font-size: 1.15rem;
+      margin-top: 24px;
+      letter-spacing: -.03em;
+    }
+    .glass-card span { color: var(--soft); font-size: .92rem; }
+
+    .ticker-wrap {
+      overflow: hidden;
+      border-block: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02);
+      margin: 18px 0 0;
+    }
+    .ticker {
+      display: flex;
+      gap: 18px;
+      width: max-content;
+      padding: 14px 0;
+      animation: ticker 28s linear infinite;
+      font-weight: 700;
+      color: rgba(255,255,255,.9);
+    }
+    .ticker span {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding-inline: 8px;
+      letter-spacing: .01em;
+      text-transform: uppercase;
+      font-size: .9rem;
+    }
+    .ticker b { color: var(--orange-2); }
+    @keyframes ticker { to { transform: translateX(-50%); } }
+
+    section { padding: 82px 0; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 26px;
+    }
+    .section-kicker {
+      color: #ffccab;
+      text-transform: uppercase;
+      letter-spacing: .24em;
+      font-size: .76rem;
+      margin-bottom: 10px;
+      font-weight: 800;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: .98;
+      letter-spacing: -.07em;
+      max-width: 10ch;
+    }
+    .section-head p {
+      max-width: 52ch;
+      color: var(--muted);
+      line-height: 1.8;
+      margin: 0;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(255,106,0,.18), rgba(255,61,61,.16));
+      border-color: rgba(255,106,0,.32);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+
+    .deals-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+    }
+    .deal-card {
+      grid-column: span 4;
+      position: relative;
+      min-height: 520px;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      background: #111;
+      transform-style: preserve-3d;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      box-shadow: var(--shadow);
+    }
+    .deal-card:hover {
+      border-color: rgba(255,255,255,.18);
+      box-shadow: 0 38px 90px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.04) inset;
+    }
+    .deal-media {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.02);
+    }
+    .deal-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.30) 32%, rgba(0,0,0,.84));
+    }
+    .deal-content {
+      position: absolute;
+      inset: auto 0 0;
+      padding: 22px;
+      z-index: 2;
+    }
+    .deal-topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .deal-badge, .deal-save {
+      display: inline-flex;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: .78rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .deal-badge { background: rgba(255,255,255,.12); backdrop-filter: blur(10px); }
+    .deal-save { background: rgba(100,243,178,.16); color: #c8ffe7; }
+    .deal-title {
+      font-size: clamp(1.55rem, 3vw, 2.2rem);
+      line-height: 1.02;
+      letter-spacing: -.05em;
+      margin: 0;
+      max-width: 12ch;
+    }
+    .deal-specs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .deal-specs span {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.08);
+      color: rgba(255,255,255,.9);
+      border-radius: 999px;
+      padding: 8px 11px;
+      font-size: .8rem;
+    }
+    .deal-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .price strong {
+      display: block;
+      font-size: 2rem;
+      line-height: 1;
+      letter-spacing: -.06em;
+    }
+    .price small {
+      color: var(--soft);
+      text-decoration: line-through;
+      font-size: .92rem;
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+    }
+    .proof-panel,
+    .policies,
+    .cta-banner,
+    .story-panel {
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+    }
+    .proof-panel { padding: 24px; }
+    .proof-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .proof-card {
+      border-radius: 22px;
+      overflow: hidden;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .proof-card img {
+      aspect-ratio: 4/3;
+      object-fit: cover;
+    }
+    .proof-card div { padding: 14px; }
+    .proof-card strong { display: block; font-size: 1.05rem; }
+    .proof-card span { color: var(--soft); font-size: .9rem; }
+
+    .policies { padding: 24px; }
+    .policy-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .policy-item {
+      display: flex;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+    }
+    .policy-icon {
+      min-width: 38px; width: 38px; height: 38px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(255,106,0,.18), rgba(124,92,255,.18));
+      font-weight: 900;
+    }
+
+    .story-panel {
+      position: relative;
+      padding: 26px;
+      overflow: hidden;
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: .95fr 1.05fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+    .story-panel::before {
+      content: "";
+      position: absolute;
+      inset: auto -10% -35% auto;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(255,106,0,.18), transparent 66%);
+      filter: blur(18px);
+      pointer-events: none;
+    }
+    .story-image {
+      min-height: 420px;
+      border-radius: 24px;
+      overflow: hidden;
+      background-image:
+        linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.28)),
+        url('https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1400&q=80');
+      background-size: cover;
+      background-position: center;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .story-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .story-copy h2 {
+      margin: 0;
+      font-size: clamp(2.1rem, 5vw, 4rem);
+      line-height: .98;
+      letter-spacing: -.07em;
+      max-width: 12ch;
+    }
+    .story-copy p {
+      color: var(--muted);
+      line-height: 1.8;
+      margin: 16px 0 0;
+      max-width: 58ch;
+    }
+
+    .contact-rail {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 45;
+      display: grid;
+      gap: 10px;
+    }
+    .rail-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(8,10,14,.84);
+      backdrop-filter: blur(16px);
+      color: white;
+      box-shadow: var(--shadow);
+      padding: 12px 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+    }
+    .rail-btn.primary {
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      border-color: transparent;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity .72s ease, transform .72s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    footer {
+      padding: 24px 0 48px;
+      color: var(--soft);
+      font-size: .92rem;
+    }
+
+    @media (max-width: 1180px) {
+      .hero-grid,
+      .story-grid,
+      .proof-grid { grid-template-columns: 1fr; }
+      .deals-grid .deal-card:nth-child(1) { grid-column: span 12; }
+      .deals-grid .deal-card:nth-child(2),
+      .deals-grid .deal-card:nth-child(3) { grid-column: span 6; }
+    }
+
+    @media (max-width: 980px) {
+      .nav { display: none; }
+      .stats,
+      .feature-strip,
+      .proof-cards { grid-template-columns: 1fr; }
+      .deal-card,
+      .deals-grid .deal-card:nth-child(1),
+      .deals-grid .deal-card:nth-child(2),
+      .deals-grid .deal-card:nth-child(3) { grid-column: span 12; }
+      .section-head { flex-direction: column; align-items: start; }
+      .hero-copy, .hero-visual { min-height: auto; }
+      .hero-copy { padding: 26px; }
+      .hero-visual { padding: 14px; }
+    }
+
+    @media (max-width: 720px) {
+      .header-actions { width: 100%; }
+      .header-actions .btn { flex: 1; }
+      .nav-wrap { flex-wrap: wrap; }
+      .hero { padding-top: 22px; }
+      .hero-copy { min-height: auto; }
+      .hero-main-card { min-height: 360px; }
+      .contact-rail { left: 12px; right: 12px; }
+      .rail-btn { justify-content: center; }
+      .cursor-glow { display: none; }
+    }
+  </style>
 </head>
 <body>
-    <header class="bg-dark text-white py-3 sticky-top">
-        <div class="container d-flex justify-content-between align-items-center flex-wrap">
-            <h1 class="h4 m-0">Buffalo Deal Depot - Buffalo Deals</h1>
-            <nav class="mx-3">
-                <a href="/shop" class="text-white mx-2">Shop All</a>
-                <a href="/about" class="text-white mx-2">About</a>
-                <a href="/contact" class="text-white mx-2">Contact</a>
-            </nav>
-            <form class="d-flex">
-                <input class="form-control me-2" type="search" placeholder="Search Deals..." aria-label="Search">
-                <button class="btn btn-outline-light" type="submit">Go</button>
-            </form>
-        </div>
-    </header>
+  <div class="cursor-glow" aria-hidden="true"></div>
 
-    <section class="hero">
-        <div class="container">
-            <h2 class="display-4 fw-bold">Up to 75% Off Retail on Liquidation & Open-Box Goods</h2>
-            <p class="lead">Fresh truckloads added daily – Furniture, Electronics, Appliances, E-Bikes, Tools & More</p>
-            <p class="fs-5">Appointment pickup only near 14212, Buffalo, NY</p>
-            <div class="urgency-badges">
-                <span class="badge badge-urgency me-2">HOT DEALS</span>
-                <span class="badge badge-urgency me-2">NEW ARRIVALS DAILY</span>
-                <span class="badge badge-urgency">LIMITED STOCK</span>
-            </div>
-            <br><br>
-            <a href="/shop" class="btn btn-lg btn-primary px-5 py-3">Browse Deals Now</a>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="#top" class="brand" aria-label="Crazy Moe's home">
+        <div class="brand-badge">CM</div>
+        <div>
+          <div class="brand-title">Crazy Moe's</div>
+          <div class="brand-sub">Buffalo Pickup Deals</div>
         </div>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="#deals">Deals</a>
+        <a href="#categories">Categories</a>
+        <a href="#why">Why Buy Here</a>
+        <a href="#visit">Visit</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-ghost magnetic" href="#visit">Get Directions</a>
+        <a class="btn btn-primary magnetic" href="#deals">Browse Drops</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero reveal">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow">Liquidation • Open Box • Overstock • Buffalo</div>
+          <h1>Warehouse energy. Designer-level website.</h1>
+          <p>
+            This concept is built to hit harder: cinematic first impression, richer motion, stronger hierarchy,
+            cleaner conversion paths, and a premium retail feel that still screams huge savings.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary magnetic" href="#deals">See Latest Deals</a>
+            <a class="btn magnetic" href="#why">How It Works</a>
+          </div>
+
+          <div class="stats">
+            <div class="stat tilt-card">
+              <div class="stat-value" data-count="75">0</div>
+              <div class="stat-label">Up to % off retail</div>
+            </div>
+            <div class="stat tilt-card">
+              <div class="stat-value" data-count="24">0</div>
+              <div class="stat-label">Fresh categories rotating</div>
+            </div>
+            <div class="stat tilt-card">
+              <div class="stat-value" data-count="100">0</div>
+              <div class="stat-label">Buffalo pickup energy</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <article class="hero-main-card tilt-card">
+            <div class="deal-float"><span class="hot-dot"></span> New Arrival Drop</div>
+            <div class="featured-copy">
+              <h2>Statement pieces at warehouse prices.</h2>
+              <p>Furniture, appliances, home improvement, outdoor items, tools, and more — positioned like a premium drop, not a bargain basement.</p>
+            </div>
+          </article>
+
+          <div class="feature-strip">
+            <div class="glass-card tilt-card">
+              <span>Visual hierarchy</span>
+              <strong>Shock value first</strong>
+            </div>
+            <div class="glass-card tilt-card">
+              <span>Conversion flow</span>
+              <strong>Reserve fast</strong>
+            </div>
+            <div class="glass-card tilt-card">
+              <span>Store confidence</span>
+              <strong>Pickup clarity</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticker-wrap">
+        <div class="ticker" aria-hidden="true">
+          <span><b>Fresh truckloads</b> — furniture</span>
+          <span><b>Open-box steals</b> — appliances</span>
+          <span><b>Closeout drops</b> — home improvement</span>
+          <span><b>Warehouse pricing</b> — outdoor</span>
+          <span><b>Limited runs</b> — tools & gear</span>
+          <span><b>Fresh truckloads</b> — furniture</span>
+          <span><b>Open-box steals</b> — appliances</span>
+          <span><b>Closeout drops</b> — home improvement</span>
+          <span><b>Warehouse pricing</b> — outdoor</span>
+          <span><b>Limited runs</b> — tools & gear</span>
+        </div>
+      </div>
     </section>
 
-    <section class="container my-5">
-        <h2 class="text-center mb-5">Shop by Category</h2>
-        <div class="row g-4">
-            <div class="col-md-4 col-lg-3">
-                <div class="card category-card">
-                    <img src="https://blog.lugg.com/content/images/size/w2000/2026/02/discount-furniture-outlet-store.jpeg" alt="Furniture Deals">
-                    <div class="card-body text-center">
-                        <h5>Furniture (50+ items)</h5>
-                        <a href="/category/furniture" class="btn btn-outline-primary">View</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="card category-card">
-                    <img src="https://www.cnet.com/a/img/resize/804cc96eb35d093efbd15264c27be18548ab1878/hub/2022/09/29/13539f85-2a79-449e-bf9a-489efdb6fbd9/best-buy-outlet-screenshot.jpg?auto=webp&width=1200" alt="Electronics Deals">
-                    <div class="card-body text-center">
-                        <h5>Electronics (80+ items)</h5>
-                        <a href="/category/electronics" class="btn btn-outline-primary">View</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="card category-card">
-                    <img src="https://cdn.avbportal.com/assets/vendor-assets/appliances/ge/kitchen/241003_12_14_2022_3_12_58_PM.jpg?w=800" alt="Appliances Deals">
-                    <div class="card-body text-center">
-                        <h5>Appliances (Kitchen & Home)</h5>
-                        <a href="/category/appliances" class="btn btn-outline-primary">View</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="card category-card">
-                    <img src="https://e-wheelswarehouse.com/cdn/shop/products/cabo-cruiser-elite-48-volt-blue-left-angle_dd38c0ce-e46e-4bec-b8bd-d8d886dad728.jpg?v=1734048417&width=1214" alt="E-Bikes & Scooters">
-                    <div class="card-body text-center">
-                        <h5>E-Bikes & Scooters</h5>
-                        <a href="/category/ebikes" class="btn btn-outline-primary">View</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="card category-card">
-                    <img src="http://static1.squarespace.com/static/5a50cdd3b078698212f6e6af/t/67bf1ac5c2364a1a46aa6623/1740577484165/best-tool-deals-731-woodworks-power-tool-discounts.png?format=1500w" alt="Tools Deals">
-                    <div class="card-body text-center">
-                        <h5>Tools (40+ items)</h5>
-                        <a href="/category/tools" class="btn btn-outline-primary">View</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="card category-card">
-                    <img src="https://www.viatrading.com/sku/LOAD-BWMK/wholesale-assorted-manifested-kitchen-appliance-lots-1689270938.jpeg" alt="Mixed Deals">
-                    <div class="card-body text-center">
-                        <h5>Home & Kitchen Goods</h5>
-                        <a href="/category/home" class="btn btn-outline-primary">View</a>
-                    </div>
-                </div>
-            </div>
+    <section id="deals" class="reveal">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Featured inventory</div>
+            <h2>High-impact cards that feel worth clicking.</h2>
+          </div>
+          <p>
+            Instead of generic category blocks, this layout sells the thrill: big imagery, faster scanning, clearer savings,
+            stronger pricing, and more premium presentation for the same deal-driven business model.
+          </p>
         </div>
-    </section>
 
-    <!-- How Pickup Works -->
-    <section class="container my-5">
-        <h2 class="text-center mb-4">How Pickup Works</h2>
-        <div class="row text-center">
-            <div class="col-md-4"><h4>Step 1</h4><p>Browse & reserve by messaging items</p></div>
-            <div class="col-md-4"><h4>Step 2</h4><p>Choose a pickup window with confirmation</p></div>
-            <div class="col-md-4"><h4>Step 3</h4><p>Address sent once on the way or with small hold deposit</p></div>
+        <div class="tabs" id="categoryTabs">
+          <button class="tab-btn active" data-tab="all">All Drops</button>
+          <button class="tab-btn" data-tab="furniture">Furniture</button>
+          <button class="tab-btn" data-tab="appliances">Appliances</button>
+          <button class="tab-btn" data-tab="home">Home Improvement</button>
         </div>
-        <p class="text-center mt-3"><strong>No walk-ins! Appointment only.</strong></p>
-    </section>
 
-    <!-- Policies -->
-    <section class="container my-5 bg-light p-4 rounded">
-        <h2 class="text-center mb-4">Policies</h2>
-        <ul class="list-unstyled text-center">
-            <li><strong>Payment:</strong> Cash or Cash App at pickup</li>
-            <li><strong>Holds:</strong> Small Cash App deposit (applies to total); first confirmed wins otherwise</li>
-            <li><strong>E-bikes/Scooters:</strong> Test at pickup</li>
-        </ul>
-    </section>
+        <div class="deals-grid" id="dealGrid">
+          <article class="deal-card tilt-card" data-group="furniture">
+            <div class="deal-media" style="background-image:
+              linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.10)),
+              url('https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80');"></div>
+            <div class="deal-overlay"></div>
+            <div class="deal-content">
+              <div class="deal-topline">
+                <span class="deal-badge">Furniture Drop</span>
+                <span class="deal-save">Save 50%</span>
+              </div>
+              <h3 class="deal-title">Modern sectional and living room sets</h3>
+              <div class="deal-specs">
+                <span>New + open box</span>
+                <span>Fast pickup</span>
+                <span>Limited quantities</span>
+              </div>
+              <div class="deal-foot">
+                <div class="price">
+                  <strong>$349+</strong>
+                  <small>$699+ retail</small>
+                </div>
+                <a class="btn btn-primary magnetic" href="#visit">Reserve</a>
+              </div>
+            </div>
+          </article>
 
-    <!-- Latest News -->
-    <section class="container my-5">
-        <h2 class="text-center mb-4">Latest News</h2>
-        <div class="alert alert-info text-center">
-            <p>Big Restock Coming! Electronics, furniture, home goods, and more.</p>
+          <article class="deal-card tilt-card" data-group="appliances">
+            <div class="deal-media" style="background-image:
+              linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.10)),
+              url('https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&w=1400&q=80');"></div>
+            <div class="deal-overlay"></div>
+            <div class="deal-content">
+              <div class="deal-topline">
+                <span class="deal-badge">Appliance Steal</span>
+                <span class="deal-save">Save 44%</span>
+              </div>
+              <h3 class="deal-title">Open-box kitchen and laundry upgrades</h3>
+              <div class="deal-specs">
+                <span>Scratch & dent</span>
+                <span>Premium brands</span>
+                <span>Priced to move</span>
+              </div>
+              <div class="deal-foot">
+                <div class="price">
+                  <strong>$499+</strong>
+                  <small>$899+ retail</small>
+                </div>
+                <a class="btn btn-primary magnetic" href="#visit">View Deal</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="deal-card tilt-card" data-group="home">
+            <div class="deal-media" style="background-image:
+              linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.10)),
+              url('https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1400&q=80');"></div>
+            <div class="deal-overlay"></div>
+            <div class="deal-content">
+              <div class="deal-topline">
+                <span class="deal-badge">Home Upgrade</span>
+                <span class="deal-save">Save 43%</span>
+              </div>
+              <h3 class="deal-title">Doors, fixtures, vanities, and renovation pieces</h3>
+              <div class="deal-specs">
+                <span>Project-ready</span>
+                <span>Closeout pricing</span>
+                <span>Pickup in Buffalo</span>
+              </div>
+              <div class="deal-foot">
+                <div class="price">
+                  <strong>$189+</strong>
+                  <small>$329+ retail</small>
+                </div>
+                <a class="btn btn-primary magnetic" href="#visit">Shop Drop</a>
+              </div>
+            </div>
+          </article>
         </div>
+      </div>
     </section>
 
-    <!-- Booking -->
-    <section class="container my-5">
-        <h2 class="text-center mb-4">Book Your Pickup</h2>
-        <form class="row g-3 justify-content-center">
-            <div class="col-md-6"><input type="text" class="form-control" placeholder="Name"></div>
-            <div class="col-md-6"><input type="email" class="form-control" placeholder="Email"></div>
-            <div class="col-12"><input type="date" class="form-control"></div>
-            <div class="col-12 text-center"><button type="submit" class="btn btn-primary">Reserve Slot</button></div>
-        </form>
-    </section>
-
-    <footer class="bg-dark text-white py-4 mt-5">
-        <div class="container text-center">
-            <p>Store Hours: Mon–Sat 9am–6pm | Sun 10am–4pm</p>
-            <p>&copy; 2026 Buffalo Deal Depot – Buffalo, NY. Appointment Pickup Only.</p>
+    <section id="categories" class="reveal">
+      <div class="container proof-grid">
+        <div class="proof-panel">
+          <div class="section-kicker">Category energy</div>
+          <h2 style="margin:0; font-size:clamp(2rem,5vw,3.5rem); letter-spacing:-.06em;">A richer way to showcase what you actually sell.</h2>
+          <div class="proof-cards">
+            <article class="proof-card tilt-card">
+              <img src="https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80" alt="Stylish furniture showroom" />
+              <div><strong>Furniture</strong><span>Show your living room and bedroom wins with more premium presentation.</span></div>
+            </article>
+            <article class="proof-card tilt-card">
+              <img src="https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1200&q=80" alt="Modern kitchen appliances" />
+              <div><strong>Appliances</strong><span>Use cleaner modern kitchen imagery instead of harsh product cutouts.</span></div>
+            </article>
+            <article class="proof-card tilt-card">
+              <img src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80" alt="Home improvement tools and materials" />
+              <div><strong>Home Improvement</strong><span>Make project items feel high-value, not random leftovers.</span></div>
+            </article>
+          </div>
         </div>
-    </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+        <aside class="policies" id="why">
+          <div class="section-kicker">Why it works</div>
+          <h2 style="margin:0; font-size:clamp(1.9rem,4vw,3rem); letter-spacing:-.06em;">Built to look expensive and move inventory.</h2>
+          <div class="policy-list">
+            <div class="policy-item">
+              <div class="policy-icon">01</div>
+              <div><strong>Premium feel</strong><br><span class="muted">Sharper contrast, cinematic cards, cleaner spacing, and less template energy.</span></div>
+            </div>
+            <div class="policy-item">
+              <div class="policy-icon">02</div>
+              <div><strong>More interactive</strong><br><span class="muted">Hover depth, animated counters, filtering tabs, reveal motion, and magnetic calls to action.</span></div>
+            </div>
+            <div class="policy-item">
+              <div class="policy-icon">03</div>
+              <div><strong>Better conversion flow</strong><br><span class="muted">The deal, savings, pickup, and action buttons are all placed where the eye naturally lands.</span></div>
+            </div>
+            <div class="policy-item">
+              <div class="policy-icon">04</div>
+              <div><strong>Still speed-friendly</strong><br><span class="muted">No bulky frameworks required — just one self-contained HTML file with lightweight JS.</span></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="reveal">
+      <div class="container story-panel">
+        <div class="story-grid">
+          <div class="story-image tilt-card"></div>
+          <div class="story-copy">
+            <div class="section-kicker">Brand direction</div>
+            <h2>Your site should feel like an event.</h2>
+            <p>
+              Crazy Moe's is not a sleepy catalog brand. It is about urgency, discovery, big savings, and a warehouse vibe.
+              This redesign leans into that energy while making it look intentional, high-end, and memorable.
+            </p>
+            <p>
+              The next production version should plug in your real inventory, your actual logo, location details, reservation flow,
+              and compressed local images for even better speed and stronger SEO.
+            </p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:22px;">
+              <a class="btn btn-primary magnetic" href="#visit">Use This Direction</a>
+              <a class="btn magnetic" href="#deals">Review Cards</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="contact-rail" id="visit">
+    <a class="rail-btn" href="#top">↑ Back to top</a>
+    <a class="rail-btn primary" href="#deals">⚡ Shop the drop</a>
+  </div>
+
+  <footer>
+    <div class="container">Shock-and-awe HTML concept for Crazy Moe's. Replace placeholder buttons/links with your live shop, contact flow, and real product feed.</div>
+  </footer>
+
+  <script>
+    const glow = document.querySelector('.cursor-glow');
+    window.addEventListener('pointermove', (e) => {
+      if (glow) {
+        glow.style.left = e.clientX + 'px';
+        glow.style.top = e.clientY + 'px';
+      }
+    });
+
+    document.querySelectorAll('.magnetic').forEach((btn) => {
+      btn.addEventListener('mousemove', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        btn.style.transform = `translate(${x * 0.08}px, ${y * 0.08}px)`;
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.transform = '';
+      });
+    });
+
+    document.querySelectorAll('.tilt-card').forEach((card) => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const rotateY = ((x / rect.width) - 0.5) * 8;
+        const rotateX = ((y / rect.height) - 0.5) * -8;
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.14 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    const counters = document.querySelectorAll('[data-count]');
+    const countObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        const target = Number(el.dataset.count);
+        const suffix = el.textContent.includes('%') ? '%' : (target === 24 ? '+' : '%');
+        let current = 0;
+        const step = Math.max(1, Math.ceil(target / 48));
+        const timer = setInterval(() => {
+          current += step;
+          if (current >= target) {
+            current = target;
+            clearInterval(timer);
+          }
+          el.textContent = current + suffix;
+        }, 26);
+        countObserver.unobserve(el);
+      });
+    }, { threshold: 0.6 });
+    counters.forEach(c => countObserver.observe(c));
+
+    const tabs = document.querySelectorAll('.tab-btn');
+    const deals = document.querySelectorAll('.deal-card');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const group = tab.dataset.tab;
+        deals.forEach(card => {
+          const show = group === 'all' || card.dataset.group === group;
+          card.style.display = show ? '' : 'none';
+        });
+      });
+    });
+  </script>
 </body>
 </html>
