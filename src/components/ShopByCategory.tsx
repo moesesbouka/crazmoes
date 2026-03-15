@@ -1,122 +1,60 @@
-import { ArrowRight, Armchair, Laptop, Wrench, Shirt, Sparkles, Package, UtensilsCrossed, Car, Heart, Baby, Briefcase, PawPrint } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const categories = [
-  { 
-    name: "Electronics", 
-    dbCategory: "Electronics",
-    icon: Laptop, 
-    color: "bg-fun-yellow/10 text-fun-orange",
-    bgGradient: "from-fun-yellow/20 to-fun-yellow/5",
-  },
-  { 
-    name: "Kitchen & Appliances", 
-    dbCategory: "Kitchen & Appliances",
-    icon: UtensilsCrossed, 
-    color: "bg-fun-green/10 text-fun-green",
-    bgGradient: "from-fun-green/20 to-fun-green/5",
-  },
-  { 
-    name: "Furniture", 
+  {
+    name: "Furniture",
     dbCategory: "Furniture",
-    icon: Armchair, 
-    color: "bg-fun-blue/10 text-fun-blue",
-    bgGradient: "from-fun-blue/20 to-fun-blue/5",
+    description: "Open-box and overstock living room, bedroom, and patio finds.",
   },
-  { 
-    name: "Tools & Hardware", 
-    dbCategory: "Tools & Hardware",
-    icon: Wrench, 
-    color: "bg-fun-red/10 text-fun-red",
-    bgGradient: "from-fun-red/20 to-fun-red/5",
-  },
-  { 
-    name: "Home & Garden", 
+  {
+    name: "Home Improvement",
     dbCategory: "Home & Garden",
-    icon: Sparkles, 
-    color: "bg-secondary/10 text-secondary",
-    bgGradient: "from-secondary/20 to-secondary/5",
+    description: "Doors, fixtures, hardware, and renovation bargains.",
   },
-  { 
-    name: "Sports & Fitness", 
-    dbCategory: "Sports & Fitness",
-    icon: Shirt, 
-    color: "bg-fun-orange/10 text-fun-orange",
-    bgGradient: "from-fun-orange/20 to-fun-orange/5",
+  {
+    name: "Electronics",
+    dbCategory: "Electronics",
+    description: "Closeout tech deals, gadgets, and accessories.",
   },
-  { 
-    name: "Clothing", 
-    dbCategory: "Clothing & Accessories",
-    icon: Heart, 
-    color: "bg-fun-red/10 text-fun-red",
-    bgGradient: "from-fun-red/20 to-fun-red/5",
-  },
-  { 
-    name: "Auto & Vehicles", 
-    dbCategory: "Auto & Vehicles",
-    icon: Car, 
-    color: "bg-fun-blue/10 text-fun-blue",
-    bgGradient: "from-fun-blue/20 to-fun-blue/5",
-  },
-  { 
-    name: "Baby & Kids", 
-    dbCategory: "Baby & Kids",
-    icon: Baby, 
-    color: "bg-fun-yellow/10 text-fun-orange",
-    bgGradient: "from-fun-yellow/20 to-fun-yellow/5",
-  },
-  { 
-    name: "Pet Supplies", 
-    dbCategory: "Pet Supplies",
-    icon: PawPrint, 
-    color: "bg-fun-green/10 text-fun-green",
-    bgGradient: "from-fun-green/20 to-fun-green/5",
-  },
-  { 
-    name: "All Items", 
-    dbCategory: "",
-    icon: Package, 
-    color: "bg-primary/10 text-primary",
-    bgGradient: "from-primary/20 to-primary/5",
+  {
+    name: "Kitchen & Appliances",
+    dbCategory: "Kitchen & Appliances",
+    description: "Scratch-and-dent and closeout deals worth the trip.",
   },
 ];
 
 export function ShopByCategory() {
   return (
-    <section className="py-16 bg-gradient-to-b from-muted/30 to-transparent relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute -left-20 top-20 w-40 h-40 bg-fun-yellow/10 rounded-full blur-3xl animate-blob" />
-      <div className="absolute -right-20 bottom-20 w-40 h-40 bg-fun-blue/10 rounded-full blur-3xl animate-blob" style={{ animationDelay: "-3s" }} />
-      
-      <div className="container relative">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-fun-blue/10 text-fun-blue px-4 py-1.5 rounded-full text-sm font-bold mb-3 animate-bounce-in">
-            🛍️ Browse by Category
-          </div>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground animate-fade-in-up opacity-0" style={{ animationDelay: "0.1s" }}>
-            Shop by <span className="text-gradient-animated">Category</span>
+    <section
+      id="categories"
+      className="py-20 border-t border-b border-border bg-foreground/[0.03]"
+    >
+      <div className="container">
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-[0.22em] text-orange-200 mb-2.5">
+            Shop by category
+          </p>
+          <h2 className="text-[clamp(2rem,4vw,3.5rem)] font-black tracking-tight">
+            Guide shoppers instead of making them hunt.
           </h2>
-          <p className="mt-2 text-muted-foreground animate-fade-in-up opacity-0" style={{ animationDelay: "0.2s" }}>Find exactly what you're looking for</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {categories.map((category, index) => (
-            <Link 
-              key={category.name} 
-              to={category.dbCategory ? `/shop?cat=${encodeURIComponent(category.dbCategory)}` : "/shop"}
-              className="group animate-pop-in opacity-0"
-              style={{ animationDelay: `${index * 80}ms` }}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {categories.map((cat) => (
+            <Link
+              key={cat.name}
+              to={`/shop?cat=${encodeURIComponent(cat.dbCategory)}`}
+              className="group"
             >
-              <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${category.bgGradient} p-6 h-full border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-card hover:-translate-y-2 tilt-3d`}>
-                <div className={`inline-flex p-3 rounded-xl ${category.color} mb-4 group-hover:animate-wiggle`}>
-                  <category.icon className="h-6 w-6" />
-                </div>
-                <h3 className="font-display font-bold text-foreground group-hover:text-primary transition-colors">
-                  {category.name}
+              <article className="rounded-2xl border border-border bg-card p-5 h-full transition-all duration-200 hover:-translate-y-1 hover:border-foreground/20">
+                <div className="aspect-[4/3] rounded-[20px] bg-gradient-to-br from-secondary to-muted mb-4" />
+                <h3 className="text-lg font-bold tracking-tight group-hover:text-primary transition-colors">
+                  {cat.name}
                 </h3>
-                
-                <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-2 transition-all duration-300" />
-              </div>
+                <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+                  {cat.description}
+                </p>
+              </article>
             </Link>
           ))}
         </div>

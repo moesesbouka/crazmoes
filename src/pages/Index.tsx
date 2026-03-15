@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
-import { PickupInfoSection } from "@/components/PickupInfoSection";
 import { FeaturedProducts } from "@/components/FeaturedProducts";
 import { ShopByCategory } from "@/components/ShopByCategory";
-import { NewsAndUpdates } from "@/components/NewsAndUpdates";
-import { NewsletterModal } from "@/components/NewsletterModal";
+import { HowItWorks } from "@/components/HowItWorks";
 import { Footer } from "@/components/Footer";
-import { FloatingParticles } from "@/components/FloatingParticles";
+import { NewsletterModal } from "@/components/NewsletterModal";
 import { fetchActiveListings, MarketplaceListing } from "@/lib/supabase-listings";
 
 const Index = () => {
@@ -16,7 +14,7 @@ const Index = () => {
   const [newsletterOpen, setNewsletterOpen] = useState(false);
 
   useEffect(() => {
-    document.title = "Crazy Moe's - Buffalo Pickup Deals on Quality Consumer Goods";
+    document.title = "Crazy Moe's — Big Brand Deals Without Big Box Prices | Buffalo Pickup";
   }, []);
 
   useEffect(() => {
@@ -24,7 +22,6 @@ const Index = () => {
       setIsLoading(true);
       try {
         const data = await fetchActiveListings(20);
-        console.log("listings:", data?.length, data?.[0]);
         setListings(data);
       } catch (error) {
         console.error("Failed to fetch featured products:", error);
@@ -35,15 +32,15 @@ const Index = () => {
     loadProducts();
   }, []);
 
+  const featuredListing = listings.length > 0 ? listings[0] : null;
+
   return (
-    <div className="min-h-screen bg-background relative">
-      <FloatingParticles count={12} />
+    <div className="min-h-screen bg-background">
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
-      <HeroSection />
-      <PickupInfoSection />
+      <HeroSection featuredListing={featuredListing} />
       <FeaturedProducts listings={listings} isLoading={isLoading} />
       <ShopByCategory />
-      <NewsAndUpdates />
+      <HowItWorks />
       <Footer />
       <NewsletterModal open={newsletterOpen} onOpenChange={setNewsletterOpen} />
     </div>

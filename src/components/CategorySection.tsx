@@ -48,7 +48,6 @@ export function CategorySection({ category, listings, startIndex }: CategorySect
           <ProductCard 
             key={listing.facebook_id} 
             listing={listing} 
-            index={startIndex + index} 
           />
         ))}
       </div>

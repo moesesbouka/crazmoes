@@ -1,11 +1,11 @@
-import { Bell, Menu, X, Sparkles } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import logo from "@/assets/logo.png";
 
 interface HeaderProps {
-  onNewsletterClick: () => void;
+  onNewsletterClick?: () => void;
 }
 
 export function Header({ onNewsletterClick }: HeaderProps) {
@@ -13,49 +13,43 @@ export function Header({ onNewsletterClick }: HeaderProps) {
   const location = useLocation();
 
   const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/shop", label: "Shop" },
-    { href: "/schedule-pickup", label: "Schedule Pickup" },
-    { href: "/about", label: "About" },
+    { href: "/shop", label: "Inventory" },
+    { href: "/shop#categories", label: "Categories" },
+    { href: "/#how-it-works", label: "How It Works" },
+    { href: "/#visit", label: "Visit" },
   ];
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => location.pathname === href.split("#")[0];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-xl">
-      <div className="container flex h-20 items-center justify-between">
-        <div className="flex items-center gap-6">
-          {/* Logo with crazy animation */}
-          <Link to="/" className="flex items-center gap-3 group relative">
-            <div className="relative">
-              <img 
-                src={logo} 
-                alt="Crazy Moe's - Closeouts & Open Box Deals" 
-                className="h-16 w-auto transition-all duration-300 group-hover:scale-110 hover-wobble"
-              />
-              {/* Animated sparkle */}
-              <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-fun-yellow animate-zoom-wiggle" />
-            </div>
-            <div className="hidden lg:flex flex-col">
-              <span className="font-display font-black text-xl text-gradient-animated leading-none">
+    <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/84 border-b border-border">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-8">
+          <Link to="/" className="flex items-center gap-3">
+            <img
+              src={logo}
+              alt="Crazy Moe's"
+              className="h-10 w-auto"
+            />
+            <div className="hidden sm:flex flex-col">
+              <span className="font-black text-lg tracking-tight leading-none">
                 Crazy Moe's
               </span>
-              <span className="text-xs text-muted-foreground font-medium">
-                Truckload Liquidation
+              <span className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground mt-0.5">
+                Buffalo Pickup Deals
               </span>
             </div>
           </Link>
 
-          {/* Desktop Nav with wavy underlines */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-7">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 wavy-underline ${
+                className={`text-[0.95rem] transition-colors ${
                   isActive(link.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {link.label}
@@ -63,62 +57,62 @@ export function Header({ onNewsletterClick }: HeaderProps) {
             ))}
           </nav>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <Button 
-            onClick={onNewsletterClick}
-            className="gap-2 fun-gradient hover:opacity-90 transition-all duration-300 font-bold rounded-xl hidden sm:flex animate-glow-pulse hover:scale-105 hover-shake"
-          >
-            <Bell className="h-4 w-4 animate-swing" />
-            <span>Get Updates</span>
-          </Button>
 
-          {/* Mobile Menu Button */}
+        <div className="flex items-center gap-3">
+          <Link to="/#visit">
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden sm:inline-flex rounded-full border-border text-foreground hover:bg-secondary"
+            >
+              Call Store
+            </Button>
+          </Link>
+          <Link to="/shop">
+            <Button
+              size="sm"
+              className="hidden sm:inline-flex rounded-full bg-foreground text-background hover:bg-foreground/90 font-semibold"
+            >
+              Shop Deals
+            </Button>
+          </Link>
+
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden hover-shake"
+            className="md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? (
-              <X className="h-5 w-5 animate-spin-in" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
       </div>
 
-      {/* Mobile Menu with pop-in animations */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl animate-fade-in-up">
-          <nav className="container py-4 space-y-2">
-            {navLinks.map((link, i) => (
+        <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-xl">
+          <nav className="container py-4 space-y-1">
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block px-4 py-3 rounded-xl text-sm font-semibold transition-all animate-pop-in opacity-0 ${
-                  isActive(link.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-                style={{ animationDelay: `${i * 0.1}s` }}
+                className="block px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 {link.label}
               </Link>
             ))}
-            <Button 
-              onClick={() => {
-                onNewsletterClick();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full gap-2 fun-gradient hover:opacity-90 transition-opacity font-bold rounded-xl mt-4 animate-pop-in opacity-0"
-              style={{ animationDelay: "0.4s" }}
-            >
-              <Bell className="h-4 w-4" />
-              <span>Get Updates</span>
-            </Button>
+            <div className="flex gap-2 pt-3 px-4">
+              <Link to="/#visit" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="outline" className="w-full rounded-full border-border">
+                  Call Store
+                </Button>
+              </Link>
+              <Link to="/shop" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                <Button className="w-full rounded-full bg-foreground text-background font-semibold">
+                  Shop Deals
+                </Button>
+              </Link>
+            </div>
           </nav>
         </div>
       )}

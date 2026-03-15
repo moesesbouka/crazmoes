@@ -41,7 +41,7 @@ export function ProductGrid({ listings, isLoading }: ProductGridProps) {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {listings.map((listing, index) => (
-        <ProductCard key={listing.facebook_id} listing={listing} index={index} />
+        <ProductCard key={listing.facebook_id} listing={listing} />
       ))}
     </div>
   );
