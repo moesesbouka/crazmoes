@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, AlertCircle, DollarSign, Calendar } from "lucide-react";
+import { ArrowLeft, AlertCircle, DollarSign, Calendar, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
+import { motion, AnimatePresence } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { NewsletterModal } from "@/components/NewsletterModal";
 import { ProductImage } from "@/components/ProductImage";
