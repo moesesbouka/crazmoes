@@ -1,35 +1,34 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Armchair, Wrench, Tv, ChefHat } from "lucide-react";
+import categoryFurniture from "@/assets/category-furniture.jpg";
+import categoryHomeImprovement from "@/assets/category-home-improvement.jpg";
+import categoryElectronics from "@/assets/category-electronics.jpg";
+import categoryKitchen from "@/assets/category-kitchen.jpg";
 
 const categories = [
   {
     name: "Furniture",
     dbCategory: "Furniture",
-    description: "Open-box and overstock living room, bedroom, and patio finds.",
-    icon: Armchair,
-    gradient: "from-amber-500/20 to-orange-600/10",
+    description: "Open-box living room, bedroom & patio finds.",
+    image: categoryFurniture,
   },
   {
     name: "Home Improvement",
     dbCategory: "Home & Garden",
-    description: "Doors, fixtures, hardware, and renovation bargains.",
-    icon: Wrench,
-    gradient: "from-emerald-500/20 to-teal-600/10",
+    description: "Doors, fixtures, hardware & renovation deals.",
+    image: categoryHomeImprovement,
   },
   {
     name: "Electronics",
     dbCategory: "Electronics",
-    description: "Closeout tech deals, gadgets, and accessories.",
-    icon: Tv,
-    gradient: "from-blue-500/20 to-indigo-600/10",
+    description: "Closeout tech, gadgets & accessories.",
+    image: categoryElectronics,
   },
   {
     name: "Kitchen & Appliances",
     dbCategory: "Kitchen & Appliances",
-    description: "Scratch-and-dent and closeout deals worth the trip.",
-    icon: ChefHat,
-    gradient: "from-rose-500/20 to-pink-600/10",
+    description: "Scratch-and-dent deals worth the trip.",
+    image: categoryKitchen,
   },
 ];
 
@@ -67,20 +66,30 @@ export function ShopByCategory() {
               transition={{ duration: 0.5, delay: i * 0.1 }}
             >
               <Link to={`/shop?cat=${encodeURIComponent(cat.dbCategory)}`} className="group block h-full">
-                <article className="rounded-2xl border border-border bg-card p-6 h-full transition-all duration-500 hover:border-primary/30 glow-border relative overflow-hidden">
-                  {/* Background gradient on hover */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-
-                  <div className="relative z-10">
-                    <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mb-5 group-hover:bg-primary/10 transition-colors duration-300">
-                      <cat.icon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                <article className="rounded-2xl border border-border bg-card overflow-hidden h-full transition-all duration-500 hover:border-primary/30 glow-border">
+                  {/* Category image */}
+                  <div className="aspect-[4/3] overflow-hidden relative">
+                    <img
+                      src={cat.image}
+                      alt={cat.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-lg font-bold tracking-tight text-foreground drop-shadow-lg">
+                        {cat.name}
+                      </h3>
                     </div>
-                    <h3 className="text-lg font-bold tracking-tight group-hover:text-foreground transition-colors">
-                      {cat.name}
-                    </h3>
-                    <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+                  </div>
+
+                  <div className="p-5 pt-3">
+                    <p className="text-muted-foreground text-sm leading-relaxed">
                       {cat.description}
                     </p>
+                    <span className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-primary group-hover:gap-2 transition-all duration-300">
+                      Browse deals →
+                    </span>
                   </div>
                 </article>
               </Link>
