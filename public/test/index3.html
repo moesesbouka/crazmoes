@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buffalo Deal Depot - Buffalo Deals</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
+        .hero { 
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
+                        url('https://blog.lugg.com/content/images/size/w2000/2026/02/discount-furniture-outlet-store.jpeg') 
+                        no-repeat center center; 
+            background-size: cover; 
+            color: white; 
+            padding: 120px 0; 
+            text-align: center; 
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.7); 
+        }
+        .category-card { 
+            transition: transform 0.3s ease, box-shadow 0.3s ease; 
+            border: none; 
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1); 
+            overflow: hidden; 
+        }
+        .category-card:hover { 
+            transform: translateY(-8px); 
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15); 
+        }
+        .badge-urgency { background-color: #e63946; font-size: 1.1em; padding: 0.6em 1.2em; }
+        img { loading: lazy; width: 100%; height: 220px; object-fit: cover; }
+        .urgency-badges { background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 50px; display: inline-block; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <header class="bg-dark text-white py-3 sticky-top">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap">
+            <h1 class="h4 m-0">Buffalo Deal Depot - Buffalo Deals</h1>
+            <nav class="mx-3">
+                <a href="/shop" class="text-white mx-2">Shop All</a>
+                <a href="/about" class="text-white mx-2">About</a>
+                <a href="/contact" class="text-white mx-2">Contact</a>
+            </nav>
+            <form class="d-flex">
+                <input class="form-control me-2" type="search" placeholder="Search Deals..." aria-label="Search">
+                <button class="btn btn-outline-light" type="submit">Go</button>
+            </form>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h2 class="display-4 fw-bold">Up to 75% Off Retail on Liquidation & Open-Box Goods</h2>
+            <p class="lead">Fresh truckloads added daily – Furniture, Electronics, Appliances, E-Bikes, Tools & More</p>
+            <p class="fs-5">Appointment pickup only near 14212, Buffalo, NY</p>
+            <div class="urgency-badges">
+                <span class="badge badge-urgency me-2">HOT DEALS</span>
+                <span class="badge badge-urgency me-2">NEW ARRIVALS DAILY</span>
+                <span class="badge badge-urgency">LIMITED STOCK</span>
+            </div>
+            <br><br>
+            <a href="/shop" class="btn btn-lg btn-primary px-5 py-3">Browse Deals Now</a>
+        </div>
+    </section>
+
+    <section class="container my-5">
+        <h2 class="text-center mb-5">Shop by Category</h2>
+        <div class="row g-4">
+            <div class="col-md-4 col-lg-3">
+                <div class="card category-card">
+                    <img src="https://blog.lugg.com/content/images/size/w2000/2026/02/discount-furniture-outlet-store.jpeg" alt="Furniture Deals">
+                    <div class="card-body text-center">
+                        <h5>Furniture (50+ items)</h5>
+                        <a href="/category/furniture" class="btn btn-outline-primary">View</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="card category-card">
+                    <img src="https://www.cnet.com/a/img/resize/804cc96eb35d093efbd15264c27be18548ab1878/hub/2022/09/29/13539f85-2a79-449e-bf9a-489efdb6fbd9/best-buy-outlet-screenshot.jpg?auto=webp&width=1200" alt="Electronics Deals">
+                    <div class="card-body text-center">
+                        <h5>Electronics (80+ items)</h5>
+                        <a href="/category/electronics" class="btn btn-outline-primary">View</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="card category-card">
+                    <img src="https://cdn.avbportal.com/assets/vendor-assets/appliances/ge/kitchen/241003_12_14_2022_3_12_58_PM.jpg?w=800" alt="Appliances Deals">
+                    <div class="card-body text-center">
+                        <h5>Appliances (Kitchen & Home)</h5>
+                        <a href="/category/appliances" class="btn btn-outline-primary">View</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="card category-card">
+                    <img src="https://e-wheelswarehouse.com/cdn/shop/products/cabo-cruiser-elite-48-volt-blue-left-angle_dd38c0ce-e46e-4bec-b8bd-d8d886dad728.jpg?v=1734048417&width=1214" alt="E-Bikes & Scooters">
+                    <div class="card-body text-center">
+                        <h5>E-Bikes & Scooters</h5>
+                        <a href="/category/ebikes" class="btn btn-outline-primary">View</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="card category-card">
+                    <img src="http://static1.squarespace.com/static/5a50cdd3b078698212f6e6af/t/67bf1ac5c2364a1a46aa6623/1740577484165/best-tool-deals-731-woodworks-power-tool-discounts.png?format=1500w" alt="Tools Deals">
+                    <div class="card-body text-center">
+                        <h5>Tools (40+ items)</h5>
+                        <a href="/category/tools" class="btn btn-outline-primary">View</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="card category-card">
+                    <img src="https://www.viatrading.com/sku/LOAD-BWMK/wholesale-assorted-manifested-kitchen-appliance-lots-1689270938.jpeg" alt="Mixed Deals">
+                    <div class="card-body text-center">
+                        <h5>Home & Kitchen Goods</h5>
+                        <a href="/category/home" class="btn btn-outline-primary">View</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How Pickup Works -->
+    <section class="container my-5">
+        <h2 class="text-center mb-4">How Pickup Works</h2>
+        <div class="row text-center">
+            <div class="col-md-4"><h4>Step 1</h4><p>Browse & reserve by messaging items</p></div>
+            <div class="col-md-4"><h4>Step 2</h4><p>Choose a pickup window with confirmation</p></div>
+            <div class="col-md-4"><h4>Step 3</h4><p>Address sent once on the way or with small hold deposit</p></div>
+        </div>
+        <p class="text-center mt-3"><strong>No walk-ins! Appointment only.</strong></p>
+    </section>
+
+    <!-- Policies -->
+    <section class="container my-5 bg-light p-4 rounded">
+        <h2 class="text-center mb-4">Policies</h2>
+        <ul class="list-unstyled text-center">
+            <li><strong>Payment:</strong> Cash or Cash App at pickup</li>
+            <li><strong>Holds:</strong> Small Cash App deposit (applies to total); first confirmed wins otherwise</li>
+            <li><strong>E-bikes/Scooters:</strong> Test at pickup</li>
+        </ul>
+    </section>
+
+    <!-- Latest News -->
+    <section class="container my-5">
+        <h2 class="text-center mb-4">Latest News</h2>
+        <div class="alert alert-info text-center">
+            <p>Big Restock Coming! Electronics, furniture, home goods, and more.</p>
+        </div>
+    </section>
+
+    <!-- Booking -->
+    <section class="container my-5">
+        <h2 class="text-center mb-4">Book Your Pickup</h2>
+        <form class="row g-3 justify-content-center">
+            <div class="col-md-6"><input type="text" class="form-control" placeholder="Name"></div>
+            <div class="col-md-6"><input type="email" class="form-control" placeholder="Email"></div>
+            <div class="col-12"><input type="date" class="form-control"></div>
+            <div class="col-12 text-center"><button type="submit" class="btn btn-primary">Reserve Slot</button></div>
+        </form>
+    </section>
+
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container text-center">
+            <p>Store Hours: Mon–Sat 9am–6pm | Sun 10am–4pm</p>
+            <p>&copy; 2026 Buffalo Deal Depot – Buffalo, NY. Appointment Pickup Only.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
