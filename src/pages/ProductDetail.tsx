@@ -103,7 +103,7 @@ const ProductDetail = () => {
   const displayImage = images[selectedImageIndex] || "/placeholder.svg";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <Header />
       <main className="container py-8">
         <Link to="/shop" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
@@ -177,6 +177,42 @@ const ProductDetail = () => {
       </main>
       <Footer />
       <NewsletterModal open={newsletterOpen} onOpenChange={setNewsletterOpen} />
+
+      {/* Sticky reserve/contact bar */}
+      <motion.div
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        transition={{ delay: 0.5, duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
+        className="fixed bottom-0 left-0 right-0 z-50 glass-card border-t border-border"
+      >
+        <div className="container flex items-center justify-between gap-4 py-3.5">
+          <div className="hidden sm:block min-w-0">
+            <p className="text-sm font-bold truncate">{listing.title}</p>
+            <p className="text-lg font-black text-primary leading-none mt-0.5">{formatPrice(listing.price)}</p>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <a href="tel:+17168001234" className="shrink-0">
+              <Button
+                variant="outline"
+                className="rounded-full border-border gap-2 font-semibold hover:bg-secondary"
+                size="lg"
+              >
+                <Phone className="h-4 w-4" />
+                <span className="hidden sm:inline">Call Store</span>
+              </Button>
+            </a>
+            <Button
+              onClick={handleCashAppBuy}
+              className="flex-1 sm:flex-none rounded-full bg-primary text-primary-foreground font-bold gap-2 shadow-[0_0_30px_-5px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_45px_-5px_hsl(var(--primary)/0.7)] transition-all duration-300"
+              size="lg"
+            >
+              <DollarSign className="h-4 w-4" />
+              Reserve Now
+            </Button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
