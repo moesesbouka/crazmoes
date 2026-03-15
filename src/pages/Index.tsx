@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
+import { MarqueeBanner } from "@/components/MarqueeBanner";
 import { HeroSection } from "@/components/HeroSection";
 import { FeaturedProducts } from "@/components/FeaturedProducts";
 import { ShopByCategory } from "@/components/ShopByCategory";
@@ -36,6 +37,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <MarqueeBanner />
       <Header onNewsletterClick={() => setNewsletterOpen(true)} />
       <HeroSection featuredListing={featuredListing} />
       <FeaturedProducts listings={listings} isLoading={isLoading} />
