@@ -2,7 +2,6 @@ import { MarketplaceListing } from "@/lib/supabase-listings";
 import { ProductCard } from "./ProductCard";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "./ui/button";
 
 interface FeaturedProductsProps {
   listings: MarketplaceListing[];
@@ -12,17 +11,15 @@ interface FeaturedProductsProps {
 export function FeaturedProducts({ listings, isLoading }: FeaturedProductsProps) {
   if (isLoading) {
     return (
-      <section className="py-16">
+      <section id="inventory" className="py-20">
         <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-gradient-fun">
-              Featured Finds
-            </h2>
-            <p className="mt-2 text-muted-foreground">Hot items you don't want to miss!</p>
+          <div className="mb-7">
+            <p className="text-xs uppercase tracking-[0.22em] text-orange-200 mb-2.5">Latest inventory</p>
+            <h2 className="text-[clamp(2rem,4vw,3.5rem)] font-black tracking-tight">Product cards built to convert.</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-card rounded-2xl h-72 animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border bg-card h-96 animate-pulse" />
             ))}
           </div>
         </div>
@@ -30,36 +27,37 @@ export function FeaturedProducts({ listings, isLoading }: FeaturedProductsProps)
     );
   }
 
-  const featured = listings.slice(0, 8);
+  const featured = listings.slice(0, 6);
 
   return (
-    <section className="py-16 relative overflow-hidden">
-      <div className="absolute -right-32 top-1/2 w-64 h-64 bg-fun-yellow/10 blob -z-10 animate-blob" />
-      <div className="absolute -left-32 bottom-0 w-48 h-48 bg-fun-red/10 blob-2 -z-10 animate-blob" style={{ animationDelay: "-4s" }} />
-
-      <div className="container relative">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 gap-4">
+    <section id="inventory" className="py-20">
+      <div className="container">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7">
           <div>
-            <div className="inline-flex items-center gap-2 bg-fun-red/10 text-fun-red px-4 py-1.5 rounded-full text-sm font-bold mb-3 animate-bounce-in">
-              🔥 Hot Right Now
-            </div>
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground animate-fade-in-up opacity-0" style={{ animationDelay: "0.1s" }}>
-              Featured <span className="text-gradient-animated">Finds</span>
+            <p className="text-xs uppercase tracking-[0.22em] text-orange-200 mb-2.5">Latest inventory</p>
+            <h2 className="text-[clamp(2rem,4vw,3.5rem)] font-black tracking-tight">
+              Product cards built to convert.
             </h2>
-            <p className="mt-2 text-muted-foreground animate-fade-in-up opacity-0" style={{ animationDelay: "0.2s" }}>Check out these amazing closeout deals!</p>
           </div>
-          <Link to="/shop">
-            <Button variant="ghost" className="font-bold text-primary hover:text-primary/80 hover-shake animate-fade-in-up opacity-0" style={{ animationDelay: "0.3s" }}>
-              View All
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </Link>
+          <p className="max-w-lg text-muted-foreground leading-relaxed">
+            Every listing surfaces the info shoppers care about: price, savings, condition, and pickup details.
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {featured.map((listing, index) => (
-            <ProductCard key={listing.facebook_id} listing={listing} index={index} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {featured.map((listing) => (
+            <ProductCard key={listing.facebook_id} listing={listing} />
           ))}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            to="/shop"
+            className="inline-flex items-center gap-2 text-foreground font-semibold hover:text-primary transition-colors"
+          >
+            View all inventory
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
     </section>
