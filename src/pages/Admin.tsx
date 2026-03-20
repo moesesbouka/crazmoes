@@ -94,7 +94,7 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="chats" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Chats</span>
+              <span className="hidden sm:inline">Inbox</span>
             </TabsTrigger>
             <TabsTrigger value="categories" className="flex items-center gap-2">
               <Tags className="h-4 w-4" />
