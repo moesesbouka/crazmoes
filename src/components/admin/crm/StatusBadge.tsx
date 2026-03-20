@@ -1,5 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { getStatusDef, type ConversationStatus, CONVERSATION_STATUSES } from "@/lib/crmMetadataStore";
+import { Button } from "@/components/ui/button";
+import {
+  getStatusDef, type ConversationStatus, CONVERSATION_STATUSES, QUICK_STATUSES,
+} from "@/lib/crmMetadataStore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface StatusBadgeProps {
@@ -40,5 +43,36 @@ export function StatusSelect({ value, onChange, compact }: StatusSelectProps) {
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/** One-click status buttons row */
+interface QuickStatusButtonsProps {
+  currentStatus: ConversationStatus;
+  onChange: (v: ConversationStatus) => void;
+  size?: "sm" | "xs";
+}
+
+export function QuickStatusButtons({ currentStatus, onChange, size = "sm" }: QuickStatusButtonsProps) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {QUICK_STATUSES.map((qs) => {
+        const active = currentStatus === qs.value;
+        const def = getStatusDef(qs.value);
+        return (
+          <Button
+            key={qs.value}
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onChange(qs.value); }}
+            className={`${size === "xs" ? "h-5 px-1.5 text-[9px]" : "h-6 px-2 text-[10px]"} rounded-full font-medium transition-all ${
+              active ? `${def.color} border` : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {qs.shortLabel}
+          </Button>
+        );
+      })}
+    </div>
   );
 }

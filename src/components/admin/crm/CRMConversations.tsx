@@ -4,12 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MessageSquare, Package, ChevronRight, StickyNote } from "lucide-react";
+import { Search, MessageSquare, Package, StickyNote } from "lucide-react";
 import { useCRMStore, type CRMMessage } from "@/lib/crmStore";
 import { useCRMMetadataStore, type ConversationStatus, type CRMTag, CONVERSATION_STATUSES, CRM_TAGS } from "@/lib/crmMetadataStore";
-import { StatusBadge, StatusSelect } from "./StatusBadge";
+import { StatusBadge, StatusSelect, QuickStatusButtons } from "./StatusBadge";
 import { TagBadges, TagEditor } from "./TagBadges";
 import { NotesEditor, NotesIndicator } from "./NotesEditor";
+import { NextActionDatePicker, NextActionBadge } from "./NextActionDatePicker";
 import { CustomerDetailPanel } from "./CustomerDetailPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -25,7 +26,7 @@ interface ConvoSummary {
 
 export function CRMConversations() {
   const messages = useCRMStore((s) => s.messages);
-  const { getConversationMeta, setConversationStatus, toggleConversationTag, setConversationNotes } = useCRMMetadataStore();
+  const { getConversationMeta, setConversationStatus, toggleConversationTag, setConversationNotes, setConversationNextActionDate } = useCRMMetadataStore();
   const [search, setSearch] = useState('');
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ConversationStatus | "">("");
@@ -80,10 +81,13 @@ export function CRMConversations() {
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
+          <QuickStatusButtons currentStatus={meta.status} onChange={(v) => setConversationStatus(selectedThread, v)} />
+          <div className="w-px h-5 bg-border/40 mx-0.5" />
           <StatusSelect value={meta.status} onChange={(v) => setConversationStatus(selectedThread, v)} compact />
           <TagEditor tags={meta.tags} onToggle={(t) => toggleConversationTag(selectedThread, t)} compact />
           <NotesEditor notes={meta.notes} onChange={(n) => setConversationNotes(selectedThread, n)} compact />
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setCustomerPanel(convo?.customer_name || null)}>Customer</Button>
+          <NextActionDatePicker value={meta.nextActionDate} onChange={(d) => setConversationNextActionDate(selectedThread, d)} compact />
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setCustomerPanel(convo?.customer_name || null)}>👤 Customer</Button>
         </div>
         {meta.tags.length > 0 && <TagBadges tags={meta.tags} max={6} size="md" />}
         <ScrollArea className="max-h-[600px]">
@@ -134,7 +138,7 @@ export function CRMConversations() {
         </Select>
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} conversations</p>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {filtered.map((c) => {
           const meta = getConversationMeta(c.thread_path);
           return (
@@ -142,9 +146,10 @@ export function CRMConversations() {
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setSelectedThread(c.thread_path)}>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-medium text-sm truncate">{c.listing_title || c.thread_path}</p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="font-semibold text-sm truncate">{c.listing_title || c.thread_path}</p>
                       <StatusBadge status={meta.status} />
+                      {meta.nextActionDate && <NextActionBadge date={meta.nextActionDate} />}
                       <NotesIndicator hasNotes={!!meta.notes} />
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{c.customer_name} · {c.product} · {c.lastDate}</p>
@@ -154,11 +159,8 @@ export function CRMConversations() {
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <MessageSquare className="h-3 w-3" /> {c.messageCount}
                     </div>
-                    <div className="flex gap-0.5">
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={() => { setConversationStatus(c.thread_path, 'sold'); }}>Sold</Button>
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={() => { setConversationStatus(c.thread_path, 'follow-up'); }}>F/U</Button>
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={() => setCustomerPanel(c.customer_name)}>👤</Button>
-                    </div>
+                    <QuickStatusButtons currentStatus={meta.status} onChange={(v) => setConversationStatus(c.thread_path, v)} size="xs" />
+                    <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setCustomerPanel(c.customer_name)}>👤</Button>
                   </div>
                 </div>
               </CardContent>
