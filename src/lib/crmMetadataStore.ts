@@ -42,33 +42,38 @@ export interface ConversationMeta {
   status: ConversationStatus;
   tags: CRMTag[];
   notes: string;
-  nextActionDate: string; // ISO date string or ''
+  nextActionDate: string;
 }
 
 export interface CustomerMeta {
   tags: CRMTag[];
   notes: string;
   status: string;
-  nextActionDate: string; // ISO date string or ''
+  nextActionDate: string;
 }
 
 export interface SavedFilter {
   id: string;
   name: string;
   filter: Record<string, unknown>;
+  pinned?: boolean;
 }
 
 // ── Default presets ──
 
 export const DEFAULT_SAVED_FILTERS: SavedFilter[] = [
-  { id: 'preset-hot-leads', name: 'Hot Leads', filter: { tags: ['hot-lead'] } },
+  { id: 'preset-hot-leads', name: 'Hot Leads', filter: { tags: ['hot-lead'] }, pinned: true },
+  { id: 'preset-follow-up-queue', name: 'Follow-up Queue', filter: { statuses: ['follow-up', 'waiting-on-me', 'active'], sortByNextAction: true }, pinned: true },
+  { id: 'preset-overdue', name: 'Overdue', filter: { overdue: true }, pinned: true },
   { id: 'preset-waiting-customer', name: 'Waiting on Customer', filter: { statuses: ['waiting-on-customer'] } },
+  { id: 'preset-waiting-me', name: 'Waiting on Me', filter: { statuses: ['waiting-on-me'] } },
   { id: 'preset-sold', name: 'Sold', filter: { statuses: ['sold'] } },
-  { id: 'preset-follow-up', name: 'Follow-up Needed', filter: { statuses: ['follow-up'] } },
+  { id: 'preset-pending-pickup', name: 'Pending Pickup', filter: { tags: ['pending-pickup'] } },
   { id: 'preset-vip', name: 'VIP Customers', filter: { tags: ['vip'] } },
   { id: 'preset-with-notes', name: 'With Notes', filter: { hasNotes: true } },
   { id: 'preset-with-tags', name: 'With Tags', filter: { hasTags: true } },
-  { id: 'preset-follow-up-queue', name: 'Follow-up Queue', filter: { statuses: ['follow-up', 'waiting-on-me'], sortByNextAction: true } },
+  { id: 'preset-no-response-3d', name: 'No Response 3d+', filter: { noResponse3Days: true } },
+  { id: 'preset-sold-this-week', name: 'Sold This Week', filter: { statuses: ['sold'], recentDays: 7 } },
 ];
 
 // ── Store ──
@@ -78,24 +83,22 @@ interface CRMMetadataStore {
   customerMeta: Record<string, CustomerMeta>;
   savedFilters: SavedFilter[];
 
-  // Conversation actions
   setConversationStatus: (threadPath: string, status: ConversationStatus) => void;
   toggleConversationTag: (threadPath: string, tag: CRMTag) => void;
   setConversationNotes: (threadPath: string, notes: string) => void;
   setConversationNextActionDate: (threadPath: string, date: string) => void;
   getConversationMeta: (threadPath: string) => ConversationMeta;
 
-  // Customer actions
   toggleCustomerTag: (customerName: string, tag: CRMTag) => void;
   setCustomerNotes: (customerName: string, notes: string) => void;
   setCustomerStatus: (customerName: string, status: string) => void;
   setCustomerNextActionDate: (customerName: string, date: string) => void;
   getCustomerMeta: (customerName: string) => CustomerMeta;
 
-  // Saved filters
   addSavedFilter: (name: string, filter: Record<string, unknown>) => void;
   removeSavedFilter: (id: string) => void;
   renameSavedFilter: (id: string, name: string) => void;
+  togglePinFilter: (id: string) => void;
 }
 
 const emptyConvoMeta: ConversationMeta = { status: 'new', tags: [], notes: '', nextActionDate: '' };
@@ -108,13 +111,9 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
       customerMeta: {},
       savedFilters: [...DEFAULT_SAVED_FILTERS],
 
-      // Conversation
       setConversationStatus: (tp, status) =>
         set((s) => ({
-          conversationMeta: {
-            ...s.conversationMeta,
-            [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), status },
-          },
+          conversationMeta: { ...s.conversationMeta, [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), status } },
         })),
 
       toggleConversationTag: (tp, tag) =>
@@ -126,18 +125,12 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
 
       setConversationNotes: (tp, notes) =>
         set((s) => ({
-          conversationMeta: {
-            ...s.conversationMeta,
-            [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), notes },
-          },
+          conversationMeta: { ...s.conversationMeta, [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), notes } },
         })),
 
       setConversationNextActionDate: (tp, date) =>
         set((s) => ({
-          conversationMeta: {
-            ...s.conversationMeta,
-            [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), nextActionDate: date },
-          },
+          conversationMeta: { ...s.conversationMeta, [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), nextActionDate: date } },
         })),
 
       getConversationMeta: (tp) => {
@@ -146,7 +139,6 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
         return { ...emptyConvoMeta, ...raw };
       },
 
-      // Customer
       toggleCustomerTag: (name, tag) =>
         set((s) => {
           const cur = s.customerMeta[name] || { ...emptyCustomerMeta };
@@ -156,26 +148,17 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
 
       setCustomerNotes: (name, notes) =>
         set((s) => ({
-          customerMeta: {
-            ...s.customerMeta,
-            [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), notes },
-          },
+          customerMeta: { ...s.customerMeta, [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), notes } },
         })),
 
       setCustomerStatus: (name, status) =>
         set((s) => ({
-          customerMeta: {
-            ...s.customerMeta,
-            [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), status },
-          },
+          customerMeta: { ...s.customerMeta, [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), status } },
         })),
 
       setCustomerNextActionDate: (name, date) =>
         set((s) => ({
-          customerMeta: {
-            ...s.customerMeta,
-            [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), nextActionDate: date },
-          },
+          customerMeta: { ...s.customerMeta, [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), nextActionDate: date } },
         })),
 
       getCustomerMeta: (name) => {
@@ -184,7 +167,6 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
         return { ...emptyCustomerMeta, ...raw };
       },
 
-      // Saved filters
       addSavedFilter: (name, filter) =>
         set((s) => ({
           savedFilters: [...s.savedFilters, { id: crypto.randomUUID(), name, filter }],
@@ -196,6 +178,11 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
       renameSavedFilter: (id, name) =>
         set((s) => ({
           savedFilters: s.savedFilters.map((f) => (f.id === id ? { ...f, name } : f)),
+        })),
+
+      togglePinFilter: (id) =>
+        set((s) => ({
+          savedFilters: s.savedFilters.map((f) => (f.id === id ? { ...f, pinned: !f.pinned } : f)),
         })),
     }),
     { name: 'crm-metadata' }
@@ -212,10 +199,10 @@ export function getStatusDef(status: string) {
   return CONVERSATION_STATUSES.find((s) => s.value === status) || CONVERSATION_STATUSES[0];
 }
 
-/** Quick status buttons config */
 export const QUICK_STATUSES: { value: ConversationStatus; label: string; shortLabel: string }[] = [
   { value: 'sold', label: 'Mark Sold', shortLabel: 'Sold' },
   { value: 'follow-up', label: 'Follow-up', shortLabel: 'F/U' },
-  { value: 'waiting-on-customer', label: 'Waiting on Customer', shortLabel: 'Wait' },
+  { value: 'waiting-on-customer', label: 'Waiting on Customer', shortLabel: 'Wait Cust' },
+  { value: 'waiting-on-me', label: 'Waiting on Me', shortLabel: 'Wait Me' },
   { value: 'closed', label: 'Close', shortLabel: 'Close' },
 ];
