@@ -83,10 +83,14 @@ const Admin = () => {
 
       <main className="container py-8">
         <Tabs defaultValue="marketplace" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 max-w-5xl">
+          <TabsList className="grid w-full grid-cols-8 max-w-6xl">
             <TabsTrigger value="marketplace" className="flex items-center gap-2">
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Marketplace</span>
+            </TabsTrigger>
+            <TabsTrigger value="crm" className="flex items-center gap-2">
+              <MessagesSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">CRM</span>
             </TabsTrigger>
             <TabsTrigger value="chats" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -116,6 +120,10 @@ const Admin = () => {
 
           <TabsContent value="marketplace">
             <AdminMarketplaceInventory />
+          </TabsContent>
+
+          <TabsContent value="crm">
+            <AdminCRM />
           </TabsContent>
 
           <TabsContent value="chats">
