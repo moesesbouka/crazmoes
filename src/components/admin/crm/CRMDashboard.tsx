@@ -2,9 +2,10 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCRMStore } from "@/lib/crmStore";
 import { useCRMMetadataStore, CONVERSATION_STATUSES, CRM_TAGS, getStatusDef, getTagDef } from "@/lib/crmMetadataStore";
-import { MessageSquare, Users, MessagesSquare, Package, Bot, TrendingUp, CheckCircle, Clock, Star, StickyNote, Tag } from "lucide-react";
+import { MessageSquare, Users, MessagesSquare, Package, TrendingUp, CheckCircle, Clock, Star, StickyNote, Tag, AlertTriangle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { isBefore, parseISO, startOfDay, isValid } from "date-fns";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
@@ -19,12 +20,12 @@ export function CRMDashboard() {
     return { total: messages.length, customers: customers.size, conversations: conversations.size, products: products.size };
   }, [messages]);
 
-  // CRM operational stats
   const crmStats = useMemo(() => {
     const allThreads = new Set(messages.map((m) => m.thread_path));
-    let sold = 0, followUp = 0, withNotes = 0;
+    let sold = 0, followUp = 0, withNotes = 0, overdue = 0;
     const statusCounts = new Map<string, number>();
     const tagCounts = new Map<string, number>();
+    const today = startOfDay(new Date());
 
     allThreads.forEach((tp) => {
       const meta = conversationMeta[tp];
@@ -32,6 +33,10 @@ export function CRMDashboard() {
       if (meta.status === 'sold') sold++;
       if (meta.status === 'follow-up') followUp++;
       if (meta.notes) withNotes++;
+      if (meta.nextActionDate) {
+        const d = parseISO(meta.nextActionDate);
+        if (isValid(d) && isBefore(d, today)) overdue++;
+      }
       statusCounts.set(meta.status, (statusCounts.get(meta.status) || 0) + 1);
       meta.tags.forEach((t) => tagCounts.set(t, (tagCounts.get(t) || 0) + 1));
     });
@@ -39,7 +44,7 @@ export function CRMDashboard() {
     const vipCustomers = Object.values(customerMeta).filter((c) => c.tags.includes('vip')).length;
 
     const statusData = Array.from(statusCounts.entries())
-      .map(([status, count]) => ({ name: getStatusDef(status).label, value: count, color: getStatusDef(status).color }))
+      .map(([status, count]) => ({ name: getStatusDef(status).label, value: count }))
       .sort((a, b) => b.value - a.value);
 
     const tagData = Array.from(tagCounts.entries())
@@ -47,7 +52,7 @@ export function CRMDashboard() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
 
-    return { sold, followUp, vipCustomers, withNotes, statusData, tagData };
+    return { sold, followUp, vipCustomers, withNotes, overdue, statusData, tagData };
   }, [messages, conversationMeta, customerMeta]);
 
   const monthData = useMemo(() => {
@@ -74,6 +79,7 @@ export function CRMDashboard() {
     { label: 'Follow-up', value: crmStats.followUp, icon: Clock, color: 'text-purple-400' },
     { label: 'VIP Customers', value: crmStats.vipCustomers, icon: Star, color: 'text-amber-400' },
     { label: 'With Notes', value: crmStats.withNotes, icon: StickyNote, color: 'text-orange-400' },
+    { label: 'Overdue', value: crmStats.overdue, icon: AlertTriangle, color: crmStats.overdue > 0 ? 'text-red-400' : 'text-muted-foreground' },
   ];
 
   return (
@@ -91,9 +97,9 @@ export function CRMDashboard() {
       </div>
 
       {/* CRM Operational KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {crmKpis.map((k) => (
-          <Card key={k.label} className="bg-card/60 border-border/40">
+          <Card key={k.label} className={`bg-card/60 border-border/40 ${k.label === 'Overdue' && crmStats.overdue > 0 ? 'border-red-500/40' : ''}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1"><k.icon className={`h-4 w-4 ${k.color}`} /><span className="text-xs text-muted-foreground">{k.label}</span></div>
               <p className="text-2xl font-bold">{k.value}</p>

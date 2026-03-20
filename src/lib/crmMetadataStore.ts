@@ -42,12 +42,14 @@ export interface ConversationMeta {
   status: ConversationStatus;
   tags: CRMTag[];
   notes: string;
+  nextActionDate: string; // ISO date string or ''
 }
 
 export interface CustomerMeta {
   tags: CRMTag[];
   notes: string;
-  status: string; // freeform customer-level status
+  status: string;
+  nextActionDate: string; // ISO date string or ''
 }
 
 export interface SavedFilter {
@@ -66,6 +68,7 @@ export const DEFAULT_SAVED_FILTERS: SavedFilter[] = [
   { id: 'preset-vip', name: 'VIP Customers', filter: { tags: ['vip'] } },
   { id: 'preset-with-notes', name: 'With Notes', filter: { hasNotes: true } },
   { id: 'preset-with-tags', name: 'With Tags', filter: { hasTags: true } },
+  { id: 'preset-follow-up-queue', name: 'Follow-up Queue', filter: { statuses: ['follow-up', 'waiting-on-me'], sortByNextAction: true } },
 ];
 
 // ── Store ──
@@ -79,12 +82,14 @@ interface CRMMetadataStore {
   setConversationStatus: (threadPath: string, status: ConversationStatus) => void;
   toggleConversationTag: (threadPath: string, tag: CRMTag) => void;
   setConversationNotes: (threadPath: string, notes: string) => void;
+  setConversationNextActionDate: (threadPath: string, date: string) => void;
   getConversationMeta: (threadPath: string) => ConversationMeta;
 
   // Customer actions
   toggleCustomerTag: (customerName: string, tag: CRMTag) => void;
   setCustomerNotes: (customerName: string, notes: string) => void;
   setCustomerStatus: (customerName: string, status: string) => void;
+  setCustomerNextActionDate: (customerName: string, date: string) => void;
   getCustomerMeta: (customerName: string) => CustomerMeta;
 
   // Saved filters
@@ -93,8 +98,8 @@ interface CRMMetadataStore {
   renameSavedFilter: (id: string, name: string) => void;
 }
 
-const emptyConvoMeta: ConversationMeta = { status: 'new', tags: [], notes: '' };
-const emptyCustomerMeta: CustomerMeta = { tags: [], notes: '', status: '' };
+const emptyConvoMeta: ConversationMeta = { status: 'new', tags: [], notes: '', nextActionDate: '' };
+const emptyCustomerMeta: CustomerMeta = { tags: [], notes: '', status: '', nextActionDate: '' };
 
 export const useCRMMetadataStore = create<CRMMetadataStore>()(
   persist(
@@ -127,7 +132,19 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
           },
         })),
 
-      getConversationMeta: (tp) => get().conversationMeta[tp] || { ...emptyConvoMeta },
+      setConversationNextActionDate: (tp, date) =>
+        set((s) => ({
+          conversationMeta: {
+            ...s.conversationMeta,
+            [tp]: { ...(s.conversationMeta[tp] || emptyConvoMeta), nextActionDate: date },
+          },
+        })),
+
+      getConversationMeta: (tp) => {
+        const raw = get().conversationMeta[tp];
+        if (!raw) return { ...emptyConvoMeta };
+        return { ...emptyConvoMeta, ...raw };
+      },
 
       // Customer
       toggleCustomerTag: (name, tag) =>
@@ -153,7 +170,19 @@ export const useCRMMetadataStore = create<CRMMetadataStore>()(
           },
         })),
 
-      getCustomerMeta: (name) => get().customerMeta[name] || { ...emptyCustomerMeta },
+      setCustomerNextActionDate: (name, date) =>
+        set((s) => ({
+          customerMeta: {
+            ...s.customerMeta,
+            [name]: { ...(s.customerMeta[name] || emptyCustomerMeta), nextActionDate: date },
+          },
+        })),
+
+      getCustomerMeta: (name) => {
+        const raw = get().customerMeta[name];
+        if (!raw) return { ...emptyCustomerMeta };
+        return { ...emptyCustomerMeta, ...raw };
+      },
 
       // Saved filters
       addSavedFilter: (name, filter) =>
@@ -182,3 +211,11 @@ export function getTagDef(tag: string) {
 export function getStatusDef(status: string) {
   return CONVERSATION_STATUSES.find((s) => s.value === status) || CONVERSATION_STATUSES[0];
 }
+
+/** Quick status buttons config */
+export const QUICK_STATUSES: { value: ConversationStatus; label: string; shortLabel: string }[] = [
+  { value: 'sold', label: 'Mark Sold', shortLabel: 'Sold' },
+  { value: 'follow-up', label: 'Follow-up', shortLabel: 'F/U' },
+  { value: 'waiting-on-customer', label: 'Waiting on Customer', shortLabel: 'Wait' },
+  { value: 'closed', label: 'Close', shortLabel: 'Close' },
+];

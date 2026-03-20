@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, MessageSquare, MessagesSquare, Package, Calendar, Clock } from "lucide-react";
+import { User, MessageSquare, MessagesSquare, Package, Calendar, Clock, CalendarClock } from "lucide-react";
 import { useCRMStore, type CRMMessage } from "@/lib/crmStore";
 import { useCRMMetadataStore, type CRMTag } from "@/lib/crmMetadataStore";
 import { TagEditor, TagBadges } from "./TagBadges";
 import { NotesEditor } from "./NotesEditor";
 import { StatusBadge } from "./StatusBadge";
+import { NextActionDatePicker, NextActionBadge } from "./NextActionDatePicker";
+import { format, parseISO, isValid } from "date-fns";
 
 interface CustomerDetailPanelProps {
   customerName: string | null;
@@ -17,7 +19,7 @@ interface CustomerDetailPanelProps {
 
 export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: CustomerDetailPanelProps) {
   const messages = useCRMStore((s) => s.messages);
-  const { getCustomerMeta, toggleCustomerTag, setCustomerNotes, getConversationMeta } = useCRMMetadataStore();
+  const { getCustomerMeta, toggleCustomerTag, setCustomerNotes, setCustomerNextActionDate, getConversationMeta } = useCRMMetadataStore();
 
   const data = useMemo(() => {
     if (!customerName) return null;
@@ -26,12 +28,12 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
 
     const threads = new Map<string, { listing: string; count: number; lastTs: number; lastDate: string }>();
     const products = new Set<string>();
-    let firstTs = Infinity, lastTs = 0, firstDate = '', lastDate = '';
+    let firstTs = Infinity, lastTs = 0, firstDate = '', lastDate = '', lastMsg = '';
 
     custMsgs.forEach((m) => {
       if (m.product) products.add(m.product);
       if (m.timestamp_ms < firstTs) { firstTs = m.timestamp_ms; firstDate = m.message_date; }
-      if (m.timestamp_ms > lastTs) { lastTs = m.timestamp_ms; lastDate = m.message_date; }
+      if (m.timestamp_ms > lastTs) { lastTs = m.timestamp_ms; lastDate = m.message_date; lastMsg = m.message_text; }
       const t = threads.get(m.thread_path);
       if (!t) threads.set(m.thread_path, { listing: m.listing_title, count: 1, lastTs: m.timestamp_ms, lastDate: m.message_date });
       else { t.count++; if (m.timestamp_ms > t.lastTs) { t.lastTs = m.timestamp_ms; t.lastDate = m.message_date; } }
@@ -44,9 +46,9 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
     const recentMsgs = [...custMsgs]
       .filter((m) => m.system_message !== 1)
       .sort((a, b) => b.timestamp_ms - a.timestamp_ms)
-      .slice(0, 10);
+      .slice(0, 8);
 
-    return { totalMessages: custMsgs.length, totalConversations: threads.size, products: Array.from(products), firstDate, lastDate, convos, recentMsgs };
+    return { totalMessages: custMsgs.length, totalConversations: threads.size, products: Array.from(products), firstDate, lastDate, lastMsg, convos, recentMsgs };
   }, [customerName, messages]);
 
   if (!customerName || !data) return null;
@@ -68,29 +70,54 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
               </p>
             </div>
           </div>
-          {meta.tags.length > 0 && <TagBadges tags={meta.tags} max={5} size="md" />}
         </SheetHeader>
 
         <ScrollArea className="flex-1">
-          <div className="p-5 space-y-5">
+          <div className="p-5 space-y-4">
+            {/* ── At a Glance ── */}
+            <div className="bg-secondary/40 rounded-xl p-3.5 space-y-2 border border-border/30">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">At a Glance</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[9px] text-muted-foreground/70">Tags</p>
+                  {meta.tags.length > 0 ? <TagBadges tags={meta.tags} max={4} size="sm" /> : <span className="text-[10px] text-muted-foreground/40">None</span>}
+                </div>
+                <div>
+                  <p className="text-[9px] text-muted-foreground/70">Next Action</p>
+                  {meta.nextActionDate ? <NextActionBadge date={meta.nextActionDate} /> : <span className="text-[10px] text-muted-foreground/40">Not set</span>}
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[9px] text-muted-foreground/70">Last Message</p>
+                  <p className="text-[11px] text-foreground/80 line-clamp-2">{data.lastMsg || "—"}</p>
+                </div>
+                {meta.notes && (
+                  <div className="col-span-2">
+                    <p className="text-[9px] text-muted-foreground/70">Notes</p>
+                    <p className="text-[11px] text-amber-400/80 line-clamp-2">{meta.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Actions */}
             <div className="flex flex-wrap gap-1.5">
               <TagEditor tags={meta.tags} onToggle={(t) => toggleCustomerTag(customerName, t)} />
               <NotesEditor notes={meta.notes} onChange={(n) => setCustomerNotes(customerName, n)} />
+              <NextActionDatePicker value={meta.nextActionDate} onChange={(d) => setCustomerNextActionDate(customerName, d)} />
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               {[
-                { icon: MessageSquare, label: "Total Messages", value: data.totalMessages },
+                { icon: MessageSquare, label: "Messages", value: data.totalMessages },
                 { icon: MessagesSquare, label: "Conversations", value: data.totalConversations },
                 { icon: Calendar, label: "First Contact", value: data.firstDate },
                 { icon: Clock, label: "Last Active", value: data.lastDate },
               ].map((s) => (
-                <div key={s.label} className="bg-secondary/50 rounded-lg p-3">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <s.icon className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">{s.label}</span>
+                <div key={s.label} className="bg-secondary/30 rounded-lg p-2.5">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <s.icon className="h-3 w-3 text-muted-foreground/60" />
+                    <span className="text-[9px] text-muted-foreground/70">{s.label}</span>
                   </div>
                   <p className="text-sm font-semibold">{s.value}</p>
                 </div>
@@ -114,20 +141,23 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
             {/* Conversations */}
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Conversations</p>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {data.convos.map((c) => {
                   const cMeta = getConversationMeta(c.threadPath);
                   return (
                     <button
                       key={c.threadPath}
                       onClick={() => onOpenThread?.(c.threadPath)}
-                      className="w-full text-left bg-secondary/30 hover:bg-secondary/60 rounded-lg px-3 py-2 transition-colors"
+                      className="w-full text-left bg-secondary/20 hover:bg-secondary/50 rounded-lg px-3 py-2 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium truncate">{c.listing || c.threadPath}</span>
+                        <span className="text-[11px] font-medium truncate">{c.listing || c.threadPath}</span>
                         <StatusBadge status={cMeta.status} />
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{c.count} msgs · {c.lastDate}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] text-muted-foreground">{c.count} msgs · {c.lastDate}</span>
+                        {cMeta.nextActionDate && <NextActionBadge date={cMeta.nextActionDate} />}
+                      </div>
                     </button>
                   );
                 })}
@@ -137,20 +167,20 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
             {/* Recent Messages */}
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Recent Messages</p>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {data.recentMsgs.map((m, i) => (
-                  <div key={i} className="bg-secondary/30 rounded-lg px-3 py-2">
+                  <div key={i} className="bg-secondary/20 rounded-lg px-3 py-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-[10px] font-medium ${m.owner_message === 1 ? "text-primary" : ""}`}>{m.sender}</span>
-                      <span className="text-[9px] text-muted-foreground">{m.message_date} {m.message_time?.slice(0, 5)}</span>
+                      <span className="text-[8px] text-muted-foreground/60">{m.message_date} {m.message_time?.slice(0, 5)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{m.message_text}</p>
+                    <p className="text-[11px] text-muted-foreground/80 mt-0.5 line-clamp-2">{m.message_text}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Notes preview */}
+            {/* Notes */}
             {meta.notes && (
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Notes</p>

@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Search, User, MessageSquare, MessagesSquare, Package, StickyNote } from "lucide-react";
 import { useCRMStore } from "@/lib/crmStore";
-import { useCRMMetadataStore, type CRMTag, CRM_TAGS, CONVERSATION_STATUSES } from "@/lib/crmMetadataStore";
-import { TagBadges, TagEditor } from "./TagBadges";
+import { useCRMMetadataStore, type CRMTag, CRM_TAGS } from "@/lib/crmMetadataStore";
+import { TagBadges } from "./TagBadges";
 import { NotesIndicator } from "./NotesEditor";
+import { NextActionBadge } from "./NextActionDatePicker";
 import { CustomerDetailPanel } from "./CustomerDetailPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -25,7 +25,7 @@ type QuickFilter = "all" | "has-notes" | "has-tags";
 
 export function CRMCustomers() {
   const { messages } = useCRMStore();
-  const { getCustomerMeta, getConversationMeta } = useCRMMetadataStore();
+  const { getCustomerMeta } = useCRMMetadataStore();
   const [search, setSearch] = useState('');
   const [customerPanel, setCustomerPanel] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<CRMTag | "">("");
@@ -91,34 +91,35 @@ export function CRMCustomers() {
         <ToggleGroupItem value="has-tags" className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">Tagged</ToggleGroupItem>
       </ToggleGroup>
       <p className="text-xs text-muted-foreground">{filtered.length} customers</p>
-      <div className="grid md:grid-cols-2 gap-3">
+      <div className="grid md:grid-cols-2 gap-2.5">
         {filtered.map((c) => {
           const meta = getCustomerMeta(c.name);
           return (
             <Card key={c.name} className="bg-card/60 border-border/40 hover:border-primary/40 cursor-pointer transition-colors" onClick={() => setCustomerPanel(c.name)}>
-              <CardContent className="p-4">
+              <CardContent className="p-3.5">
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-primary" />
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm truncate">{c.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-sm truncate">{c.name}</p>
                       <NotesIndicator hasNotes={!!meta.notes} />
+                      {meta.nextActionDate && <NextActionBadge date={meta.nextActionDate} />}
                     </div>
-                    <p className="text-xs text-muted-foreground">Last active: {c.latestDate}</p>
-                    <div className="flex flex-wrap gap-2 mt-1.5">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground"><MessageSquare className="h-3 w-3" /> {c.messageCount}</div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground"><MessagesSquare className="h-3 w-3" /> {c.conversationCount}</div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground"><Package className="h-3 w-3" /> {c.products.size}</div>
+                    <p className="text-[11px] text-muted-foreground">Last active: {c.latestDate}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><MessageSquare className="h-3 w-3" /> {c.messageCount}</div>
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><MessagesSquare className="h-3 w-3" /> {c.conversationCount}</div>
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><Package className="h-3 w-3" /> {c.products.size}</div>
                     </div>
-                    {meta.tags.length > 0 && <div className="mt-1.5"><TagBadges tags={meta.tags} max={4} size="sm" /></div>}
+                    {meta.tags.length > 0 && <div className="mt-1"><TagBadges tags={meta.tags} max={4} size="sm" /></div>}
                     {c.products.size > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
+                      <div className="flex flex-wrap gap-1 mt-1">
                         {Array.from(c.products).slice(0, 2).map((p) => (
-                          <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+                          <Badge key={p} variant="outline" className="text-[9px]">{p}</Badge>
                         ))}
-                        {c.products.size > 2 && <Badge variant="outline" className="text-[10px]">+{c.products.size - 2}</Badge>}
+                        {c.products.size > 2 && <Badge variant="outline" className="text-[9px]">+{c.products.size - 2}</Badge>}
                       </div>
                     )}
                   </div>
