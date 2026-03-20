@@ -11,6 +11,7 @@ import { AdminPickupSchedules } from "@/components/admin/AdminPickupSchedules";
 import { AdminSubscribers } from "@/components/admin/AdminSubscribers";
 import { AdminMarketplaceInventory } from "@/components/admin/AdminMarketplaceInventory";
 import { AdminTools } from "@/components/admin/AdminTools";
+import { AdminCRM } from "@/components/admin/AdminCRM";
 
 const Admin = () => {
   const [isLoading, setIsLoading] = useState(true);
