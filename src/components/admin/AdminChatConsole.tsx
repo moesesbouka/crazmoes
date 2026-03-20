@@ -157,13 +157,13 @@ export function AdminChatConsole() {
             </div>
             <ToggleGroup type="single" value={inboxFilter} onValueChange={(v) => v && setInboxFilter(v as InboxFilter)} className="justify-start gap-0.5 flex-wrap">
               {([
-                { v: "all", label: "All" },
-                { v: "follow-up-queue", label: "Follow-up Q", icon: ListFilter },
-                { v: "customer-only", label: "Needs Reply", icon: User },
-                { v: "recent", label: "Recent", icon: Clock },
-                { v: "has-notes", label: "Notes", icon: StickyNote },
-                { v: "attachments", label: "Files", icon: Paperclip },
-              ] as const).map((f) => (
+                { v: "all" as const, label: "All", icon: null },
+                { v: "follow-up-queue" as const, label: "Follow-up Q", icon: ListFilter },
+                { v: "customer-only" as const, label: "Needs Reply", icon: User },
+                { v: "recent" as const, label: "Recent", icon: Clock },
+                { v: "has-notes" as const, label: "Notes", icon: StickyNote },
+                { v: "attachments" as const, label: "Files", icon: Paperclip },
+              ]).map((f) => (
                 <ToggleGroupItem key={f.v} value={f.v} className="h-5 px-1.5 text-[9px] rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                   {f.icon && <f.icon className="h-2.5 w-2.5 mr-0.5" />}{f.label}
                 </ToggleGroupItem>
