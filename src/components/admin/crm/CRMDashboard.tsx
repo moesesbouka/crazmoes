@@ -1,27 +1,54 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCRMStore } from "@/lib/crmStore";
-import { MessageSquare, Users, MessagesSquare, Package, Bot, TrendingUp } from "lucide-react";
+import { useCRMMetadataStore, CONVERSATION_STATUSES, CRM_TAGS, getStatusDef, getTagDef } from "@/lib/crmMetadataStore";
+import { MessageSquare, Users, MessagesSquare, Package, Bot, TrendingUp, CheckCircle, Clock, Star, StickyNote, Tag } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Badge } from "@/components/ui/badge";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
 export function CRMDashboard() {
   const messages = useCRMStore((s) => s.messages);
+  const { conversationMeta, customerMeta } = useCRMMetadataStore();
 
   const stats = useMemo(() => {
     const customers = new Set(messages.map((m) => m.customer_name || m.sender).filter(Boolean));
     const conversations = new Set(messages.map((m) => m.thread_path));
     const products = new Set(messages.filter((m) => m.product && m.product !== 'Unclassified').map((m) => m.product));
-    const systemCount = messages.filter((m) => m.system_message === 1).length;
-    return {
-      total: messages.length,
-      customers: customers.size,
-      conversations: conversations.size,
-      products: products.size,
-      systemCount,
-    };
+    return { total: messages.length, customers: customers.size, conversations: conversations.size, products: products.size };
   }, [messages]);
+
+  // CRM operational stats
+  const crmStats = useMemo(() => {
+    const allThreads = new Set(messages.map((m) => m.thread_path));
+    let sold = 0, followUp = 0, withNotes = 0;
+    const statusCounts = new Map<string, number>();
+    const tagCounts = new Map<string, number>();
+
+    allThreads.forEach((tp) => {
+      const meta = conversationMeta[tp];
+      if (!meta) return;
+      if (meta.status === 'sold') sold++;
+      if (meta.status === 'follow-up') followUp++;
+      if (meta.notes) withNotes++;
+      statusCounts.set(meta.status, (statusCounts.get(meta.status) || 0) + 1);
+      meta.tags.forEach((t) => tagCounts.set(t, (tagCounts.get(t) || 0) + 1));
+    });
+
+    const vipCustomers = Object.values(customerMeta).filter((c) => c.tags.includes('vip')).length;
+
+    const statusData = Array.from(statusCounts.entries())
+      .map(([status, count]) => ({ name: getStatusDef(status).label, value: count, color: getStatusDef(status).color }))
+      .sort((a, b) => b.value - a.value);
+
+    const tagData = Array.from(tagCounts.entries())
+      .map(([tag, count]) => ({ name: getTagDef(tag).label, value: count }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+
+    return { sold, followUp, vipCustomers, withNotes, statusData, tagData };
+  }, [messages, conversationMeta, customerMeta]);
 
   const monthData = useMemo(() => {
     const map = new Map<string, number>();
@@ -35,50 +62,85 @@ export function CRMDashboard() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
   }, [messages]);
 
-  const topCustomers = useMemo(() => {
-    const map = new Map<string, number>();
-    messages.forEach((m) => {
-      const name = m.customer_name || m.sender;
-      if (name) map.set(name, (map.get(name) || 0) + 1);
-    });
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [messages]);
-
-  const recentMessages = useMemo(() => 
-    [...messages].filter((m) => m.system_message !== 1).sort((a, b) => b.timestamp_ms - a.timestamp_ms).slice(0, 8),
-  [messages]);
-
   const kpis = [
-    { label: 'Total Messages', value: stats.total, icon: MessageSquare, color: 'text-primary' },
+    { label: 'Messages', value: stats.total, icon: MessageSquare, color: 'text-primary' },
     { label: 'Customers', value: stats.customers, icon: Users, color: 'text-green-500' },
     { label: 'Conversations', value: stats.conversations, icon: MessagesSquare, color: 'text-blue-500' },
     { label: 'Products', value: stats.products, icon: Package, color: 'text-yellow-500' },
-    { label: 'System Msgs', value: stats.systemCount, icon: Bot, color: 'text-muted-foreground' },
+  ];
+
+  const crmKpis = [
+    { label: 'Sold', value: crmStats.sold, icon: CheckCircle, color: 'text-emerald-400' },
+    { label: 'Follow-up', value: crmStats.followUp, icon: Clock, color: 'text-purple-400' },
+    { label: 'VIP Customers', value: crmStats.vipCustomers, icon: Star, color: 'text-amber-400' },
+    { label: 'With Notes', value: crmStats.withNotes, icon: StickyNote, color: 'text-orange-400' },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* Message KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {kpis.map((k) => (
           <Card key={k.label} className="bg-card/60 border-border/40">
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <k.icon className={`h-4 w-4 ${k.color}`} />
-                <span className="text-xs text-muted-foreground">{k.label}</span>
-              </div>
+              <div className="flex items-center gap-2 mb-1"><k.icon className={`h-4 w-4 ${k.color}`} /><span className="text-xs text-muted-foreground">{k.label}</span></div>
               <p className="text-2xl font-bold">{k.value.toLocaleString()}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* CRM Operational KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {crmKpis.map((k) => (
+          <Card key={k.label} className="bg-card/60 border-border/40">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1"><k.icon className={`h-4 w-4 ${k.color}`} /><span className="text-xs text-muted-foreground">{k.label}</span></div>
+              <p className="text-2xl font-bold">{k.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* By Status */}
+        <Card className="bg-card/60 border-border/40">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><Tag className="h-4 w-4" /> By Status</CardTitle></CardHeader>
+          <CardContent>
+            {crmStats.statusData.length > 0 ? (
+              <div className="space-y-2">
+                {crmStats.statusData.map((s) => (
+                  <div key={s.name} className="flex items-center justify-between">
+                    <span className="text-xs">{s.name}</span>
+                    <Badge variant="outline" className="text-xs font-mono">{s.value}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-xs text-muted-foreground text-center py-6">No statuses set yet</p>}
+          </CardContent>
+        </Card>
+
+        {/* Top Tags */}
+        <Card className="bg-card/60 border-border/40">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><Tag className="h-4 w-4" /> Top Tags</CardTitle></CardHeader>
+          <CardContent>
+            {crmStats.tagData.length > 0 ? (
+              <div className="space-y-2">
+                {crmStats.tagData.map((t) => (
+                  <div key={t.name} className="flex items-center justify-between">
+                    <span className="text-xs">{t.name}</span>
+                    <Badge variant="outline" className="text-xs font-mono">{t.value}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-xs text-muted-foreground text-center py-6">No tags set yet</p>}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="bg-card/60 border-border/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Messages by Month
-            </CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Messages by Month</CardTitle></CardHeader>
           <CardContent>
             {monthData.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
@@ -94,11 +156,7 @@ export function CRMDashboard() {
         </Card>
 
         <Card className="bg-card/60 border-border/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Package className="h-4 w-4" /> Top Products
-            </CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><Package className="h-4 w-4" /> Top Products</CardTitle></CardHeader>
           <CardContent>
             {topProducts.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
@@ -110,39 +168,6 @@ export function CRMDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : <p className="text-sm text-muted-foreground text-center py-8">No data</p>}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="bg-card/60 border-border/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Top Customers</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {topCustomers.map(([name, count]) => (
-              <div key={name} className="flex justify-between items-center py-1.5 border-b border-border/30 last:border-0">
-                <span className="text-sm truncate">{name}</span>
-                <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">{count}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/60 border-border/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Recent Messages</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {recentMessages.map((m, i) => (
-              <div key={i} className="py-1.5 border-b border-border/30 last:border-0">
-                <div className="flex justify-between">
-                  <span className="text-xs font-medium">{m.sender}</span>
-                  <span className="text-xs text-muted-foreground">{m.message_date}</span>
-                </div>
-                <p className="text-xs text-muted-foreground truncate mt-0.5">{m.message_text}</p>
-              </div>
-            ))}
           </CardContent>
         </Card>
       </div>
