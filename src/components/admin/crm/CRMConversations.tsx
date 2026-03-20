@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MessageSquare, Package, StickyNote } from "lucide-react";
+import { Search, MessageSquare, Package, StickyNote, ListFilter } from "lucide-react";
 import { useCRMStore, type CRMMessage } from "@/lib/crmStore";
 import { useCRMMetadataStore, type ConversationStatus, type CRMTag, CONVERSATION_STATUSES, CRM_TAGS } from "@/lib/crmMetadataStore";
 import { StatusBadge, StatusSelect, QuickStatusButtons } from "./StatusBadge";
@@ -13,6 +13,8 @@ import { NotesEditor, NotesIndicator } from "./NotesEditor";
 import { NextActionDatePicker, NextActionBadge } from "./NextActionDatePicker";
 import { CustomerDetailPanel } from "./CustomerDetailPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { isBefore, startOfDay, parseISO, isValid, subDays } from "date-fns";
 
 interface ConvoSummary {
   thread_path: string;
@@ -22,7 +24,11 @@ interface ConvoSummary {
   messageCount: number;
   lastDate: string;
   lastTimestamp: number;
+  isOwnerLast: boolean;
+  lastCustomerTimestamp: number;
 }
+
+type QuickFilter = "all" | "follow-up-queue" | "overdue" | "needs-reply" | "no-response-3d";
 
 export function CRMConversations() {
   const messages = useCRMStore((s) => s.messages);
@@ -31,10 +37,12 @@ export function CRMConversations() {
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ConversationStatus | "">("");
   const [tagFilter, setTagFilter] = useState<CRMTag | "">("");
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [customerPanel, setCustomerPanel] = useState<string | null>(null);
 
   const conversations = useMemo(() => {
     const map = new Map<string, ConvoSummary>();
+    const lastOwner = new Map<string, number>();
     messages.forEach((m) => {
       const existing = map.get(m.thread_path);
       if (!existing) {
@@ -42,11 +50,22 @@ export function CRMConversations() {
           thread_path: m.thread_path, listing_title: m.listing_title,
           customer_name: m.customer_name || m.sender, product: m.product,
           messageCount: 1, lastDate: m.message_date, lastTimestamp: m.timestamp_ms,
+          isOwnerLast: m.owner_message === 1, lastCustomerTimestamp: m.owner_message !== 1 && m.system_message !== 1 ? m.timestamp_ms : 0,
         });
       } else {
         existing.messageCount++;
-        if (m.timestamp_ms > existing.lastTimestamp) { existing.lastDate = m.message_date; existing.lastTimestamp = m.timestamp_ms; }
+        if (m.timestamp_ms > existing.lastTimestamp) {
+          existing.lastDate = m.message_date; existing.lastTimestamp = m.timestamp_ms;
+          existing.isOwnerLast = m.owner_message === 1;
+        }
+        if (m.owner_message !== 1 && m.system_message !== 1 && m.timestamp_ms > existing.lastCustomerTimestamp) {
+          existing.lastCustomerTimestamp = m.timestamp_ms;
+        }
         if (!existing.customer_name && m.customer_name) existing.customer_name = m.customer_name;
+      }
+      if (m.owner_message === 1) {
+        const cur = lastOwner.get(m.thread_path) || 0;
+        if (m.timestamp_ms > cur) lastOwner.set(m.thread_path, m.timestamp_ms);
       }
     });
     return Array.from(map.values()).sort((a, b) => b.lastTimestamp - a.lastTimestamp);
@@ -60,8 +79,45 @@ export function CRMConversations() {
     }
     if (statusFilter) list = list.filter((c) => getConversationMeta(c.thread_path).status === statusFilter);
     if (tagFilter) list = list.filter((c) => getConversationMeta(c.thread_path).tags.includes(tagFilter));
+
+    const today = startOfDay(new Date());
+    const threeDaysAgo = subDays(today, 3).getTime();
+    const CLOSED = new Set(['closed', 'sold', 'refunded']);
+
+    switch (quickFilter) {
+      case "follow-up-queue":
+        list = list.filter((c) => {
+          const s = getConversationMeta(c.thread_path).status;
+          return s === 'follow-up' || s === 'waiting-on-me' || s === 'active';
+        });
+        list = [...list].sort((a, b) => {
+          const aD = getConversationMeta(a.thread_path).nextActionDate || '\uffff';
+          const bD = getConversationMeta(b.thread_path).nextActionDate || '\uffff';
+          if (aD !== bD) return aD.localeCompare(bD);
+          return b.lastTimestamp - a.lastTimestamp;
+        });
+        break;
+      case "overdue":
+        list = list.filter((c) => {
+          const meta = getConversationMeta(c.thread_path);
+          if (CLOSED.has(meta.status) || !meta.nextActionDate) return false;
+          const d = parseISO(meta.nextActionDate);
+          return isValid(d) && isBefore(d, today);
+        });
+        break;
+      case "needs-reply":
+        list = list.filter((c) => !c.isOwnerLast);
+        break;
+      case "no-response-3d":
+        list = list.filter((c) => {
+          const meta = getConversationMeta(c.thread_path);
+          if (CLOSED.has(meta.status)) return false;
+          return c.lastCustomerTimestamp > 0 && !c.isOwnerLast && c.lastCustomerTimestamp < threeDaysAgo;
+        });
+        break;
+    }
     return list;
-  }, [conversations, search, statusFilter, tagFilter, getConversationMeta]);
+  }, [conversations, search, statusFilter, tagFilter, quickFilter, getConversationMeta]);
 
   const threadMessages = useMemo(() => {
     if (!selectedThread) return [];
@@ -137,6 +193,21 @@ export function CRMConversations() {
           </SelectContent>
         </Select>
       </div>
+
+      <ToggleGroup type="single" value={quickFilter} onValueChange={(v) => v && setQuickFilter(v as QuickFilter)} className="justify-start gap-1">
+        {([
+          { v: "all" as const, label: "All" },
+          { v: "follow-up-queue" as const, label: "Follow-up Queue", icon: ListFilter },
+          { v: "overdue" as const, label: "Overdue" },
+          { v: "needs-reply" as const, label: "Needs Reply" },
+          { v: "no-response-3d" as const, label: "No Reply 3d+" },
+        ]).map((f) => (
+          <ToggleGroupItem key={f.v} value={f.v} className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+            {f.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+
       <p className="text-xs text-muted-foreground">{filtered.length} conversations</p>
       <div className="space-y-1.5">
         {filtered.map((c) => {

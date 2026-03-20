@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, MessageSquare, MessagesSquare, Package, StickyNote } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, User, MessageSquare, MessagesSquare, Package, StickyNote, Star, Flame } from "lucide-react";
 import { useCRMStore } from "@/lib/crmStore";
 import { useCRMMetadataStore, type CRMTag, CRM_TAGS } from "@/lib/crmMetadataStore";
 import { TagBadges } from "./TagBadges";
@@ -21,7 +22,7 @@ interface CustomerSummary {
   products: Set<string>;
 }
 
-type QuickFilter = "all" | "has-notes" | "has-tags";
+type QuickFilter = "all" | "has-notes" | "has-tags" | "vip" | "hot-leads";
 
 export function CRMCustomers() {
   const { messages } = useCRMStore();
@@ -30,6 +31,7 @@ export function CRMCustomers() {
   const [customerPanel, setCustomerPanel] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<CRMTag | "">("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [productFilter, setProductFilter] = useState("");
 
   const customers = useMemo(() => {
     const map = new Map<string, CustomerSummary>();
@@ -56,6 +58,8 @@ export function CRMCustomers() {
     return Array.from(map.values()).sort((a, b) => b.latestTimestamp - a.latestTimestamp);
   }, [messages]);
 
+  const uniqueProducts = useMemo(() => [...new Set(messages.map((m) => m.product).filter(Boolean))].sort(), [messages]);
+
   const filtered = useMemo(() => {
     let list = customers;
     if (search) {
@@ -63,15 +67,21 @@ export function CRMCustomers() {
       list = list.filter((c) => c.name.toLowerCase().includes(q));
     }
     if (tagFilter) list = list.filter((c) => getCustomerMeta(c.name).tags.includes(tagFilter));
-    if (quickFilter === "has-notes") list = list.filter((c) => getCustomerMeta(c.name).notes);
-    if (quickFilter === "has-tags") list = list.filter((c) => getCustomerMeta(c.name).tags.length > 0);
+    if (productFilter) list = list.filter((c) => c.products.has(productFilter));
+
+    switch (quickFilter) {
+      case "has-notes": list = list.filter((c) => getCustomerMeta(c.name).notes); break;
+      case "has-tags": list = list.filter((c) => getCustomerMeta(c.name).tags.length > 0); break;
+      case "vip": list = list.filter((c) => getCustomerMeta(c.name).tags.includes('vip')); break;
+      case "hot-leads": list = list.filter((c) => getCustomerMeta(c.name).tags.includes('hot-lead')); break;
+    }
     return list;
-  }, [customers, search, tagFilter, quickFilter, getCustomerMeta]);
+  }, [customers, search, tagFilter, productFilter, quickFilter, getCustomerMeta]);
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search customers..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
@@ -82,14 +92,29 @@ export function CRMCustomers() {
             {CRM_TAGS.map((t) => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={productFilter || "__all__"} onValueChange={(v) => setProductFilter(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="All Products" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Products</SelectItem>
+            {uniqueProducts.map((p) => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
+
       <ToggleGroup type="single" value={quickFilter} onValueChange={(v) => v && setQuickFilter(v as QuickFilter)} className="justify-start gap-1">
         <ToggleGroupItem value="all" className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">All</ToggleGroupItem>
+        <ToggleGroupItem value="vip" className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          <Star className="h-3 w-3 mr-1" /> VIP
+        </ToggleGroupItem>
+        <ToggleGroupItem value="hot-leads" className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          <Flame className="h-3 w-3 mr-1" /> Hot Leads
+        </ToggleGroupItem>
         <ToggleGroupItem value="has-notes" className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
           <StickyNote className="h-3 w-3 mr-1" /> With Notes
         </ToggleGroupItem>
         <ToggleGroupItem value="has-tags" className="h-7 px-3 text-xs rounded-full data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">Tagged</ToggleGroupItem>
       </ToggleGroup>
+
       <p className="text-xs text-muted-foreground">{filtered.length} customers</p>
       <div className="grid md:grid-cols-2 gap-2.5">
         {filtered.map((c) => {

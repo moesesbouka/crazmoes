@@ -1,15 +1,15 @@
 import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, MessageSquare, MessagesSquare, Package, Calendar, Clock, CalendarClock } from "lucide-react";
+import { User, MessageSquare, MessagesSquare, Package, Calendar, Clock, Star, Flame } from "lucide-react";
 import { useCRMStore, type CRMMessage } from "@/lib/crmStore";
 import { useCRMMetadataStore, type CRMTag } from "@/lib/crmMetadataStore";
 import { TagEditor, TagBadges } from "./TagBadges";
 import { NotesEditor } from "./NotesEditor";
 import { StatusBadge } from "./StatusBadge";
 import { NextActionDatePicker, NextActionBadge } from "./NextActionDatePicker";
-import { format, parseISO, isValid } from "date-fns";
 
 interface CustomerDetailPanelProps {
   customerName: string | null;
@@ -74,7 +74,7 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
 
         <ScrollArea className="flex-1">
           <div className="p-5 space-y-4">
-            {/* ── At a Glance ── */}
+            {/* At a Glance */}
             <div className="bg-secondary/40 rounded-xl p-3.5 space-y-2 border border-border/30">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">At a Glance</p>
               <div className="grid grid-cols-2 gap-2">
@@ -99,11 +99,28 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Quick Actions */}
             <div className="flex flex-wrap gap-1.5">
+              <Button
+                variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]"
+                onClick={() => { if (!meta.tags.includes('vip')) toggleCustomerTag(customerName, 'vip'); }}
+              >
+                <Star className="h-3 w-3 mr-1" /> {meta.tags.includes('vip') ? 'VIP ✓' : 'Mark VIP'}
+              </Button>
+              <Button
+                variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]"
+                onClick={() => { if (!meta.tags.includes('hot-lead')) toggleCustomerTag(customerName, 'hot-lead'); }}
+              >
+                <Flame className="h-3 w-3 mr-1" /> Hot Lead
+              </Button>
               <TagEditor tags={meta.tags} onToggle={(t) => toggleCustomerTag(customerName, t)} />
               <NotesEditor notes={meta.notes} onChange={(n) => setCustomerNotes(customerName, n)} />
               <NextActionDatePicker value={meta.nextActionDate} onChange={(d) => setCustomerNextActionDate(customerName, d)} />
+              {data.convos.length > 0 && onOpenThread && (
+                <Button variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" onClick={() => onOpenThread(data.convos[0].threadPath)}>
+                  Open Latest Conversation
+                </Button>
+              )}
             </div>
 
             {/* Stats */}
@@ -158,6 +175,7 @@ export function CustomerDetailPanel({ customerName, onClose, onOpenThread }: Cus
                         <span className="text-[9px] text-muted-foreground">{c.count} msgs · {c.lastDate}</span>
                         {cMeta.nextActionDate && <NextActionBadge date={cMeta.nextActionDate} />}
                       </div>
+                      {cMeta.tags.length > 0 && <div className="mt-1"><TagBadges tags={cMeta.tags} max={3} size="sm" /></div>}
                     </button>
                   );
                 })}

@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, MessageSquare, MessagesSquare, Users, Settings } from "lucide-react";
+import { LayoutDashboard, MessageSquare, MessagesSquare, Users, Settings, Kanban } from "lucide-react";
 import { useCRMStore } from "@/lib/crmStore";
 import { CRMUpload } from "./crm/CRMUpload";
 import { CRMDashboard } from "./crm/CRMDashboard";
@@ -7,6 +7,7 @@ import { CRMMessages } from "./crm/CRMMessages";
 import { CRMConversations } from "./crm/CRMConversations";
 import { CRMCustomers } from "./crm/CRMCustomers";
 import { CRMSettings } from "./crm/CRMSettings";
+import { CRMPipeline } from "./crm/CRMPipeline";
 
 export function AdminCRM() {
   const messages = useCRMStore((s) => s.messages);
@@ -17,9 +18,12 @@ export function AdminCRM() {
 
       {messages.length > 0 ? (
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs">
               <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="pipeline" className="flex items-center gap-1.5 text-xs">
+              <Kanban className="h-3.5 w-3.5" /> Pipeline
             </TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-1.5 text-xs">
               <MessageSquare className="h-3.5 w-3.5" /> Messages
@@ -36,6 +40,7 @@ export function AdminCRM() {
           </TabsList>
 
           <TabsContent value="dashboard"><CRMDashboard /></TabsContent>
+          <TabsContent value="pipeline"><CRMPipeline /></TabsContent>
           <TabsContent value="messages"><CRMMessages /></TabsContent>
           <TabsContent value="conversations"><CRMConversations /></TabsContent>
           <TabsContent value="customers"><CRMCustomers /></TabsContent>
