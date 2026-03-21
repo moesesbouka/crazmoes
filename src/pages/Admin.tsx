@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, MessageSquare, Calendar, Tags, Users, Wrench, Store, Send, MessagesSquare } from "lucide-react";
+import { LogOut, MessageSquare, Calendar, Tags, Users, Wrench, Store, Send, MessagesSquare, FlaskConical } from "lucide-react";
 import { AdminChatConsole } from "@/components/admin/AdminChatConsole";
 import { AdminCategoryManager } from "@/components/admin/AdminCategoryManager";
 import { AdminPickupSchedules } from "@/components/admin/AdminPickupSchedules";
@@ -115,6 +115,10 @@ const Admin = () => {
             <TabsTrigger value="bulk-poster" className="flex items-center gap-2" onClick={() => navigate("/admin/bulk-poster")}>
               <Send className="h-4 w-4" />
               <span className="hidden sm:inline">📬 Bulk Poster</span>
+            </TabsTrigger>
+            <TabsTrigger value="crm-v2" className="flex items-center gap-2" onClick={() => navigate("/admin/crm-v2")}>
+              <FlaskConical className="h-4 w-4" />
+              <span className="hidden sm:inline">CRM V2</span>
             </TabsTrigger>
           </TabsList>
 
