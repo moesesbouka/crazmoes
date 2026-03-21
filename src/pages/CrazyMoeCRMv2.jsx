@@ -4,7 +4,7 @@ import {
   Edit3, ChevronDown, Inbox, Bell, Tag, Bookmark,
   CheckCircle2, Clock, Zap, ChevronRight, LayoutGrid,
   ListChecks, AlertTriangle, Calendar, Target, FolderOpen, Eye, EyeOff,
-  ChevronLeft
+  ChevronLeft, ExternalLink
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -64,7 +64,29 @@ const SYSTEM_PATTERNS = [
 const isSystemMsg = (content) => !content || SYSTEM_PATTERNS.some(p => p.test(content.trim()));
 
 // ═══════════════════════════════════════════
-// DATE UTILS
+// FACEBOOK URL HELPER
+// ═══════════════════════════════════════════
+// thread_path from FB export: "inbox/PersonName_abc123"
+// FB Messenger URL:           "https://www.facebook.com/messages/t/PersonName_abc123"
+function fbUrl(convId) {
+  if (!convId || convId.startsWith('s_') || convId.startsWith('t_')) return null; // sample/generated ids
+  const seg = convId.replace(/^inbox\//, '').replace(/^archived_threads\//, '').replace(/^filtered_threads\//, '');
+  if (!seg || seg === convId.replace(/^[a-z_]+\//, '')) return `https://www.facebook.com/messages/t/${seg}`;
+  return `https://www.facebook.com/messages/t/${seg}`;
+}
+
+function FBButton({ convId, small }) {
+  const url = fbUrl(convId);
+  if (!url) return null;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      title="Open conversation on Facebook"
+      style={{ display:'inline-flex', alignItems:'center', gap:small?3:5, background:`${C.blue}15`, color:C.blue, border:`1px solid ${C.blue}35`, borderRadius:small?6:8, padding:small?'3px 8px':'5px 12px', fontSize:small?10:11, fontWeight:700, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0 }}>
+      <ExternalLink size={small?10:12}/>{small?'FB':'Open on FB'}
+    </a>
+  );
+}
+
 // ═══════════════════════════════════════════
 const dateStr = (offset = 0) => {
   const d = new Date();
@@ -715,7 +737,7 @@ function InboxView({ convs, myName, convMeta, setConvMeta, onOpenCustomer, globa
               <StatusBadge status={sel.status} onChange={val=>upd(sel.id,{status:val})}/>
               <Btn variant="ghost" onClick={()=>setAddingTag(!addingTag)} style={{ fontSize:11, padding:'5px 10px' }}><Tag size={12}/>Tags</Btn>
               <Btn variant="ghost" onClick={()=>onOpenCustomer(sel._customer)} style={{ fontSize:11, padding:'5px 10px' }}><Users size={12}/></Btn>
-              {/* FIX #3: System message toggle */}
+              <FBButton convId={sel.id}/>
               {systemCount > 0 && (
                 <Btn variant="ghost" onClick={()=>setHideSystem(!hideSystem)} style={{ fontSize:10, padding:'5px 10px', color:hideSystem?C.muted:C.cyan }}>
                   {hideSystem ? <Eye size={11}/> : <EyeOff size={11}/>}
@@ -969,6 +991,7 @@ function ConversationsView({ convs, myName, convMeta, setConvMeta, onOpenCustome
                     <div style={{ display:'flex', gap:3 }}>
                       <button onClick={()=>upd(c.id,{status:'sold'})} title="Mark Sold" style={{ background:`${C.purple}15`, color:C.purple, border:`1px solid ${C.purple}30`, borderRadius:6, padding:'3px 7px', fontSize:10, cursor:'pointer' }}>✅</button>
                       <button onClick={()=>upd(c.id,{status:'follow-up'})} title="Follow-up" style={{ background:`${C.cyan}15`, color:C.cyan, border:`1px solid ${C.cyan}30`, borderRadius:6, padding:'3px 7px', fontSize:10, cursor:'pointer' }}>🔔</button>
+                      <FBButton convId={c.id} small/>
                     </div>
                   </td>
                 </tr>
@@ -1158,6 +1181,7 @@ function CustomerPanel({ customer, meta, setMeta, onClose, onOpenConv }) {
                     </div>
                   </div>
                   <ChevronRight size={14} color={C.muted}/>
+                  <FBButton convId={conv.id} small/>
                 </div>
               );
             })}
@@ -1292,6 +1316,7 @@ function QueueSection({ title, color, items, upd, onOpenCustomer, defaultOpen=tr
               <button onClick={()=>upd(c.id,{status:'sold'})} style={{ background:`${C.purple}15`, color:C.purple, border:`1px solid ${C.purple}30`, borderRadius:7, padding:'4px 10px', fontSize:10, fontWeight:700, cursor:'pointer' }}>✅ Sold</button>
               <button onClick={()=>upd(c.id,{status:'waiting on customer'})} style={{ background:`${C.amber}15`, color:C.amber, border:`1px solid ${C.amber}30`, borderRadius:7, padding:'4px 10px', fontSize:10, fontWeight:700, cursor:'pointer' }}>⏳ Waiting</button>
               <button onClick={()=>onOpenCustomer(c._customer)} style={{ background:C.card2, color:C.muted, border:`1px solid ${C.border}`, borderRadius:7, padding:'4px 10px', fontSize:10, fontWeight:700, cursor:'pointer' }}><Users size={10}/></button>
+              <FBButton convId={c.id} small/>
             </div>
           </div>
         );
