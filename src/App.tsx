@@ -14,6 +14,7 @@ import AdminSetup from "./pages/AdminSetup";
 import Admin from "./pages/Admin";
 import BulkPoster from "./pages/BulkPoster";
 import CrazyMoeCRMv2 from "./pages/CrazyMoeCRMv2";
+import PartnerDeal from "./pages/PartnerDeal";
 import NotFound from "./pages/NotFound";
 import { ChatWidget } from "./components/ChatWidget";
 
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/bulk-poster" element={<BulkPoster />} />
           <Route path="/admin/crm-v2" element={<CrazyMoeCRMv2 />} />
+          <Route path="/partner-deal" element={<PartnerDeal />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatWidget />
