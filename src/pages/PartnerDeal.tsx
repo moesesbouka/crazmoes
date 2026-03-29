@@ -171,7 +171,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
               style={{
                 background: "#0a0a0f",
                 border: "1px solid #2a2a3a",
-                focusRingColor: "#f0b429",
+                
               }}
               autoFocus
             />
@@ -270,7 +270,7 @@ function DealCard({
               style={{
                 background: answer.choice === "yes" ? "#10b981" : "#10b98133",
                 color: answer.choice === "yes" ? "#000" : "#10b981",
-                ringColor: "#10b981",
+                
               }}
             >
               ✅ Locked in
@@ -283,7 +283,7 @@ function DealCard({
               style={{
                 background: answer.choice === "no" ? "#ef4444" : "#ef444433",
                 color: answer.choice === "no" ? "#fff" : "#ef4444",
-                ringColor: "#ef4444",
+                
               }}
             >
               ❌ Not this
@@ -296,7 +296,7 @@ function DealCard({
               style={{
                 background: answer.choice === "adjust" ? "#3b82f6" : "#3b82f633",
                 color: answer.choice === "adjust" ? "#fff" : "#3b82f6",
-                ringColor: "#3b82f6",
+                
               }}
             >
               ✏️ Adjust
