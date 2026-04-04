@@ -35,11 +35,17 @@ export function ProductCard({ listing, index = 0 }: ProductCardProps) {
           <div className="aspect-[4/3] overflow-hidden bg-secondary relative">
             {imageUrl ? (
               <img
-                src={imageUrl}
+                src={`/api/img?url=${encodeURIComponent(imageUrl)}`}
                 alt={listing.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
-                onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const t = e.target as HTMLImageElement;
+                  // Fallback: try direct URL, then placeholder
+                  if (t.src.includes('/api/img')) { t.src = imageUrl; }
+                  else { t.src = "/placeholder.svg"; }
+                }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 text-5xl">
