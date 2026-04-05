@@ -36,7 +36,7 @@ export function ProductCard({ listing, index = 0 }: ProductCardProps) {
           <div className="aspect-[4/3] overflow-hidden bg-secondary relative">
             {imageUrl ? (
               <img
-                src={proxyImageUrl(imageUrl)}
+                src={proxyImageUrl(imageUrl, listing.facebook_id, 0)}
                 alt={listing.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
