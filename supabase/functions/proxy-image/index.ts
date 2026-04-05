@@ -1,21 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "*",
-};
-
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+      },
+    });
   }
 
   const { searchParams } = new URL(req.url);
   const imageUrl = searchParams.get("url");
 
   if (!imageUrl) {
-    return new Response("Missing url param", { status: 400, headers: corsHeaders });
+    return new Response("Missing url param", { status: 400 });
   }
 
   try {
@@ -33,9 +34,9 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      console.error(`Upstream returned ${response.status} for ${imageUrl}`);
       return new Response(`Image fetch failed: ${response.status}`, {
         status: response.status,
-        headers: corsHeaders,
       });
     }
 
@@ -43,16 +44,16 @@ serve(async (req) => {
     const body = await response.arrayBuffer();
 
     return new Response(body, {
+      status: 200,
       headers: {
-        ...corsHeaders,
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        "Access-Control-Allow-Origin": "*",
+        "Cross-Origin-Resource-Policy": "cross-origin",
       },
     });
   } catch (err) {
-    return new Response(`Proxy error: ${err.message}`, {
-      status: 502,
-      headers: corsHeaders,
-    });
+    console.error(`Proxy error: ${err.message}`);
+    return new Response(`Proxy error: ${err.message}`, { status: 502 });
   }
 });
