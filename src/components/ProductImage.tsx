@@ -1,23 +1,18 @@
 import { useState } from 'react';
 import { Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { proxyImageUrl } from '@/lib/proxyImage';
 
 interface ProductImageProps {
   src: string;
   alt: string;
   className?: string;
   showProcessingIndicator?: boolean;
-  facebookId?: string;
-  imageIndex?: number;
 }
 
 export function ProductImage({
   src,
   alt,
   className,
-  facebookId,
-  imageIndex = 0,
 }: ProductImageProps) {
   const [hasError, setHasError] = useState(false);
 
@@ -32,7 +27,7 @@ export function ProductImage({
   return (
     <div className={cn("relative overflow-hidden bg-secondary", className)}>
       <img
-        src={proxyImageUrl(src, facebookId, imageIndex)}
+        src={src}
         alt={alt}
         className="h-full w-full object-contain"
         loading="lazy"

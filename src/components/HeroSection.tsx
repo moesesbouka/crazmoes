@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MarketplaceListing } from "@/lib/supabase-listings";
-import { proxyImageUrl } from "@/lib/proxyImage";
 
 interface HeroSectionProps {
   featuredListing?: MarketplaceListing | null;
@@ -169,7 +168,7 @@ export function HeroSection({ featuredListing }: HeroSectionProps) {
                 <div className="rounded-xl aspect-[4/3] overflow-hidden bg-secondary group">
                   {featuredImage ? (
                     <img
-                      src={proxyImageUrl(featuredImage, featuredListing?.facebook_id, 0)}
+                      src={featuredImage}
                       alt={featuredListing?.title || "Featured deal"}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />

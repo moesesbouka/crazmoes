@@ -113,7 +113,7 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-4">
             <div className="aspect-square rounded-2xl overflow-hidden bg-secondary">
-              <ProductImage src={displayImage} alt={listing.title} className="h-full w-full p-4" facebookId={listing.facebook_id} imageIndex={selectedImageIndex} />
+              <ProductImage src={displayImage} alt={listing.title} className="h-full w-full p-4" />
             </div>
             {images.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
@@ -125,7 +125,7 @@ const ProductDetail = () => {
                       index === selectedImageIndex ? "border-primary" : "border-transparent hover:border-border"
                     }`}
                   >
-                    <ProductImage src={url} alt={`${listing.title} ${index + 1}`} className="h-full w-full p-1" showProcessingIndicator={false} facebookId={listing.facebook_id} imageIndex={index} />
+                    <ProductImage src={url} alt={`${listing.title} ${index + 1}`} className="h-full w-full p-1" showProcessingIndicator={false} />
                   </button>
                 ))}
               </div>

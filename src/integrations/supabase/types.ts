@@ -277,33 +277,6 @@ export type Database = {
         }
         Relationships: []
       }
-      stored_images: {
-        Row: {
-          created_at: string
-          facebook_id: string
-          id: string
-          image_index: number
-          original_url: string
-          stored_url: string
-        }
-        Insert: {
-          created_at?: string
-          facebook_id: string
-          id?: string
-          image_index?: number
-          original_url: string
-          stored_url: string
-        }
-        Update: {
-          created_at?: string
-          facebook_id?: string
-          id?: string
-          image_index?: number
-          original_url?: string
-          stored_url?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never

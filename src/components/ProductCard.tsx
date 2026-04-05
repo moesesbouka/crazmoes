@@ -2,7 +2,6 @@ import { MarketplaceListing } from "@/lib/supabase-listings";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MapPin, ArrowUpRight } from "lucide-react";
-import { proxyImageUrl } from "@/lib/proxyImage";
 
 interface ProductCardProps {
   listing: MarketplaceListing;
@@ -36,13 +35,21 @@ export function ProductCard({ listing, index = 0 }: ProductCardProps) {
           <div className="aspect-[4/3] overflow-hidden bg-secondary relative">
             {imageUrl ? (
               <img
-                src={proxyImageUrl(imageUrl, listing.facebook_id, 0)}
+                src={imageUrl}
                 alt={listing.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
                 onError={(e) => {
                   const t = e.target as HTMLImageElement;
-                  t.src = "/placeholder.svg";
+                  if (!t.dataset.fallback) {
+                    t.dataset.fallback = "1";
+                    t.removeAttribute("crossorigin");
+                    t.src = imageUrl;
+                  } else {
+                    t.src = "/placeholder.svg";
+                  }
                 }}
               />
             ) : (
