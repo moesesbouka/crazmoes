@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { proxyImageUrl } from '@/lib/proxyImage';
 
 interface ProductImageProps {
   src: string;
@@ -27,7 +28,7 @@ export function ProductImage({
   return (
     <div className={cn("relative overflow-hidden bg-secondary", className)}>
       <img
-        src={src}
+        src={proxyImageUrl(src)}
         alt={alt}
         className="h-full w-full object-contain"
         loading="lazy"
