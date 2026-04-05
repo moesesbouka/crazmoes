@@ -1,20 +1,21 @@
+import { getStoredImageUrl } from "@/lib/storedImages";
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://dluabbbrdhvspbjmckuf.supabase.co";
 
 /**
- * Wraps a Facebook CDN image URL through our edge-function proxy
- * so it can be loaded in the browser without 403 errors.
- * Non-fbcdn URLs are returned as-is.
+ * Returns the best available URL for a product image.
+ * 1. Checks if we have a permanently stored copy
+ * 2. Falls back to the original URL (which may be an expired Facebook CDN link)
  */
-export function proxyImageUrl(url: string): string {
+export function proxyImageUrl(url: string, facebookId?: string, imageIndex?: number): string {
   if (!url) return "/placeholder.svg";
-  // Only proxy fbcdn / Facebook image URLs
-  if (
-    url.includes("fbcdn.net") ||
-    url.includes("facebook.com") ||
-    url.includes("fbsbx.com") ||
-    url.includes("cdninstagram.com")
-  ) {
-    return `${SUPABASE_URL}/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+
+  // Check for stored image first
+  if (facebookId) {
+    const stored = getStoredImageUrl(facebookId, imageIndex ?? 0);
+    if (stored) return stored;
   }
+
+  // Return original URL as fallback
   return url;
 }
