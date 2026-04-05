@@ -21,9 +21,7 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 function getCleanImages(images: unknown): string[] {
   if (!Array.isArray(images)) return [];
-  return images
-    .filter((u): u is string => typeof u === "string" && !!u)
-    .filter((u) => /^https:\/\/(scontent|z-p[0-9]+-shbz|lookaside).*\.(jpg|jpeg|png|webp)/i.test(u));
+  return images.filter((u): u is string => typeof u === "string" && u.startsWith("https://"));
 }
 
 function formatPrice(p: number | null) {
