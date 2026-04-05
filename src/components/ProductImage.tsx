@@ -8,12 +8,16 @@ interface ProductImageProps {
   alt: string;
   className?: string;
   showProcessingIndicator?: boolean;
+  facebookId?: string;
+  imageIndex?: number;
 }
 
 export function ProductImage({
   src,
   alt,
   className,
+  facebookId,
+  imageIndex = 0,
 }: ProductImageProps) {
   const [hasError, setHasError] = useState(false);
 
@@ -28,7 +32,7 @@ export function ProductImage({
   return (
     <div className={cn("relative overflow-hidden bg-secondary", className)}>
       <img
-        src={proxyImageUrl(src)}
+        src={proxyImageUrl(src, facebookId, imageIndex)}
         alt={alt}
         className="h-full w-full object-contain"
         loading="lazy"
