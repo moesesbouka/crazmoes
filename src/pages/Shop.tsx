@@ -52,6 +52,7 @@ function ListingCard({ listing, index }: { listing: Listing; index: number }) {
                 alt={listing.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
+                referrerPolicy="no-referrer"
                 onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
               />
             ) : (
