@@ -870,7 +870,7 @@
       let permanentImages = listing.images || [];
       if (permanentImages.length > 0) {
         try {
-          addActivity(\`📸 Uploading \${permanentImages.length} images for listing...\`);
+          addActivity('📸 Uploading ' + permanentImages.length + ' images for listing...');
           permanentImages = await uploadImagesViaBg(listing.facebook_id, permanentImages);
         } catch (e) {
           console.warn('Image upload failed, using original URLs:', e);
