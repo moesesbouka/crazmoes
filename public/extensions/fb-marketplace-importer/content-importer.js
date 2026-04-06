@@ -1,5 +1,5 @@
 // FB Marketplace Importer - Content Script for Your Listings Page
-// Version 3.1.0 - FIXED EXTRACTION EDITION
+// Version 4.1.0 - FIXED EXTRACTION EDITION
 // Key fixes:
 // - Fixed image filter that was blocking ALL real photos (_n.jpg = full size!)
 // - Added support for webp/png image formats
@@ -8,11 +8,10 @@
 (function () {
   "use strict";
 
-  const EXTENSION_VERSION = "3.1.0";
+  const EXTENSION_VERSION = "4.1.0";
 
-  const SUPABASE_URL = "https://dluabbbrdhvspbjmckuf.supabase.co";
-  const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsdWFiYmJyZGh2c3Biam1ja3VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NjI5MjEsImV4cCI6MjA4MzEzODkyMX0.nMQ1zf3dQawA6bHHPEUYj2CdHCMtCCvFVF-mmWlMHF4";
+  const SUPABASE_URL = "https://sfheqjnxlkygjfohoybo.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaGVxam54bGt5Z2pmb2hveWJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNTc3NjUsImV4cCI6MjA4MzkzMzc2NX0.oWEnB48w_k_hOtYM1Ls2AHj8j-THDs_43BBzXrqPyxY";
 
   let isImporting = false;
   let importedCount = 0;
@@ -846,9 +845,38 @@
     return enrichedResults;
   }
 
+  // ============= UPLOAD IMAGES VIA BACKGROUND ============= 
+  async function uploadImagesViaBg(facebookId, imageUrls) {
+    if (!imageUrls || imageUrls.length === 0) return [];
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { action: 'uploadImages', facebookId, imageUrls },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn('uploadImages message error:', chrome.runtime.lastError);
+            resolve(imageUrls); // fallback to originals
+          } else {
+            resolve(response?.urls || imageUrls);
+          }
+        }
+      );
+    });
+  }
+
   // ============= SAVE LISTING =============
   async function saveListing(listing) {
     try {
+      // Upload images to permanent storage before saving
+      let permanentImages = listing.images || [];
+      if (permanentImages.length > 0) {
+        try {
+          addActivity(\`📸 Uploading \${permanentImages.length} images for listing...\`);
+          permanentImages = await uploadImagesViaBg(listing.facebook_id, permanentImages);
+        } catch (e) {
+          console.warn('Image upload failed, using original URLs:', e);
+        }
+      }
+
       const payload = {
         facebook_id: listing.facebook_id,
         account_tag: listing.account_tag || selectedAccount,
@@ -858,23 +886,22 @@
         condition: listing.condition || null,
         category: listing.category || null,
         location: listing.location || null,
-        images: listing.images || [],
+        images: permanentImages,
         listing_url: listing.listing_url || null,
         status: listing.status || "active",
-        imported_at: listing.imported_at || new Date().toISOString(),
-        source: "graphql-enriched",
+        synced_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
       };
 
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/marketplace_listings?on_conflict=account_tag,facebook_id`,
+        `${SUPABASE_URL}/rest/v1/active_listings?on_conflict=account_tag,facebook_id`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            Prefer: "resolution=merge-duplicates",
+            Prefer: "resolution=merge-duplicates,return=minimal",
           },
           body: JSON.stringify(payload),
         }
