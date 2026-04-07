@@ -8,9 +8,30 @@ interface ProductCardProps {
   index?: number;
 }
 
-function getFirstImage(images: unknown): string | null {
-  if (Array.isArray(images) && images.length > 0 && typeof images[0] === "string") return images[0];
+// Only Supabase-hosted images are reliable — FB CDN requires session cookies
+function getReliableImage(images: unknown): string | null {
+  if (!Array.isArray(images) || images.length === 0) return null;
+  const first = images[0];
+  if (typeof first !== "string") return null;
+  // Only trust Supabase storage URLs — FB CDN will 403 on external requests
+  if (first.includes("supabase.co/storage")) return first;
   return null;
+}
+
+function getCategoryIcon(title: string, category: string | null): string {
+  const t = (title + " " + (category || "")).toLowerCase();
+  if (/(tv|monitor|laptop|phone|iphone|ipad|tablet|computer|camera|headphone|speaker|console|playstation|xbox|nintendo|router|electronic)/.test(t)) return "📺";
+  if (/(sofa|couch|chair|table|desk|bed|mattress|dresser|lamp|shelf|furniture)/.test(t)) return "🛋️";
+  if (/(microwave|fridge|refrigerator|washer|dryer|dishwasher|oven|freezer|appliance)/.test(t)) return "🏠";
+  if (/(vacuum|blender|air fryer|toaster|coffee|mixer|kettle|home good)/.test(t)) return "🍳";
+  if (/(tool|drill|saw|wrench|hammer|power tool)/.test(t)) return "🔧";
+  if (/(toy|lego|game|puzzle|kids|children|baby|stroller)/.test(t)) return "🧸";
+  if (/(shoe|sneaker|boot|jacket|shirt|pants|clothing|apparel|dress)/.test(t)) return "👕";
+  if (/(book|textbook|novel|magazine)/.test(t)) return "📚";
+  if (/(bike|bicycle|scooter|outdoor|garden|lawn|patio)/.test(t)) return "🌿";
+  if (/(car|truck|auto|vehicle|tire|wheel)/.test(t)) return "🚗";
+  if (/(sport|gym|fitness|weight|exercise)/.test(t)) return "⚽";
+  return "📦";
 }
 
 function formatPrice(price: number | null): string {
@@ -19,7 +40,8 @@ function formatPrice(price: number | null): string {
 }
 
 export function ProductCard({ listing, index = 0 }: ProductCardProps) {
-  const imageUrl = getFirstImage(listing.images);
+  const imageUrl = getReliableImage(listing.images);
+  const icon = getCategoryIcon(listing.title || "", listing.category);
   const condition = listing.condition || "Open box";
 
   return (
@@ -39,26 +61,30 @@ export function ProductCard({ listing, index = 0 }: ProductCardProps) {
                 alt={listing.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
-                referrerPolicy="no-referrer"
-                crossOrigin="anonymous"
                 onError={(e) => {
-                  const t = e.target as HTMLImageElement;
-                  if (!t.dataset.fallback) {
-                    t.dataset.fallback = "1";
-                    t.removeAttribute("crossorigin");
-                    t.src = imageUrl;
-                  } else {
-                    t.src = "/placeholder.svg";
+                  // If even supabase URL fails, show placeholder
+                  const parent = (e.target as HTMLImageElement).parentElement;
+                  if (parent) {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    const ph = parent.querySelector(".icon-placeholder") as HTMLElement;
+                    if (ph) ph.style.display = "flex";
                   }
                 }}
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 text-5xl">
-                📦
-              </div>
-            )}
+            ) : null}
 
-            {/* Condition badge overlay */}
+            {/* Icon placeholder — shown when no permanent image available */}
+            <div
+              className="icon-placeholder w-full h-full flex flex-col items-center justify-center gap-2"
+              style={{ display: imageUrl ? "none" : "flex", background: "linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--muted)) 100%)" }}
+            >
+              <span style={{ fontSize: "2.5rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}>{icon}</span>
+              <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", opacity: 0.6 }}>
+                {listing.category || "Item"}
+              </span>
+            </div>
+
+            {/* Condition badge */}
             <div className="absolute top-3 left-3 flex gap-2">
               <span className="px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md text-xs font-semibold text-foreground border border-border/50">
                 {condition}
@@ -82,13 +108,12 @@ export function ProductCard({ listing, index = 0 }: ProductCardProps) {
               <span>Pickup in Buffalo</span>
             </div>
 
-            {/* Price row */}
             <div className="flex items-end justify-between gap-3 mt-4 pt-4 border-t border-border">
               <p className="text-2xl font-black tracking-tight leading-none text-foreground">
                 {formatPrice(listing.price)}
               </p>
               <span className="shrink-0 rounded-full bg-primary/10 text-primary px-3.5 py-2 text-xs font-bold whitespace-nowrap">
-                View Deal
+                View Deal →
               </span>
             </div>
           </div>
