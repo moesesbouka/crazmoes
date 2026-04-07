@@ -546,44 +546,24 @@
   // ── Sync to Supabase — 3 modes ────────────────────────────────────────────
   // mode: "full" | "new_only" | "availability_refresh"
   
-  // ── Upload listing images to permanent Supabase storage ──────────────
+  // ── Upload listing images via background.js (no CORS restriction) ────
   async function uploadListingImages(listing) {
     const imgs = listing.images || [];
     if (imgs.length === 0) return listing;
-    const CM_STORAGE = SB_URL + '/storage/v1/object/listing-images';
-    const permanent = [];
-    for (let i = 0; i < Math.min(imgs.length, 3); i++) {
-      const url = imgs[i];
-      if (!url || !url.startsWith('http')) { permanent.push(url); continue; }
-      // Skip if already permanent
-      if (url.includes('supabase.co/storage')) { permanent.push(url); continue; }
-      try {
-        const resp = await fetch(url, {
-          headers: {
-            'Referer': 'https://www.facebook.com/marketplace/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    // Check if already permanent
+    if (imgs[0] && imgs[0].includes('supabase.co/storage')) return listing;
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { action: 'uploadImages', facebookId: listing.facebook_id, imageUrls: imgs.slice(0, 3) },
+        (response) => {
+          if (chrome.runtime.lastError || !response || !response.success) {
+            resolve(listing); // fallback: keep original URLs
+          } else {
+            resolve({ ...listing, images: response.urls });
           }
-        });
-        if (!resp.ok) { permanent.push(url); continue; }
-        const ct = resp.headers.get('content-type') || 'image/jpeg';
-        if (!ct.startsWith('image/')) { permanent.push(url); continue; }
-        const buf = await resp.arrayBuffer();
-        if (buf.byteLength < 3000) { permanent.push(url); continue; }
-        const ext = ct.includes('png') ? 'png' : ct.includes('webp') ? 'webp' : 'jpg';
-        const path = `listings/${listing.facebook_id}/img_${i}.${ext}`;
-        const up = await fetch(`${CM_STORAGE}/${path}`, {
-          method: 'POST',
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': ct, 'x-upsert': 'true' },
-          body: buf
-        });
-        if (up.ok) {
-          permanent.push(SB_URL + '/storage/v1/object/public/listing-images/' + path);
-        } else {
-          permanent.push(url);
         }
-      } catch(_) { permanent.push(url); }
-    }
-    return { ...listing, images: permanent };
+      );
+    });
   }
 
 async function syncToSupabase(listings, onProgress, mode = "full") {
