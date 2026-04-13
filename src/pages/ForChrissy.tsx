@@ -619,6 +619,13 @@ const ForChrissy = () => {
     });
   }
 
+  function startMusicOnce() {
+    if (musicPlaying || !player) return;
+    player.playVideo();
+    musicPlaying = true;
+    document.getElementById('music-btn').textContent = '⏸ pause';
+  }
+
   function toggleMusic() {
     var btn = document.getElementById('music-btn');
     if (!player) return;
@@ -632,6 +639,10 @@ const ForChrissy = () => {
       musicPlaying = true;
     }
   }
+
+  // Auto-start on first tap anywhere on the page
+  document.addEventListener('click', function() { startMusicOnce(); }, { once: true });
+  document.addEventListener('touchend', function() { startMusicOnce(); }, { once: true });
 
   var tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
