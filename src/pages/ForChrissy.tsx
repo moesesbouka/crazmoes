@@ -585,11 +585,11 @@ const ForChrissy = () => {
   display: flex; align-items: center; gap: 0.6rem;
   opacity: 0; animation: fadeUp 1s 2s ease forwards;
 ">
-  <span id="music-label" style="
+  <span style="
     font-family: 'EB Garamond', serif; font-style: italic;
     font-size: 0.75rem; letter-spacing: 0.15em;
     color: rgba(200,169,110,0.5);
-  ">♪ music</span>
+  ">♪ When You Believe</span>
   <button id="music-btn" onclick="toggleMusic()" style="
     background: none; border: 1px solid rgba(200,169,110,0.25);
     color: rgba(200,169,110,0.6); font-size: 0.75rem;
@@ -598,38 +598,45 @@ const ForChrissy = () => {
   ">▶ play</button>
 </div>
 
-<div id="yt-player" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;"></div>
+<iframe id="yt-frame"
+  src="https://www.youtube.com/embed/LKaXY4IdZ40?enablejsapi=1&controls=0&loop=1&playlist=LKaXY4IdZ40&rel=0"
+  style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;"
+  allow="autoplay"
+  frameborder="0">
+</iframe>
 
 <script>
-  var ytPlayer;
+  var player = null;
   var musicPlaying = false;
 
   function onYouTubeIframeAPIReady() {
-    ytPlayer = new YT.Player('yt-player', {
-      videoId: 'LKaXY4IdZ40',
-      playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: 'LKaXY4IdZ40' },
-      events: { onReady: function() {} }
+    player = new YT.Player('yt-frame', {
+      events: {
+        onReady: function(e) {
+          e.target.setVolume(30);
+        }
+      }
     });
   }
 
   function toggleMusic() {
-    if (!ytPlayer) return;
+    var btn = document.getElementById('music-btn');
+    if (!player) return;
     if (musicPlaying) {
-      ytPlayer.pauseVideo();
-      document.getElementById('music-btn').textContent = '▶ play';
+      player.pauseVideo();
+      btn.textContent = '▶ play';
       musicPlaying = false;
     } else {
-      ytPlayer.playVideo();
-      ytPlayer.setVolume(35);
-      document.getElementById('music-btn').textContent = '⏸ pause';
+      player.playVideo();
+      btn.textContent = '⏸ pause';
       musicPlaying = true;
     }
   }
 
-  // Load YouTube API
   var tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
+  var firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 </script>
 </body>
 </html>
