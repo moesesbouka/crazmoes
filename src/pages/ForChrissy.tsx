@@ -579,11 +579,40 @@ const ForChrissy = () => {
   });
 </script>
 
-<!-- Background Music -->
+<!-- Tap to Begin Overlay -->
+<div id="tap-overlay" style="
+  position: fixed; inset: 0; z-index: 999;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, #2e1a08 0%, #0a0702 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+" onclick="beginExperience()">
+  <div style="
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: clamp(2.5rem, 8vw, 4rem); font-weight: 300;
+    color: #c8a96e; letter-spacing: -0.01em;
+    text-shadow: 0 0 60px rgba(200,169,110,0.3);
+    animation: pulse 2.5s ease-in-out infinite;
+  ">For You, Chrissy</div>
+  <div style="height:2rem"></div>
+  <div style="
+    font-family: 'EB Garamond', serif; font-size: 0.8rem;
+    letter-spacing: 0.35em; text-transform: uppercase;
+    color: rgba(200,169,110,0.4);
+    animation: blink 2s ease-in-out infinite;
+  ">tap anywhere to begin</div>
+  <div style="height:0.8rem"></div>
+  <div style="
+    font-family: 'EB Garamond', serif; font-style: italic;
+    font-size: 0.75rem; letter-spacing: 0.2em;
+    color: rgba(200,169,110,0.25);
+  ">♪ with music</div>
+</div>
+
+<!-- Music controls (shown after begin) -->
 <div id="music-controls" style="
   position: fixed; top: 1.2rem; right: 1.5rem; z-index: 100;
-  display: flex; align-items: center; gap: 0.6rem;
-  opacity: 0; animation: fadeUp 1s 2s ease forwards;
+  display: none; align-items: center; gap: 0.6rem;
 ">
   <span style="
     font-family: 'EB Garamond', serif; font-style: italic;
@@ -595,7 +624,7 @@ const ForChrissy = () => {
     color: rgba(200,169,110,0.6); font-size: 0.75rem;
     padding: 0.3rem 0.7rem; cursor: pointer; letter-spacing: 0.1em;
     font-family: 'EB Garamond', serif; transition: all 0.3s ease;
-  ">▶ play</button>
+  ">⏸ pause</button>
 </div>
 
 <iframe id="yt-frame"
@@ -614,16 +643,31 @@ const ForChrissy = () => {
       events: {
         onReady: function(e) {
           e.target.setVolume(30);
+          if (window._playWhenReady) {
+            e.target.playVideo();
+            musicPlaying = true;
+          }
         }
       }
     });
   }
 
-  function startMusicOnce() {
-    if (musicPlaying || !player) return;
-    player.playVideo();
-    musicPlaying = true;
-    document.getElementById('music-btn').textContent = '⏸ pause';
+  function beginExperience() {
+    // Hide overlay
+    var overlay = document.getElementById('tap-overlay');
+    overlay.style.transition = 'opacity 1s ease';
+    overlay.style.opacity = '0';
+    setTimeout(function() { overlay.style.display = 'none'; }, 1000);
+    // Show music controls
+    document.getElementById('music-controls').style.display = 'flex';
+    // Play music — this is inside a user gesture so it works
+    if (player && player.playVideo) {
+      player.playVideo();
+      musicPlaying = true;
+    } else {
+      // Player not ready yet — flag it
+      window._playWhenReady = true;
+    }
   }
 
   function toggleMusic() {
@@ -639,10 +683,6 @@ const ForChrissy = () => {
       musicPlaying = true;
     }
   }
-
-  // Auto-start on first tap anywhere on the page
-  document.addEventListener('click', function() { startMusicOnce(); }, { once: true });
-  document.addEventListener('touchend', function() { startMusicOnce(); }, { once: true });
 
   var tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
