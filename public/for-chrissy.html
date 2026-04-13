@@ -573,5 +573,58 @@
     if (e.key === 'ArrowLeft') goTo(current - 1);
   });
 </script>
+
+<!-- Background Music -->
+<div id="music-controls" style="
+  position: fixed; top: 1.2rem; right: 1.5rem; z-index: 100;
+  display: flex; align-items: center; gap: 0.6rem;
+  opacity: 0; animation: fadeUp 1s 2s ease forwards;
+">
+  <span id="music-label" style="
+    font-family: 'EB Garamond', serif; font-style: italic;
+    font-size: 0.75rem; letter-spacing: 0.15em;
+    color: rgba(200,169,110,0.5);
+  ">♪ music</span>
+  <button id="music-btn" onclick="toggleMusic()" style="
+    background: none; border: 1px solid rgba(200,169,110,0.25);
+    color: rgba(200,169,110,0.6); font-size: 0.75rem;
+    padding: 0.3rem 0.7rem; cursor: pointer; letter-spacing: 0.1em;
+    font-family: 'EB Garamond', serif; transition: all 0.3s ease;
+  ">▶ play</button>
+</div>
+
+<div id="yt-player" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;"></div>
+
+<script>
+  var ytPlayer;
+  var musicPlaying = false;
+
+  function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('yt-player', {
+      videoId: 'LKaXY4IdZ40',
+      playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: 'LKaXY4IdZ40' },
+      events: { onReady: function() {} }
+    });
+  }
+
+  function toggleMusic() {
+    if (!ytPlayer) return;
+    if (musicPlaying) {
+      ytPlayer.pauseVideo();
+      document.getElementById('music-btn').textContent = '▶ play';
+      musicPlaying = false;
+    } else {
+      ytPlayer.playVideo();
+      ytPlayer.setVolume(35);
+      document.getElementById('music-btn').textContent = '⏸ pause';
+      musicPlaying = true;
+    }
+  }
+
+  // Load YouTube API
+  var tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+</script>
 </body>
 </html>
