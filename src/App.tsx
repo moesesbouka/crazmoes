@@ -41,6 +41,7 @@ const App = () => (
           <Route path="/admin/crm-v2" element={<CrazyMoeCRMv2 />} />
           <Route path="/partner-deal" element={<PartnerDeal />} />
           <Route path="/for-chrissy" element={<ForChrissy />} />
+          <Route path="/for-chrissy.html" element={<ForChrissy />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatWidget />
