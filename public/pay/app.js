@@ -258,6 +258,7 @@ async function attemptInstall() {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
+    trackEvent('install', 'pwa_accepted');
       toast('Install accepted.');
       closeInstallOverlay();
     } else {
@@ -792,6 +793,7 @@ async function saveExpenseEntry() {
   const cycle = cycleForDate(date);
   if (!cycle) return toast('Could not assign that expense to a reimbursement cycle.');
 
+  trackEvent('expense_submit', category + ':' + payMethod);
   state.expenses.unshift({
     id: makeId('exp'),
     amount,
@@ -1645,4 +1647,28 @@ function init() {
   startReminderLoop();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => { init(); trackEvent('session_start', isStandalone() ? 'pwa' : 'browser'); });
+
+// ─── Analytics ───────────────────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://sfheqjnxlkygjfohoybo.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaGVxam54bGt5Z2pmb2hveWJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNTc3NjUsImV4cCI6MjA4MzkzMzc2NX0.oWEnB48w_k_hOtYM1Ls2AHj8j-THDs_43BBzXrqPyxY';
+
+function trackEvent(event, detail = null) {
+  try {
+    fetch(`${SUPABASE_URL}/rest/v1/bdd_pay_events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${SUPABASE_ANON}`
+      },
+      body: JSON.stringify({
+        event,
+        detail,
+        ua: navigator.userAgent,
+        standalone: isStandalone()
+      })
+    }).catch(() => null); // silent fail — never block the UI
+  } catch(e) { /* silent */ }
+}
+// ─────────────────────────────────────────────────────────────────────────────
