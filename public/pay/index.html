@@ -1,0 +1,2202 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BDD Pay & Expense Portal</title>
+  <meta name="theme-color" content="#f6f0e7" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Serif+Display:ital@0;1&display=swap');
+
+    :root{
+      --bg:#f6f0e7;
+      --ink:#121824;
+      --soft:#5f6b7d;
+      --line:#e6ddd1;
+      --panel:#ffffff;
+      --shadow:0 14px 34px rgba(24,28,34,.08);
+      --gold:#b5792f;
+      --gold-soft:#f4e4cf;
+      --green:#1f9d67;
+      --green-soft:#e9f7f0;
+      --blue:#356ad8;
+      --blue-soft:#edf3ff;
+      --red:#d64e4e;
+      --red-soft:#ffefef;
+      --amber:#d48c31;
+      --amber-soft:#fff4e6;
+      --purple:#7f5cff;
+      --purple-soft:#f3efff;
+      --radius:20px;
+    }
+
+    *{ box-sizing:border-box; }
+    html{ scroll-behavior:smooth; }
+    body{
+      margin:0;
+      font-family:'Inter', system-ui, sans-serif;
+      background:
+        radial-gradient(900px 500px at 0% -10%, rgba(53,106,216,.08), transparent 50%),
+        radial-gradient(800px 500px at 100% 0%, rgba(181,121,47,.10), transparent 42%),
+        var(--bg);
+      color:var(--ink);
+      min-height:100vh;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.025;
+      background-image:
+        linear-gradient(rgba(18,24,36,.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(18,24,36,.1) 1px, transparent 1px);
+      background-size:24px 24px;
+      mask-image:linear-gradient(180deg, transparent, black 8%, black 92%, transparent);
+    }
+
+    body.flash{
+      animation:flashScreen .85s ease-in-out 2;
+    }
+
+    @keyframes flashScreen{
+      0%,100%{ filter:none; }
+      50%{ filter:brightness(1.06) saturate(1.08); }
+    }
+
+    .app{
+      max-width:1100px;
+      margin:0 auto;
+      padding:28px 16px 40px;
+      position:relative;
+      z-index:1;
+    }
+
+    .top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+
+    .eyebrow{
+      font:600 11px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      color:#7d6b52;
+      margin-bottom:10px;
+    }
+
+    h1{
+      margin:0;
+      font-family:'DM Serif Display', serif;
+      font-size:clamp(34px, 4vw, 54px);
+      line-height:.96;
+      letter-spacing:-.03em;
+      color:#17130d;
+    }
+
+    h1 em{
+      font-style:italic;
+      color:var(--gold);
+    }
+
+    .sub{
+      margin-top:12px;
+      max-width:720px;
+      font-size:14px;
+      line-height:1.65;
+      color:var(--soft);
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .pill,
+    .button,
+    .tiny-btn,
+    .tab-btn,
+    .mode-btn{
+      border:0;
+      border-radius:16px;
+      font-family:'Inter', sans-serif;
+      transition:transform .12s ease, box-shadow .18s ease, background .18s ease, opacity .18s ease, border-color .18s ease;
+    }
+
+    .pill:active,
+    .button:active,
+    .tiny-btn:active,
+    .tab-btn:active,
+    .mode-btn:active{
+      transform:translateY(1px) scale(.996);
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      background:#fff;
+      border:1px solid var(--line);
+      color:#324053;
+      font:600 12px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      box-shadow:var(--shadow);
+    }
+
+    .pill.good{
+      background:var(--green-soft);
+      border-color:#cdebdc;
+      color:#0f7a4d;
+    }
+
+    .dot{
+      width:9px;
+      height:9px;
+      border-radius:50%;
+      background:currentColor;
+      box-shadow:0 0 12px currentColor;
+      animation:pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse{
+      0%,100%{ transform:scale(1); opacity:1; }
+      50%{ transform:scale(.72); opacity:.45; }
+    }
+
+    .button{
+      cursor:pointer;
+      padding:12px 14px;
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:.01em;
+      background:#fff;
+      border:1px solid var(--line);
+      color:#203146;
+      box-shadow:var(--shadow);
+    }
+
+    .button.primary{
+      background:linear-gradient(135deg, #16895a, #22be78);
+      color:#fff;
+      border-color:transparent;
+      box-shadow:0 14px 30px rgba(31,157,103,.22);
+    }
+
+    .button.warn{
+      background:linear-gradient(135deg, #c07b1f, #d79b3f);
+      color:#fff;
+      border-color:transparent;
+      box-shadow:0 14px 30px rgba(212,140,49,.2);
+    }
+
+    .button.alt{
+      background:linear-gradient(135deg, #4f66e8, #7e93ff);
+      color:#fff;
+      border-color:transparent;
+      box-shadow:0 14px 30px rgba(53,106,216,.18);
+    }
+
+    .tabbar{
+      margin-top:8px;
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:10px;
+      margin-bottom:18px;
+    }
+
+    .tab-btn{
+      cursor:pointer;
+      background:#fff;
+      border:1px solid var(--line);
+      padding:14px 14px 13px;
+      text-align:left;
+      box-shadow:var(--shadow);
+    }
+
+    .tab-btn.active{
+      border-color:#d4c2a6;
+      background:linear-gradient(180deg, #fffdf9, #f9f3ea);
+      box-shadow:0 16px 34px rgba(181,121,47,.1);
+    }
+
+    .tab-kicker{
+      font:600 10px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:#8b7760;
+      margin-bottom:6px;
+    }
+
+    .tab-title{
+      font-size:14px;
+      font-weight:700;
+      color:#1e2a3a;
+    }
+
+    .panel{
+      display:none;
+    }
+
+    .panel.active{
+      display:block;
+    }
+
+    .stack{
+      display:grid;
+      gap:16px;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .card-head{
+      padding:18px 18px 0;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+    }
+
+    .card-kicker{
+      font:600 11px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:#8c7658;
+      margin-bottom:9px;
+    }
+
+    .card-title{
+      margin:0;
+      font-size:26px;
+      line-height:1.05;
+      letter-spacing:-.02em;
+      font-family:'DM Serif Display', serif;
+      color:#18130d;
+    }
+
+    .card-copy{
+      margin-top:10px;
+      font-size:14px;
+      line-height:1.62;
+      color:var(--soft);
+    }
+
+    .card-body{
+      padding:18px;
+    }
+
+    .badge{
+      align-self:flex-start;
+      border-radius:999px;
+      padding:8px 11px;
+      font:600 11px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.08em;
+      background:#f4efe7;
+      color:#6c5840;
+      border:1px solid #eadfce;
+      white-space:nowrap;
+    }
+
+    .hero-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:14px;
+    }
+
+    .mini{
+      border-radius:18px;
+      border:1px solid var(--line);
+      padding:16px;
+      background:#fff;
+    }
+
+    .mini .label{
+      font:600 10px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:#8d7862;
+      margin-bottom:9px;
+    }
+
+    .mini .value{
+      font-family:'DM Serif Display', serif;
+      font-size:34px;
+      line-height:1;
+      margin-bottom:8px;
+      color:#18130d;
+    }
+
+    .mini .meta{
+      font-size:13px;
+      color:var(--soft);
+      line-height:1.55;
+    }
+
+    .mini.good{
+      background:var(--green-soft);
+      border-color:#d4eadf;
+    }
+
+    .mini.warn{
+      background:var(--amber-soft);
+      border-color:#f1dfc4;
+    }
+
+    .mini.blue{
+      background:var(--blue-soft);
+      border-color:#dbe6ff;
+    }
+
+    .list{
+      display:grid;
+      gap:10px;
+    }
+
+    .list-row{
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) auto auto;
+      gap:12px;
+      align-items:center;
+      padding:14px 15px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+    }
+
+    .list-row.paid{
+      opacity:.68;
+      background:#fbfbfb;
+    }
+
+    .list-title{
+      font-size:14px;
+      font-weight:700;
+      color:#172233;
+      line-height:1.45;
+    }
+
+    .list-sub{
+      margin-top:5px;
+      font-size:12px;
+      color:var(--soft);
+      line-height:1.5;
+    }
+
+    .chips{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:7px 9px;
+      border-radius:999px;
+      font:600 11px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.04em;
+      background:#f4f0ea;
+      color:#5c6980;
+      border:1px solid #ebe1d3;
+    }
+
+    .chip.good{
+      background:var(--green-soft);
+      border-color:#cae8db;
+      color:#177850;
+    }
+
+    .chip.warn{
+      background:var(--amber-soft);
+      border-color:#f0dfc6;
+      color:#8b5a18;
+    }
+
+    .chip.blue{
+      background:var(--blue-soft);
+      border-color:#d6e3ff;
+      color:#2457bd;
+    }
+
+    .chip.red{
+      background:var(--red-soft);
+      border-color:#f4d0d0;
+      color:#b43a3a;
+    }
+
+    .tiny-btn{
+      cursor:pointer;
+      padding:10px 12px;
+      font-size:12px;
+      font-weight:700;
+      background:#fff;
+      border:1px solid var(--line);
+      color:#203146;
+    }
+
+    .tiny-btn.primary{
+      background:#1f9d67;
+      color:#fff;
+      border-color:#1f9d67;
+    }
+
+    .tiny-btn.ghost{
+      background:#fff;
+    }
+
+    .tiny-btn.danger{
+      background:#fff5f5;
+      color:#b53c3c;
+      border-color:#f0d4d4;
+    }
+
+    .split-2{
+      display:grid;
+      grid-template-columns:1.05fr .95fr;
+      gap:16px;
+      align-items:start;
+    }
+
+    .field-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+
+    .field{
+      display:grid;
+      gap:6px;
+    }
+
+    .field.full{
+      grid-column:1 / -1;
+    }
+
+    label{
+      font-size:12px;
+      font-weight:700;
+      color:#5b6472;
+      letter-spacing:.01em;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea{
+      width:100%;
+      padding:12px 13px;
+      border-radius:14px;
+      border:1px solid #ddd3c5;
+      background:#fffdf9;
+      color:#152133;
+      font:500 14px/1.35 'Inter', sans-serif;
+      outline:none;
+      transition:border-color .18s ease, box-shadow .18s ease;
+    }
+
+    textarea{
+      min-height:98px;
+      resize:vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus{
+      border-color:#d1ae7c;
+      box-shadow:0 0 0 4px rgba(181,121,47,.10);
+    }
+
+    .segmented{
+      display:inline-grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:8px;
+      padding:6px;
+      border-radius:16px;
+      background:#f7f1e8;
+      border:1px solid #eadfcc;
+      width:100%;
+      margin-bottom:14px;
+    }
+
+    .mode-btn{
+      cursor:pointer;
+      padding:12px 12px;
+      background:transparent;
+      font-size:13px;
+      font-weight:700;
+      color:#65553e;
+      border:1px solid transparent;
+    }
+
+    .mode-btn.active{
+      background:#fff;
+      border-color:#e2d5c3;
+      color:#1c2938;
+      box-shadow:0 8px 18px rgba(22,26,33,.06);
+    }
+
+    .helper{
+      font-size:12px;
+      color:#7c8695;
+      line-height:1.5;
+    }
+
+    .helper strong{
+      color:#3b4657;
+    }
+
+    .receipt-box{
+      border:1px dashed #d9ccb6;
+      border-radius:16px;
+      padding:14px;
+      background:#fcfaf6;
+      display:grid;
+      gap:10px;
+    }
+
+    .receipt-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:9px 10px;
+      border-radius:12px;
+      background:#fff;
+      border:1px solid #eadfcc;
+      font-size:12px;
+      color:#46566c;
+    }
+
+    .summary-card{
+      border-radius:18px;
+      padding:16px;
+      border:1px solid var(--line);
+      background:#fff;
+      display:grid;
+      gap:10px;
+    }
+
+    .summary-card .big{
+      font-family:'DM Serif Display', serif;
+      font-size:32px;
+      line-height:1;
+      color:#18130d;
+    }
+
+    .summary-card .small{
+      font-size:13px;
+      line-height:1.55;
+      color:var(--soft);
+    }
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+    }
+
+    th{
+      text-align:left;
+      font:600 11px/1 'IBM Plex Mono', monospace;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:#8a7760;
+      padding:0 0 10px;
+    }
+
+    td{
+      padding:12px 0;
+      border-top:1px solid #eee5d8;
+      font-size:14px;
+      color:#1f2b3b;
+      vertical-align:middle;
+    }
+
+    .table-wrap{
+      overflow:auto;
+    }
+
+    .empty{
+      padding:16px;
+      border-radius:16px;
+      border:1px dashed #dacdb8;
+      background:#fcfaf6;
+      color:#7c8695;
+      font-size:13px;
+      line-height:1.6;
+    }
+
+    .toggle-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding:14px 0;
+      border-top:1px solid #eee5d8;
+    }
+
+    .toggle-row:first-child{
+      border-top:none;
+      padding-top:0;
+    }
+
+    .switch{
+      position:relative;
+      width:52px;
+      height:30px;
+      flex:0 0 auto;
+    }
+
+    .switch input{
+      opacity:0;
+      width:0;
+      height:0;
+    }
+
+    .slider{
+      position:absolute;
+      inset:0;
+      cursor:pointer;
+      background:#d7cabb;
+      border-radius:999px;
+      transition:.18s ease;
+    }
+
+    .slider::before{
+      content:"";
+      position:absolute;
+      width:22px;
+      height:22px;
+      left:4px;
+      top:4px;
+      background:white;
+      border-radius:50%;
+      box-shadow:0 4px 12px rgba(16,20,27,.14);
+      transition:.18s ease;
+    }
+
+    .switch input:checked + .slider{
+      background:#22b875;
+    }
+
+    .switch input:checked + .slider::before{
+      transform:translateX(22px);
+    }
+
+    .modal{
+      position:fixed;
+      inset:0;
+      background:rgba(17,22,30,.35);
+      backdrop-filter:blur(4px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      z-index:999;
+    }
+
+    .modal.show{
+      display:flex;
+    }
+
+    .modal-card{
+      max-width:460px;
+      width:100%;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:24px;
+      box-shadow:0 28px 54px rgba(16,20,27,.18);
+      padding:22px;
+      text-align:center;
+    }
+
+    .modal-card h3{
+      margin:0 0 10px;
+      font-family:'DM Serif Display', serif;
+      font-size:34px;
+      line-height:1.02;
+      color:#17130d;
+    }
+
+    .modal-card p{
+      margin:0 0 18px;
+      color:var(--soft);
+      line-height:1.6;
+      font-size:14px;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:22px;
+      transform:translateX(-50%) translateY(10px);
+      background:#192231;
+      color:#f4f7fb;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.08);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .2s ease, transform .2s ease;
+      z-index:1000;
+      box-shadow:0 18px 40px rgba(10,14,20,.24);
+      font-size:13px;
+    }
+
+    .toast.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+
+    .footer{
+      margin-top:18px;
+      text-align:center;
+      font-size:12px;
+      color:#8a7560;
+    }
+
+    @media (max-width: 960px){
+      .hero-grid,
+      .split-2,
+      .field-grid{
+        grid-template-columns:1fr;
+      }
+
+      .tabbar{
+        grid-template-columns:repeat(2, 1fr);
+      }
+
+      .list-row{
+        grid-template-columns:minmax(0, 1fr);
+      }
+
+      .chips{
+        justify-content:flex-start;
+      }
+    }
+
+    @media (max-width: 640px){
+      .app{ padding:20px 12px 34px; }
+      .tabbar{ grid-template-columns:1fr 1fr; }
+      h1{ font-size:34px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div>
+        <div class="eyebrow">Buffalo Deal Depot · Pay & Expense Portal</div>
+        <h1>Simple, clean,<br><em>and easy to check.</em></h1>
+        <div class="sub">The idea here is simple: one place for upcoming pay reminders, milestone due dates, expense submissions, and the biweekly reimbursement total — without making it feel like work just to look at it.</div>
+      </div>
+      <div class="top-actions">
+        <div class="pill" id="alertPill"><span class="dot"></span><span id="alertPillText">Alerts off</span></div>
+        <button class="button primary" id="enableAlertsBtn">Enable reminders</button>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <button class="tab-btn active" data-tab="overview">
+        <div class="tab-kicker">Tab 01</div>
+        <div class="tab-title">Overview</div>
+      </button>
+      <button class="tab-btn" data-tab="payments">
+        <div class="tab-kicker">Tab 02</div>
+        <div class="tab-title">Payments</div>
+      </button>
+      <button class="tab-btn" data-tab="expenses">
+        <div class="tab-kicker">Tab 03</div>
+        <div class="tab-title">Expenses</div>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <div class="tab-kicker">Tab 04</div>
+        <div class="tab-title">Settings</div>
+      </button>
+    </div>
+
+    <section class="panel active" id="panel-overview">
+      <div class="stack">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">At-a-glance</div>
+              <h2 class="card-title">What needs attention.</h2>
+              <div class="card-copy">This is the simple partner-facing view. It shows the next weekly pay, the next bigger scheduled payment, and the next expense settlement due.</div>
+            </div>
+            <div class="badge" id="todayBadge">Today</div>
+          </div>
+          <div class="card-body">
+            <div class="hero-grid" id="overviewCards"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">Upcoming queue</div>
+              <h2 class="card-title">Next items due.</h2>
+            </div>
+            <div class="badge" id="queueBadge">Open obligations</div>
+          </div>
+          <div class="card-body">
+            <div class="list" id="upcomingList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-payments">
+      <div class="stack">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">Weekly pay</div>
+              <h2 class="card-title">Weekly schedule.</h2>
+              <div class="card-copy">Weekly pay starts on May 1st, with the first payment due May 8th, then weekly after that.</div>
+            </div>
+          </div>
+          <div class="card-body table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Due</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th style="text-align:right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="weeklyBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">Bigger commitments</div>
+              <h2 class="card-title">Milestones and older balance.</h2>
+              <div class="card-copy">These use the stronger reminder pattern: three days before, the day before, and the day of.</div>
+            </div>
+          </div>
+          <div class="card-body table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Due</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th style="text-align:right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="milestoneBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">History</div>
+              <h2 class="card-title">What has already been marked paid.</h2>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="list" id="historyList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-expenses">
+      <div class="stack">
+        <div class="split-2">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-kicker">Add expense</div>
+                <h2 class="card-title">Submit a reimbursable expense.</h2>
+                <div class="card-copy">Choose how you paid. If you have a receipt, attach it. If you paid cash and there is no receipt, use manual cash entry instead.</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="segmented">
+                <button class="mode-btn active" id="modeReceiptBtn">Receipt upload</button>
+                <button class="mode-btn" id="modeCashBtn">Cash / manual</button>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="expenseAmount">Amount</label>
+                  <input id="expenseAmount" type="number" min="0" step="0.01" placeholder="0.00" />
+                </div>
+                <div class="field">
+                  <label for="expenseDate">Expense date</label>
+                  <input id="expenseDate" type="date" />
+                </div>
+                <div class="field">
+                  <label for="expenseCategory">Category</label>
+                  <select id="expenseCategory">
+                    <option value="fuel">Fuel</option>
+                    <option value="supplies">Supplies</option>
+                    <option value="delivery">Delivery / pickup</option>
+                    <option value="inventory-help">Inventory handling</option>
+                    <option value="tools">Tools / materials</option>
+                    <option value="other">Other business expense</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="expenseMethod">Paid with</label>
+                  <select id="expenseMethod">
+                    <option value="cash">Cash</option>
+                    <option value="personal-card">Personal card</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label for="expenseDescription">Description</label>
+                  <textarea id="expenseDescription" placeholder="What was paid for, and why it was needed."></textarea>
+                </div>
+              </div>
+
+              <div class="receipt-box" id="receiptBlock">
+                <div class="helper"><strong>Receipt mode:</strong> attach the receipt or invoice here. The app stores it with the entry.</div>
+                <input id="expenseReceipt" type="file" accept="image/*,.pdf" />
+                <div id="receiptPreview" class="receipt-pill">No receipt selected yet.</div>
+              </div>
+
+              <div class="receipt-box" id="cashBlock" style="display:none;">
+                <div class="helper"><strong>Manual cash mode:</strong> no receipt is required. Just enter the amount, date, and description so it lands in the correct reimbursement cycle.</div>
+              </div>
+
+              <div class="helper" id="cycleHint" style="margin-top:12px;">Choose a date and the portal will place this expense into the correct biweekly settlement cycle automatically.</div>
+
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+                <button class="button primary" id="saveExpenseBtn">Save expense</button>
+                <button class="button" id="clearExpenseBtn">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="summary-card">
+              <div class="card-kicker">Current settlement cycle</div>
+              <div class="big" id="cycleTotal">$0.00</div>
+              <div class="small" id="cycleCopy">No expenses in the active cycle yet.</div>
+              <div class="chips">
+                <span class="chip blue" id="cycleWindowChip">Window</span>
+                <span class="chip warn" id="cycleDueChip">Due</span>
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="card-kicker">How this works</div>
+              <div class="small">
+                Expenses start counting from <strong id="cycleStartLabel">April 17, 2026</strong>. They collect for two weeks, then the total becomes due on the biweekly Friday settlement date. The current first settlement due date is <strong id="firstDueLabel">May 1, 2026</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">Recent expenses</div>
+              <h2 class="card-title">What has been submitted.</h2>
+            </div>
+            <div class="badge" id="expenseCountBadge">0 entries</div>
+          </div>
+          <div class="card-body table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Cycle due</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th style="text-align:right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="expenseBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-settings">
+      <div class="stack">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-kicker">Schedule setup</div>
+              <h2 class="card-title">Dates and due structure.</h2>
+              <div class="card-copy">These are the dates the reminder logic follows. The reminders only work cleanly if these dates are exact and not left floating.</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="field-grid">
+              <div class="field">
+                <label for="setWeeklyStart">Weekly pay starts</label>
+                <input id="setWeeklyStart" type="date" />
+              </div>
+              <div class="field">
+                <label for="setWeeklyFirstDue">First weekly payment due</label>
+                <input id="setWeeklyFirstDue" type="date" />
+              </div>
+              <div class="field">
+                <label for="set5kDue">Second $5K due</label>
+                <input id="set5kDue" type="date" />
+              </div>
+              <div class="field">
+                <label for="set10kOne">First $10K due</label>
+                <input id="set10kOne" type="date" />
+              </div>
+              <div class="field">
+                <label for="set10kTwo">Second $10K due</label>
+                <input id="set10kTwo" type="date" />
+              </div>
+              <div class="field">
+                <label for="setPriorDue">$3,156.59 prior reimbursement due</label>
+                <input id="setPriorDue" type="date" />
+              </div>
+              <div class="field">
+                <label for="setExpenseFirstDue">First expense settlement due</label>
+                <input id="setExpenseFirstDue" type="date" />
+              </div>
+              <div class="field">
+                <label for="setCycleDays">Cycle length (days)</label>
+                <input id="setCycleDays" type="number" min="1" step="1" />
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+              <button class="button primary" id="saveSettingsBtn">Save dates</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="split-2">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-kicker">Alerts</div>
+                <h2 class="card-title">Reminder behavior.</h2>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="toggle-row">
+                <div>
+                  <div class="list-title">Browser reminders</div>
+                  <div class="list-sub">Needed for the day-before and due-day alerts.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="notifToggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="list-title">Sound</div>
+                  <div class="list-sub">Used for the bigger due-day alert.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="soundToggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="list-title">Vibration</div>
+                  <div class="list-sub">Works on supported mobile devices.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="vibrationToggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+                <button class="button primary" id="requestAlertsBtn">Request permission</button>
+                <button class="button" id="testSoftBtn">Test reminder</button>
+                <button class="button warn" id="testUrgentBtn">Test urgent alert</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-kicker">Backup / sync</div>
+                <h2 class="card-title">Move the portal to another device.</h2>
+                <div class="card-copy">This is where import and export live. It is separate on purpose so it never feels like part of submitting a receipt.</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="helper">Export creates a data bundle with the schedules, paid items, and expense entries. Import loads that bundle on the other device.</div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+                <button class="button alt" id="exportBtn">Export data</button>
+                <button class="button" id="importBtn">Import data</button>
+                <button class="button" id="copyBtn">Copy data text</button>
+              </div>
+              <input id="importFile" type="file" accept=".json" hidden />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">BDD Pay & Expense Portal · cleaner tabbed version · reminders, reimbursements, and biweekly expense cycles.</div>
+  </div>
+
+  <div class="modal" id="urgentModal">
+    <div class="modal-card">
+      <div class="card-kicker">Urgent reminder</div>
+      <h3 id="urgentTitle">Payment due today</h3>
+      <p id="urgentCopy">This is the stronger due-day alert.</p>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button class="button primary" id="ackUrgentBtn">Acknowledge</button>
+        <button class="button" id="closeUrgentBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'bdd_pay_expense_portal_v2';
+
+    const defaultState = {
+      settings: {
+        weeklyPay: {
+          amount: 1250,
+          start: '2026-05-01',
+          firstDue: '2026-05-08'
+        },
+        milestones: [
+          { id: 'mile_5k_b', label: 'Second $5K activation balance', amount: 5000, dueDate: '2026-04-20', reminders: [3, 1, 0] },
+          { id: 'mile_10k_1', label: 'First $10K inventory installment', amount: 10000, dueDate: '2026-05-20', reminders: [3, 1, 0] },
+          { id: 'mile_10k_2', label: 'Second $10K inventory installment', amount: 10000, dueDate: '2026-06-20', reminders: [3, 1, 0] },
+          { id: 'prior_3156', label: 'Prior reimbursement', amount: 3156.59, dueDate: '', reminders: [3, 1, 0] }
+        ],
+        expenses: {
+          firstSettlementDue: '2026-05-01',
+          cycleDays: 14
+        },
+        reminderHours: {
+          weeklyBefore: 18,
+          weeklyDayOf: 8,
+          milestone3: 9,
+          milestone1: 18,
+          milestone0: 8,
+          expenseBefore: 18
+        }
+      },
+      expenses: [],
+      payments: [],
+      firedReminders: {},
+      prefs: {
+        alertsEnabled: false,
+        sound: true,
+        vibration: true
+      },
+      activeUrgent: null
+    };
+
+    let state = loadState();
+    let activeTab = 'overview';
+    let expenseMode = 'receipt';
+    let pendingReceipt = null;
+    let reminderTimer = null;
+
+    function clone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function mergeState(parsed) {
+      const merged = clone(defaultState);
+      merged.settings = {
+        ...merged.settings,
+        ...(parsed.settings || {}),
+        weeklyPay: { ...merged.settings.weeklyPay, ...(parsed.settings?.weeklyPay || {}) },
+        expenses: { ...merged.settings.expenses, ...(parsed.settings?.expenses || {}) },
+        reminderHours: { ...merged.settings.reminderHours, ...(parsed.settings?.reminderHours || {}) },
+        milestones: Array.isArray(parsed.settings?.milestones) && parsed.settings.milestones.length
+          ? parsed.settings.milestones
+          : merged.settings.milestones
+      };
+      merged.expenses = Array.isArray(parsed.expenses) ? parsed.expenses : [];
+      merged.payments = Array.isArray(parsed.payments) ? parsed.payments : [];
+      merged.firedReminders = parsed.firedReminders || {};
+      merged.prefs = { ...merged.prefs, ...(parsed.prefs || {}) };
+      merged.activeUrgent = parsed.activeUrgent || null;
+      return merged;
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return clone(defaultState);
+        return mergeState(JSON.parse(raw));
+      } catch (e) {
+        return clone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function $(id) { return document.getElementById(id); }
+
+    function localISO(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseISO(iso) {
+      if (!iso) return null;
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date);
+      next.setDate(next.getDate() + days);
+      return next;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return 'Not set';
+      const d = parseISO(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDateLong(iso) {
+      if (!iso) return 'Not set';
+      const d = parseISO(iso);
+      return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount || 0));
+    }
+
+    function diffDays(isoDate) {
+      if (!isoDate) return null;
+      const target = parseISO(isoDate);
+      const today = parseISO(localISO());
+      return Math.round((target - today) / 86400000);
+    }
+
+    function dueLabel(isoDate) {
+      const days = diffDays(isoDate);
+      if (days === null) return 'Date not set';
+      if (days === 0) return 'Due today';
+      if (days === 1) return 'Due tomorrow';
+      if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+      return `Due in ${days} day${days === 1 ? '' : 's'}`;
+    }
+
+    function firstCycleStartIso() {
+      const due = parseISO(state.settings.expenses.firstSettlementDue);
+      if (!due) return '';
+      return localISO(addDays(due, -Number(state.settings.expenses.cycleDays || 14)));
+    }
+
+    function paymentKey(kind, ref) {
+      return `${kind}|${ref}`;
+    }
+
+    function isPaid(key) {
+      return state.payments.some(item => item.key === key);
+    }
+
+    function markPayment(item) {
+      const idx = state.payments.findIndex(entry => entry.key === item.key);
+      if (idx >= 0) {
+        state.payments.splice(idx, 1);
+        if (item.kind === 'expense-settlement') {
+          state.expenses = state.expenses.map(exp => exp.cycleDue === item.dueDate ? { ...exp, reimbursed: false, reimbursedAt: '' } : exp);
+        }
+        toast('Marked as unpaid.');
+      } else {
+        state.payments.unshift({
+          key: item.key,
+          kind: item.kind,
+          title: item.title,
+          amount: item.amount,
+          dueDate: item.dueDate,
+          paidAt: new Date().toISOString()
+        });
+        if (item.kind === 'expense-settlement') {
+          state.expenses = state.expenses.map(exp => exp.cycleDue === item.dueDate ? { ...exp, reimbursed: true, reimbursedAt: new Date().toISOString() } : exp);
+        }
+        toast('Marked as paid.');
+      }
+      saveState();
+      renderAll();
+    }
+
+    function getWeeklyItems(weeksAhead = 14) {
+      const items = [];
+      let due = parseISO(state.settings.weeklyPay.firstDue);
+      if (!due) return items;
+      const end = addDays(new Date(), weeksAhead * 7);
+      while (due <= end) {
+        const dueIso = localISO(due);
+        items.push({
+          key: paymentKey('weekly-pay', dueIso),
+          kind: 'weekly-pay',
+          title: 'Weekly operating pay',
+          amount: Number(state.settings.weeklyPay.amount || 0),
+          dueDate: dueIso,
+          paid: isPaid(paymentKey('weekly-pay', dueIso)),
+          notes: 'Reminder day before and due morning.'
+        });
+        due = addDays(due, 7);
+      }
+      return items;
+    }
+
+    function getMilestoneItems() {
+      return state.settings.milestones.map(item => ({
+        key: paymentKey('milestone', item.id),
+        kind: item.id === 'prior_3156' ? 'prior-reimbursement' : 'milestone',
+        title: item.label,
+        amount: Number(item.amount || 0),
+        dueDate: item.dueDate || '',
+        reminders: item.reminders || [3,1,0],
+        paid: isPaid(paymentKey('milestone', item.id))
+      }));
+    }
+
+    function getCycleForExpenseDate(isoDate) {
+      if (!isoDate) return null;
+      const date = parseISO(isoDate);
+      const firstDue = parseISO(state.settings.expenses.firstSettlementDue);
+      const cycleDays = Number(state.settings.expenses.cycleDays || 14);
+      if (!date || !firstDue) return null;
+      let due = new Date(firstDue);
+      let start = addDays(due, -cycleDays);
+      let end = addDays(due, -1);
+      while (date < start) {
+        due = addDays(due, -cycleDays);
+        start = addDays(due, -cycleDays);
+        end = addDays(due, -1);
+      }
+      while (date > end) {
+        due = addDays(due, cycleDays);
+        start = addDays(due, -cycleDays);
+        end = addDays(due, -1);
+      }
+      return { dueDate: localISO(due), start: localISO(start), end: localISO(end) };
+    }
+
+    function getExpenseSettlementItems(cyclesAhead = 10) {
+      const items = [];
+      let due = parseISO(state.settings.expenses.firstSettlementDue);
+      const cycleDays = Number(state.settings.expenses.cycleDays || 14);
+      if (!due) return items;
+      const end = addDays(new Date(), cyclesAhead * cycleDays);
+      while (due <= end) {
+        const dueIso = localISO(due);
+        const startIso = localISO(addDays(due, -cycleDays));
+        const endIso = localISO(addDays(due, -1));
+        const amount = state.expenses
+          .filter(exp => exp.cycleDue === dueIso && !exp.reimbursed)
+          .reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+        items.push({
+          key: paymentKey('expense-settlement', dueIso),
+          kind: 'expense-settlement',
+          title: 'Biweekly expense settlement',
+          amount,
+          dueDate: dueIso,
+          cycleStart: startIso,
+          cycleEnd: endIso,
+          paid: isPaid(paymentKey('expense-settlement', dueIso))
+        });
+        due = addDays(due, cycleDays);
+      }
+      return items;
+    }
+
+    function getAllObligations() {
+      return [
+        ...getWeeklyItems(),
+        ...getMilestoneItems().filter(item => item.dueDate),
+        ...getExpenseSettlementItems()
+      ].sort((a, b) => {
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return parseISO(a.dueDate) - parseISO(b.dueDate);
+      });
+    }
+
+    function upcomingItems(limit = 8) {
+      return getAllObligations()
+        .filter(item => !item.paid && item.dueDate)
+        .sort((a, b) => parseISO(a.dueDate) - parseISO(b.dueDate))
+        .slice(0, limit);
+    }
+
+    function nextWeeklyPay() {
+      return getWeeklyItems().find(item => !item.paid) || null;
+    }
+
+    function nextMilestone() {
+      return getMilestoneItems()
+        .filter(item => item.dueDate && !item.paid)
+        .sort((a, b) => parseISO(a.dueDate) - parseISO(b.dueDate))[0] || null;
+    }
+
+    function nextExpenseSettlement() {
+      return getExpenseSettlementItems()
+        .filter(item => !item.paid)
+        .sort((a, b) => parseISO(a.dueDate) - parseISO(b.dueDate))[0] || null;
+    }
+
+    function currentCycleSummary() {
+      const firstStart = firstCycleStartIso();
+      if (!firstStart) return null;
+      const today = localISO();
+      if (parseISO(today) < parseISO(firstStart)) {
+        return {
+          preStart: true,
+          dueDate: state.settings.expenses.firstSettlementDue,
+          start: firstStart,
+          end: localISO(addDays(parseISO(state.settings.expenses.firstSettlementDue), -1)),
+          total: 0,
+          entries: []
+        };
+      }
+      const cycle = getCycleForExpenseDate(today);
+      const entries = state.expenses.filter(exp => exp.cycleDue === cycle.dueDate && !exp.reimbursed);
+      const total = entries.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+      return { ...cycle, total, entries, preStart: false };
+    }
+
+    function reminderEvents() {
+      const events = [];
+      const hrs = state.settings.reminderHours;
+
+      getWeeklyItems().filter(item => !item.paid).forEach(item => {
+        const due = parseISO(item.dueDate);
+        events.push({
+          id: `${item.key}|before`,
+          fireAt: setHour(addDays(due, -1), hrs.weeklyBefore),
+          title: item.title,
+          amount: item.amount,
+          message: `${formatMoney(item.amount)} is due tomorrow.`,
+          urgent: false,
+          dueDate: item.dueDate
+        });
+        events.push({
+          id: `${item.key}|dayof`,
+          fireAt: setHour(due, hrs.weeklyDayOf),
+          title: item.title,
+          amount: item.amount,
+          message: `${formatMoney(item.amount)} is due today.`,
+          urgent: true,
+          dueDate: item.dueDate
+        });
+      });
+
+      getMilestoneItems().filter(item => !item.paid && item.dueDate).forEach(item => {
+        const due = parseISO(item.dueDate);
+        const offsets = item.reminders || [3,1,0];
+        offsets.forEach(offset => {
+          const hr = offset === 3 ? hrs.milestone3 : offset === 1 ? hrs.milestone1 : hrs.milestone0;
+          events.push({
+            id: `${item.key}|${offset}`,
+            fireAt: setHour(addDays(due, -offset), hr),
+            title: item.title,
+            amount: item.amount,
+            message: offset === 0
+              ? `${formatMoney(item.amount)} is due today.`
+              : offset === 1
+                ? `${formatMoney(item.amount)} is due tomorrow.`
+                : `${formatMoney(item.amount)} is due in 3 days.`,
+            urgent: offset === 0,
+            dueDate: item.dueDate
+          });
+        });
+      });
+
+      getExpenseSettlementItems()
+        .filter(item => !item.paid && item.amount > 0)
+        .forEach(item => {
+          const due = parseISO(item.dueDate);
+          events.push({
+            id: `${item.key}|before`,
+            fireAt: setHour(addDays(due, -1), hrs.expenseBefore),
+            title: item.title,
+            amount: item.amount,
+            message: `${formatMoney(item.amount)} in expenses is due tomorrow.`,
+            urgent: false,
+            dueDate: item.dueDate
+          });
+        });
+
+      return events.sort((a, b) => a.fireAt - b.fireAt);
+    }
+
+    function setHour(date, hour) {
+      const next = new Date(date);
+      next.setHours(hour, 0, 0, 0);
+      return next;
+    }
+
+    async function requestAlerts() {
+      if (!('Notification' in window)) {
+        toast('This browser does not support notifications.');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      state.prefs.alertsEnabled = permission === 'granted';
+      saveState();
+      renderAlertStatus();
+      toast(permission === 'granted' ? 'Browser alerts enabled.' : 'Notifications were not enabled.');
+    }
+
+    function renderAlertStatus() {
+      const enabled = state.prefs.alertsEnabled && ('Notification' in window) && Notification.permission === 'granted';
+      $('alertPill').classList.toggle('good', enabled);
+      $('alertPillText').textContent = enabled ? 'Alerts on' : 'Alerts off';
+      $('notifToggle').checked = enabled;
+    }
+
+    function playAlarm() {
+      if (!state.prefs.sound) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const now = ctx.currentTime;
+        [196, 233.08, 196].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now + idx * 0.22);
+          gain.gain.exponentialRampToValueAtTime(0.08, now + idx * 0.22 + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.22 + 0.30);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.22);
+          osc.stop(now + idx * 0.22 + 0.34);
+        });
+      } catch(e) {}
+    }
+
+    function vibrate(pattern) {
+      if (state.prefs.vibration && navigator.vibrate) navigator.vibrate(pattern);
+    }
+
+    function showBrowserNotification(title, body) {
+      if (!state.prefs.alertsEnabled) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      try {
+        new Notification(title, { body });
+      } catch(e) {}
+    }
+
+    function openUrgent(item) {
+      state.activeUrgent = item;
+      saveState();
+      $('urgentTitle').textContent = item.title;
+      $('urgentCopy').textContent = `${item.message} Due date: ${formatDateLong(item.dueDate)}.`;
+      $('urgentModal').classList.add('show');
+    }
+
+    function closeUrgent() {
+      $('urgentModal').classList.remove('show');
+      state.activeUrgent = null;
+      saveState();
+    }
+
+    function fireReminder(reminder) {
+      state.firedReminders[reminder.id] = new Date().toISOString();
+      saveState();
+
+      if (reminder.urgent) {
+        document.body.classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 1600);
+        playAlarm();
+        vibrate([260, 90, 260, 90, 420]);
+        openUrgent(reminder);
+      } else {
+        toast(`${reminder.title}: ${reminder.message}`);
+        vibrate([100, 40, 100]);
+      }
+
+      showBrowserNotification(reminder.title, reminder.message);
+      renderAll();
+    }
+
+    function checkReminders() {
+      const now = new Date();
+      reminderEvents().forEach(reminder => {
+        if (state.firedReminders[reminder.id]) return;
+        if (now >= reminder.fireAt) {
+          fireReminder(reminder);
+        }
+      });
+    }
+
+    function startReminderLoop() {
+      if (reminderTimer) clearInterval(reminderTimer);
+      reminderTimer = setInterval(checkReminders, 60000);
+      setTimeout(checkReminders, 600);
+    }
+
+    function toast(message) {
+      const el = $('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 2400);
+    }
+
+    function compressImage(file, maxW = 1400, quality = 0.78) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(1, maxW / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function fileToPayload(file) {
+      if (!file) return null;
+      if (file.type.startsWith('image/')) {
+        const dataUrl = await compressImage(file);
+        return { name: file.name, type: file.type, dataUrl };
+      }
+      if (file.size > 2200000) {
+        throw new Error('Please keep files under about 2.2 MB for local storage.');
+      }
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, type: file.type || 'application/octet-stream', dataUrl: reader.result });
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderReceiptPreview() {
+      const slot = $('receiptPreview');
+      if (expenseMode !== 'receipt') {
+        slot.textContent = 'Manual cash entry selected.';
+        return;
+      }
+      if (!pendingReceipt) {
+        slot.textContent = 'No receipt selected yet.';
+        return;
+      }
+      slot.textContent = `${pendingReceipt.name} attached.`;
+    }
+
+    function updateExpenseModeUI() {
+      const receipt = expenseMode === 'receipt';
+      $('modeReceiptBtn').classList.toggle('active', receipt);
+      $('modeCashBtn').classList.toggle('active', !receipt);
+      $('receiptBlock').style.display = receipt ? 'grid' : 'none';
+      $('cashBlock').style.display = receipt ? 'none' : 'grid';
+      renderReceiptPreview();
+    }
+
+    function clearExpenseForm() {
+      $('expenseAmount').value = '';
+      $('expenseDate').value = localISO();
+      $('expenseCategory').value = 'fuel';
+      $('expenseMethod').value = expenseMode === 'receipt' ? 'personal-card' : 'cash';
+      $('expenseDescription').value = '';
+      $('expenseReceipt').value = '';
+      pendingReceipt = null;
+      updateExpenseModeUI();
+      updateCycleHint();
+    }
+
+    function updateCycleHint() {
+      const date = $('expenseDate').value;
+      const firstStart = firstCycleStartIso();
+      if (!date) {
+        $('cycleHint').textContent = 'Choose a date and the portal will place this expense into the correct biweekly settlement cycle automatically.';
+        return;
+      }
+      if (date < firstStart) {
+        $('cycleHint').textContent = `Expense logging begins on ${formatDateLong(firstStart)} for this reimbursement flow.`;
+        return;
+      }
+      const cycle = getCycleForExpenseDate(date);
+      $('cycleHint').textContent = `This expense will be settled on ${formatDateLong(cycle.dueDate)} for the cycle running ${formatDate(cycle.start)} to ${formatDate(cycle.end)}.`;
+    }
+
+    async function saveExpenseEntry() {
+      const amount = Number($('expenseAmount').value);
+      const date = $('expenseDate').value;
+      const category = $('expenseCategory').value;
+      const method = $('expenseMethod').value;
+      const description = $('expenseDescription').value.trim();
+      const firstStart = firstCycleStartIso();
+
+      if (!amount || amount <= 0) {
+        toast('Add a valid expense amount.');
+        return;
+      }
+      if (!date) {
+        toast('Add the date the expense happened.');
+        return;
+      }
+      if (date < firstStart) {
+        toast(`Expense logging starts on ${formatDate(firstStart)}.`);
+        return;
+      }
+      if (!description) {
+        toast('Add a short description for the expense.');
+        return;
+      }
+      if (expenseMode === 'receipt' && !pendingReceipt) {
+        toast('Attach the receipt or switch to cash / manual mode.');
+        return;
+      }
+
+      const cycle = getCycleForExpenseDate(date);
+      state.expenses.unshift({
+        id: `exp_${Date.now()}`,
+        date,
+        amount,
+        category,
+        method,
+        description,
+        mode: expenseMode,
+        receipt: pendingReceipt,
+        cycleDue: cycle.dueDate,
+        cycleStart: cycle.start,
+        cycleEnd: cycle.end,
+        reimbursed: false,
+        reimbursedAt: '',
+        createdAt: new Date().toISOString()
+      });
+      saveState();
+      clearExpenseForm();
+      renderAll();
+      toast('Expense saved.');
+      activeTab = 'expenses';
+      switchTab('expenses');
+    }
+
+    function deleteExpense(id) {
+      state.expenses = state.expenses.filter(item => item.id !== id);
+      saveState();
+      renderAll();
+      toast('Expense removed.');
+    }
+
+    function openReceipt(expenseId) {
+      const exp = state.expenses.find(item => item.id === expenseId);
+      if (!exp || !exp.receipt) return;
+      const win = window.open(exp.receipt.dataUrl, '_blank');
+      if (!win) toast('Receipt preview was blocked by the browser.');
+    }
+
+    function exportData(download = true) {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      if (download) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bdd-pay-expense-portal-${localISO()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      return blob;
+    }
+
+    async function copyDataText() {
+      await navigator.clipboard.writeText(JSON.stringify(state, null, 2));
+      toast('Data copied to clipboard.');
+    }
+
+    function importDataObject(data) {
+      state = mergeState(data);
+      saveState();
+      renderAll();
+      toast('Data imported.');
+    }
+
+    function handleImportFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          importDataObject(parsed);
+        } catch (e) {
+          toast('That file was not a valid portal data file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderOverviewCards() {
+      const weekly = nextWeeklyPay();
+      const milestone = nextMilestone();
+      const expenses = nextExpenseSettlement();
+
+      $('overviewCards').innerHTML = [
+        weekly ? `
+          <div class="mini good">
+            <div class="label">Next weekly pay</div>
+            <div class="value">${formatMoney(weekly.amount)}</div>
+            <div class="meta">${dueLabel(weekly.dueDate)} · ${formatDateLong(weekly.dueDate)}</div>
+          </div>` : `
+          <div class="mini good">
+            <div class="label">Next weekly pay</div>
+            <div class="value">—</div>
+            <div class="meta">No unpaid weekly pay found.</div>
+          </div>`,
+        milestone ? `
+          <div class="mini warn">
+            <div class="label">Next bigger payment</div>
+            <div class="value">${formatMoney(milestone.amount)}</div>
+            <div class="meta">${milestone.title}<br>${dueLabel(milestone.dueDate)} · ${formatDateLong(milestone.dueDate)}</div>
+          </div>` : `
+          <div class="mini warn">
+            <div class="label">Next bigger payment</div>
+            <div class="value">—</div>
+            <div class="meta">No unpaid milestone or prior reimbursement with a date yet.</div>
+          </div>`,
+        expenses ? `
+          <div class="mini blue">
+            <div class="label">Next expense settlement</div>
+            <div class="value">${formatMoney(expenses.amount)}</div>
+            <div class="meta">${dueLabel(expenses.dueDate)} · ${formatDateLong(expenses.dueDate)}</div>
+          </div>` : `
+          <div class="mini blue">
+            <div class="label">Next expense settlement</div>
+            <div class="value">—</div>
+            <div class="meta">No settlement date is active yet.</div>
+          </div>`
+      ].join('');
+    }
+
+    function rowChips(item) {
+      const chips = [];
+      const days = diffDays(item.dueDate);
+      if (days !== null) {
+        chips.push(`<span class="chip ${days < 0 ? 'red' : days <= 1 ? 'warn' : 'blue'}">${dueLabel(item.dueDate)}</span>`);
+      }
+      if (item.kind === 'weekly-pay') chips.push(`<span class="chip">1 day before + day of</span>`);
+      if (item.kind === 'milestone' || item.kind === 'prior-reimbursement') chips.push(`<span class="chip">3 days + 1 day + day of</span>`);
+      if (item.kind === 'expense-settlement') chips.push(`<span class="chip">day before</span>`);
+      return chips.join('');
+    }
+
+    function renderUpcomingList() {
+      const items = upcomingItems();
+      $('queueBadge').textContent = `${items.length} open item${items.length === 1 ? '' : 's'}`;
+      if (!items.length) {
+        $('upcomingList').innerHTML = `<div class="empty">Nothing unpaid is scheduled right now.</div>`;
+        return;
+      }
+      $('upcomingList').innerHTML = items.map(item => `
+        <div class="list-row ${item.paid ? 'paid' : ''}">
+          <div>
+            <div class="list-title">${item.title}</div>
+            <div class="list-sub">${formatDateLong(item.dueDate)} · ${formatMoney(item.amount)}${item.kind === 'expense-settlement' ? ` · covers ${formatDate(item.cycleStart)} to ${formatDate(item.cycleEnd)}` : ''}</div>
+          </div>
+          <div class="chips">${rowChips(item)}</div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button class="tiny-btn ${item.paid ? '' : 'primary'}" data-pay-key="${item.key}">${item.paid ? 'Marked paid' : 'Mark paid'}</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderWeeklyTable() {
+      const rows = getWeeklyItems(10);
+      $('weeklyBody').innerHTML = rows.map(item => `
+        <tr>
+          <td>${formatDate(item.dueDate)}</td>
+          <td>${formatMoney(item.amount)}</td>
+          <td><span class="chip ${item.paid ? 'good' : diffDays(item.dueDate) <= 1 ? 'warn' : 'blue'}">${item.paid ? 'Paid' : dueLabel(item.dueDate)}</span></td>
+          <td style="text-align:right;"><button class="tiny-btn ${item.paid ? '' : 'primary'}" data-pay-key="${item.key}">${item.paid ? 'Undo' : 'Mark paid'}</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMilestoneTable() {
+      const rows = getMilestoneItems();
+      $('milestoneBody').innerHTML = rows.map(item => `
+        <tr>
+          <td>${item.title}</td>
+          <td>${item.dueDate ? formatDate(item.dueDate) : 'Date not set'}</td>
+          <td>${formatMoney(item.amount)}</td>
+          <td><span class="chip ${item.paid ? 'good' : item.dueDate ? (diffDays(item.dueDate) <= 1 ? 'warn' : 'blue') : ''}">${item.paid ? 'Paid' : item.dueDate ? dueLabel(item.dueDate) : 'Needs date'}</span></td>
+          <td style="text-align:right;">${item.dueDate ? `<button class="tiny-btn ${item.paid ? '' : 'primary'}" data-pay-key="${item.key}">${item.paid ? 'Undo' : 'Mark paid'}</button>` : ''}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderHistory() {
+      if (!state.payments.length) {
+        $('historyList').innerHTML = `<div class="empty">Nothing has been marked paid yet.</div>`;
+        return;
+      }
+      $('historyList').innerHTML = state.payments
+        .slice()
+        .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))
+        .slice(0, 10)
+        .map(entry => `
+          <div class="list-row paid">
+            <div>
+              <div class="list-title">${entry.title}</div>
+              <div class="list-sub">Paid ${new Date(entry.paidAt).toLocaleString()} · was due ${formatDate(entry.dueDate)} · ${formatMoney(entry.amount)}</div>
+            </div>
+            <div class="chips"><span class="chip good">Paid</span></div>
+            <div></div>
+          </div>
+        `).join('');
+    }
+
+    function renderCycleSummary() {
+      const cycle = currentCycleSummary();
+      if (!cycle) return;
+      $('cycleTotal').textContent = formatMoney(cycle.total);
+      $('cycleWindowChip').textContent = `${formatDate(cycle.start)} → ${formatDate(cycle.end)}`;
+      $('cycleDueChip').textContent = `Due ${formatDate(cycle.dueDate)}`;
+      $('cycleCopy').textContent = cycle.preStart
+        ? `Expense logging opens ${formatDateLong(cycle.start)}. The first settlement will be due ${formatDateLong(cycle.dueDate)}.`
+        : `${cycle.entries.length} open expense${cycle.entries.length === 1 ? '' : 's'} in this cycle.`;
+      $('cycleStartLabel').textContent = formatDateLong(firstCycleStartIso());
+      $('firstDueLabel').textContent = formatDateLong(state.settings.expenses.firstSettlementDue);
+    }
+
+    function renderExpensesTable() {
+      $('expenseCountBadge').textContent = `${state.expenses.length} entr${state.expenses.length === 1 ? 'y' : 'ies'}`;
+      if (!state.expenses.length) {
+        $('expenseBody').innerHTML = `<tr><td colspan="6"><div class="empty">No expenses submitted yet.</div></td></tr>`;
+        return;
+      }
+      $('expenseBody').innerHTML = state.expenses
+        .slice()
+        .sort((a, b) => parseISO(b.date) - parseISO(a.date))
+        .map(exp => `
+          <tr>
+            <td>${formatDate(exp.date)}</td>
+            <td>
+              <div style="font-weight:700;">${exp.description}</div>
+              <div class="helper">${exp.mode === 'receipt' ? 'Receipt attached' : 'Manual cash / no receipt'} · ${exp.category}</div>
+            </td>
+            <td>${formatDate(exp.cycleDue)}</td>
+            <td>${formatMoney(exp.amount)}</td>
+            <td><span class="chip ${exp.reimbursed ? 'good' : 'warn'}">${exp.reimbursed ? 'Settled' : 'Open'}</span></td>
+            <td style="text-align:right;">
+              <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+                ${exp.receipt ? `<button class="tiny-btn ghost" data-preview="${exp.id}">Receipt</button>` : ''}
+                <button class="tiny-btn danger" data-delete-expense="${exp.id}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+    }
+
+    function renderSettings() {
+      $('setWeeklyStart').value = state.settings.weeklyPay.start || '';
+      $('setWeeklyFirstDue').value = state.settings.weeklyPay.firstDue || '';
+      $('set5kDue').value = state.settings.milestones.find(m => m.id === 'mile_5k_b')?.dueDate || '';
+      $('set10kOne').value = state.settings.milestones.find(m => m.id === 'mile_10k_1')?.dueDate || '';
+      $('set10kTwo').value = state.settings.milestones.find(m => m.id === 'mile_10k_2')?.dueDate || '';
+      $('setPriorDue').value = state.settings.milestones.find(m => m.id === 'prior_3156')?.dueDate || '';
+      $('setExpenseFirstDue').value = state.settings.expenses.firstSettlementDue || '';
+      $('setCycleDays').value = state.settings.expenses.cycleDays || 14;
+
+      $('notifToggle').checked = !!state.prefs.alertsEnabled && ('Notification' in window) && Notification.permission === 'granted';
+      $('soundToggle').checked = !!state.prefs.sound;
+      $('vibrationToggle').checked = !!state.prefs.vibration;
+    }
+
+    function saveSettings() {
+      state.settings.weeklyPay.start = $('setWeeklyStart').value || state.settings.weeklyPay.start;
+      state.settings.weeklyPay.firstDue = $('setWeeklyFirstDue').value || state.settings.weeklyPay.firstDue;
+      state.settings.expenses.firstSettlementDue = $('setExpenseFirstDue').value || state.settings.expenses.firstSettlementDue;
+      state.settings.expenses.cycleDays = Number($('setCycleDays').value || state.settings.expenses.cycleDays || 14);
+
+      const setMilestoneDate = (id, value) => {
+        const item = state.settings.milestones.find(m => m.id === id);
+        if (item) item.dueDate = value;
+      };
+      setMilestoneDate('mile_5k_b', $('set5kDue').value);
+      setMilestoneDate('mile_10k_1', $('set10kOne').value);
+      setMilestoneDate('mile_10k_2', $('set10kTwo').value);
+      setMilestoneDate('prior_3156', $('setPriorDue').value);
+
+      saveState();
+      renderAll();
+      toast('Dates saved.');
+    }
+
+    function switchTab(name) {
+      activeTab = name;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === name));
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.toggle('active', panel.id === `panel-${name}`));
+    }
+
+    function bindRowActions() {
+      document.querySelectorAll('[data-pay-key]').forEach(btn => {
+        btn.onclick = () => {
+          const key = btn.dataset.payKey;
+          const item = getAllObligations().find(entry => entry.key === key);
+          if (item) markPayment(item);
+        };
+      });
+
+      document.querySelectorAll('[data-delete-expense]').forEach(btn => {
+        btn.onclick = () => deleteExpense(btn.dataset.deleteExpense);
+      });
+
+      document.querySelectorAll('[data-preview]').forEach(btn => {
+        btn.onclick = () => openReceipt(btn.dataset.preview);
+      });
+    }
+
+    function renderAll() {
+      $('todayBadge').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      renderAlertStatus();
+      renderOverviewCards();
+      renderUpcomingList();
+      renderWeeklyTable();
+      renderMilestoneTable();
+      renderHistory();
+      renderCycleSummary();
+      renderExpensesTable();
+      renderSettings();
+      updateCycleHint();
+      bindRowActions();
+      if (state.activeUrgent) {
+        $('urgentTitle').textContent = state.activeUrgent.title;
+        $('urgentCopy').textContent = `${state.activeUrgent.body || state.activeUrgent.message}`;
+        $('urgentModal').classList.add('show');
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    $('enableAlertsBtn').addEventListener('click', requestAlerts);
+    $('requestAlertsBtn').addEventListener('click', requestAlerts);
+    $('modeReceiptBtn').addEventListener('click', () => { expenseMode = 'receipt'; updateExpenseModeUI(); });
+    $('modeCashBtn').addEventListener('click', () => { expenseMode = 'cash'; if (!$('expenseMethod').value || $('expenseMethod').value === 'personal-card') $('expenseMethod').value = 'cash'; updateExpenseModeUI(); });
+    $('expenseDate').addEventListener('input', updateCycleHint);
+    $('clearExpenseBtn').addEventListener('click', clearExpenseForm);
+    $('saveExpenseBtn').addEventListener('click', saveExpenseEntry);
+
+    $('expenseReceipt').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        pendingReceipt = null;
+        renderReceiptPreview();
+        return;
+      }
+      try {
+        pendingReceipt = await fileToPayload(file);
+        renderReceiptPreview();
+      } catch (err) {
+        pendingReceipt = null;
+        $('expenseReceipt').value = '';
+        toast(err.message || 'Could not load that file.');
+        renderReceiptPreview();
+      }
+    });
+
+    $('saveSettingsBtn').addEventListener('click', saveSettings);
+    $('notifToggle').addEventListener('change', async (e) => {
+      if (e.target.checked) {
+        await requestAlerts();
+      } else {
+        state.prefs.alertsEnabled = false;
+        saveState();
+        renderAlertStatus();
+        toast('Browser alerts turned off.');
+      }
+    });
+    $('soundToggle').addEventListener('change', (e) => {
+      state.prefs.sound = e.target.checked;
+      saveState();
+    });
+    $('vibrationToggle').addEventListener('change', (e) => {
+      state.prefs.vibration = e.target.checked;
+      saveState();
+    });
+
+    $('testSoftBtn').addEventListener('click', () => {
+      showBrowserNotification('Reminder test', 'This is the standard reminder style.');
+      toast('Standard reminder test sent.');
+    });
+
+    $('testUrgentBtn').addEventListener('click', () => {
+      playAlarm();
+      vibrate([260, 90, 260, 90, 420]);
+      $('urgentTitle').textContent = 'Urgent reminder test';
+      $('urgentCopy').textContent = 'This is what the stronger due-day alert feels like.';
+      $('urgentModal').classList.add('show');
+    });
+
+    $('ackUrgentBtn').addEventListener('click', closeUrgent);
+    $('closeUrgentBtn').addEventListener('click', closeUrgent);
+
+    $('exportBtn').addEventListener('click', () => {
+      exportData(true);
+      toast('Data exported.');
+    });
+
+    $('copyBtn').addEventListener('click', copyDataText);
+    $('importBtn').addEventListener('click', () => $('importFile').click());
+    $('importFile').addEventListener('change', (e) => handleImportFile(e.target.files?.[0]));
+
+    clearExpenseForm();
+    updateExpenseModeUI();
+    switchTab(activeTab);
+    renderAll();
+    startReminderLoop();
+  </script>
+</body>
+</html>
