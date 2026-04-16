@@ -845,6 +845,8 @@ body.flash{
 }
 
 .install-overlay{
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
   position:fixed;
   inset:0;
   z-index:200;
@@ -1067,4 +1069,12 @@ body.flash{
   .card-head{padding:16px 16px 0}
   .hero-card-body, .card-body, .summary-tile{padding:16px}
   .toast{width:min(90vw, 420px); bottom:84px; text-align:center}
+}
+
+@media (max-height: 700px) {
+  .install-overlay {
+    align-items: flex-start;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
 }
