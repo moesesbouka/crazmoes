@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BDD Booster</title>
+  <style>
+    body{
+      margin:0;
+      width:360px;
+      font-family:Inter,system-ui,sans-serif;
+      background:#0f1420;
+      color:#eef3fb;
+      padding:16px;
+    }
+    .eyebrow{font:600 11px/1 monospace; letter-spacing:.14em; text-transform:uppercase; color:rgba(238,243,251,.46); margin-bottom:8px}
+    h1{margin:0; font-size:22px; line-height:1.1}
+    .sub{margin-top:8px; color:rgba(238,243,251,.62); font-size:13px; line-height:1.55}
+    .card{margin-top:14px; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:rgba(255,255,255,.03); padding:14px}
+    .row{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.06)}
+    .row:last-child{border-bottom:0}
+    .title{font-size:13px; font-weight:700}
+    .subline{font-size:12px; color:rgba(238,243,251,.58); margin-top:4px}
+    .amount{font-family:monospace; font-size:13px; font-weight:700}
+    .btn{margin-top:14px; width:100%; padding:12px 14px; border-radius:14px; border:0; cursor:pointer; font-weight:800}
+    .primary{background:linear-gradient(135deg,#17895a,#22c879); color:#fff}
+    .ghost{background:rgba(255,255,255,.06); color:#eef3fb; border:1px solid rgba(255,255,255,.08)}
+    .empty{color:rgba(238,243,251,.62); font-size:13px; line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="eyebrow">BDD Desktop Booster</div>
+  <h1>Backup reminder engine</h1>
+  <div class="sub">This is the desktop sidekick. Import the app backup in options once, then let this watch the dates.</div>
+
+  <div class="card">
+    <div class="eyebrow">Next up</div>
+    <div id="list"></div>
+  </div>
+
+  <button id="openAppBtn" class="btn primary">Open hosted app</button>
+  <button id="openOptionsBtn" class="btn ghost">Open options / import</button>
+  <script src="./popup.js"></script>
+</body>
+</html>
