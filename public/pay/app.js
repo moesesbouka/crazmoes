@@ -250,7 +250,7 @@ function openInstallOverlay() {
 
 function closeInstallOverlay(sessionOnly = true) {
   $('installOverlay').classList.remove('visible');
-  if (sessionOnly) sessionStorage.setItem(SESSION_INSTALL_SKIP, '1');
+  if (sessionOnly) localStorage.setItem(SESSION_INSTALL_SKIP, '1');
 }
 
 async function attemptInstall() {
@@ -1463,7 +1463,7 @@ function updateInstallBannerOnLoad() {
     closeInstallOverlay(false);
     return;
   }
-  if (sessionStorage.getItem(SESSION_INSTALL_SKIP) === '1') {
+  if (localStorage.getItem(SESSION_INSTALL_SKIP) === '1') {
     updateInstallUI();
     return;
   }
