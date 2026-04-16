@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BDD Desktop Booster · Options</title>
+  <style>
+    body{
+      margin:0;
+      font-family:Inter,system-ui,sans-serif;
+      background:#0f1420;
+      color:#eef3fb;
+      padding:24px;
+    }
+    .wrap{max-width:760px; margin:0 auto}
+    .eyebrow{font:600 11px/1 monospace; letter-spacing:.14em; text-transform:uppercase; color:rgba(238,243,251,.46); margin-bottom:10px}
+    h1{margin:0; font-size:34px; line-height:1.02}
+    .sub{margin-top:10px; color:rgba(238,243,251,.62); font-size:14px; line-height:1.65; max-width:680px}
+    .card{margin-top:18px; border:1px solid rgba(255,255,255,.08); border-radius:22px; background:rgba(255,255,255,.03); padding:18px}
+    label{display:grid; gap:8px; margin-top:12px; font-size:13px; color:rgba(238,243,251,.82)}
+    input, textarea{width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); color:#eef3fb; padding:12px 14px; font:500 14px/1.4 Inter,sans-serif}
+    .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px}
+    .btn{padding:12px 14px; border-radius:14px; border:0; cursor:pointer; font-weight:800}
+    .primary{background:linear-gradient(135deg,#17895a,#22c879); color:#fff}
+    .ghost{background:rgba(255,255,255,.06); color:#eef3fb; border:1px solid rgba(255,255,255,.08)}
+    .state{margin-top:14px; padding:12px 14px; border-radius:14px; background:rgba(90,140,255,.1); border:1px solid rgba(90,140,255,.18); font-size:13px; color:#dce8ff; line-height:1.55}
+    .muted{font-size:13px; color:rgba(238,243,251,.56); line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">BDD Desktop Booster</div>
+    <h1>Import the app backup once,<br>then let this run quietly.</h1>
+    <div class="sub">This extension watches the imported due dates and shows desktop reminders while Chrome or Edge is running. It is the desktop backup lane, not the main app.</div>
+
+    <div class="card">
+      <div class="eyebrow">Hosted app URL</div>
+      <div class="muted">Set the full URL of the hosted app so notification clicks can jump straight into it.</div>
+      <label>
+        <span>App URL</span>
+        <input id="appUrl" placeholder="https://your-domain.com/pay-ops/" />
+      </label>
+      <div class="row">
+        <button id="saveUrlBtn" class="btn primary">Save app URL</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Import state</div>
+      <div class="muted">Use the backup exported by the web app. The extension will pull the dates, expense cycles, and paid markers from it.</div>
+      <input id="importFile" type="file" accept=".json" />
+      <div class="row">
+        <button id="importBtn" class="btn primary">Import backup</button>
+        <button id="testBtn" class="btn ghost">Run heartbeat now</button>
+      </div>
+      <div id="status" class="state">No import yet.</div>
+    </div>
+  </div>
+  <script src="./options.js"></script>
+</body>
+</html>
