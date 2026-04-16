@@ -856,8 +856,7 @@ body.flash{
   padding:18px;
   background:
     radial-gradient(circle at 50% 18%, rgba(216,164,83,.18), transparent 32%),
-    linear-gradient(180deg, rgba(5,8,12,.74), rgba(5,8,12,.92));
-  backdrop-filter:blur(14px);
+    linear-gradient(180deg, #050810, #060912);
 }
 .install-overlay.visible{display:flex}
 .install-shell{
