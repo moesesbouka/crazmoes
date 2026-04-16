@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "BDD Desktop Booster",
+  "description": "Backup reminder engine for Buffalo Deal Depot pay dates and expense settlements.",
+  "version": "1.0.0",
+  "permissions": [
+    "alarms",
+    "notifications",
+    "storage",
+    "action"
+  ],
+  "host_permissions": [],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "BDD Desktop Booster",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "128": "icon-128.png",
+    "192": "icon-192.png",
+    "512": "icon-512.png"
+  }
+}
