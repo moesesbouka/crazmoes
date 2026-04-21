@@ -1,6 +1,7 @@
 {
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "has": [{ "type": "host", "value": "deli.buffalodealdepot.com" }], "dest": "/deli/$1", "continue": true },
     { "src": "/pay$", "dest": "/pay/index.html" },
     { "src": "/pay/$", "dest": "/pay/index.html" },
     { "handle": "filesystem" },
