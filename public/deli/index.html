@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+
+<title>Xpressway Deli — Hot Deli Counter in Buffalo, NY</title>
+<meta name="description" content="Hot deli counter inside Xpressway Mart at 1381 Main St, Buffalo. Fresh pastelitos, steak subs, jumbo wings, street tacos & more. Call to order: (716) 555-0100." />
+<meta name="author" content="Xpressway Deli" />
+
+<meta property="og:type" content="restaurant" />
+<meta property="og:title" content="Xpressway Deli — Hot Deli Counter in Buffalo, NY" />
+<meta property="og:description" content="Fresh. Fast. Fiery. Hot deli counter at 1381 Main St, Buffalo." />
+<meta property="og:url" content="https://deli.buffalodealdepot.com/" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Fonts: Bebas Neue (display — brand continuity), Archivo (body — crisp, modern, not-Inter), Caveat (handwritten accent for 'Fresh Today' calls) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo:wght@400;500;600;700;900&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+<!-- Schema.org Restaurant -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Restaurant",
+  "name": "Xpressway Deli",
+  "description": "Hot deli counter inside Xpressway Mart serving pastelitos, steak subs, jumbo wings, turkey subs, street tacos, and crispy fries.",
+  "url": "https://deli.buffalodealdepot.com/",
+  "servesCuisine": ["American", "Deli", "Latin American"],
+  "priceRange": "$",
+  "takeaway": "Yes",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "1381 Main St",
+    "addressLocality": "Buffalo",
+    "addressRegion": "NY",
+    "postalCode": "14209",
+    "addressCountry": "US"
+  },
+  "geo": { "@type": "GeoCoordinates", "latitude": 42.9128, "longitude": -78.8608 },
+  "openingHoursSpecification": [
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "07:00", "closes": "21:00" },
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Saturday","Sunday"], "opens": "08:00", "closes": "21:00" }
+  ]
+}
+</script>
+
+<style>
+/* ===========================================================
+   DESIGN TOKENS
+   =========================================================== */
+:root {
+  --bg: hsl(0 0% 4%);
+  --bg-2: hsl(0 0% 7%);
+  --bg-3: hsl(0 0% 10%);
+  --fg: hsl(40 20% 95%);
+  --fg-muted: hsl(40 10% 65%);
+  --fg-dim: hsl(40 8% 45%);
+  --line: hsl(0 0% 14%);
+  --line-strong: hsl(0 0% 22%);
+
+  --primary: hsl(347 82% 54%);        /* crimson pink — "DELI" */
+  --primary-glow: hsl(347 82% 54% / .55);
+  --primary-soft: hsl(347 82% 54% / .12);
+
+  --accent: hsl(43 96% 56%);          /* gold — "XPRESSWAY" */
+  --accent-glow: hsl(43 96% 56% / .55);
+  --accent-soft: hsl(43 96% 56% / .14);
+
+  --flame: hsl(18 92% 56%);           /* ember orange — flame accents */
+  --success: hsl(145 65% 48%);        /* open-now green */
+
+  --radius: 1rem;
+  --radius-sm: .5rem;
+  --radius-lg: 1.5rem;
+
+  --shadow-card: 0 1px 0 hsl(0 0% 100% / .04) inset, 0 20px 60px -20px hsl(0 0% 0% / .8);
+  --glow-pink: 0 0 24px hsl(347 82% 54% / .5), 0 0 48px hsl(347 82% 54% / .25);
+  --glow-gold: 0 0 24px hsl(43 96% 56% / .5), 0 0 48px hsl(43 96% 56% / .25);
+
+  --font-display: "Bebas Neue", Impact, sans-serif;
+  --font-body: "Archivo", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-hand: "Caveat", cursive;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --container: 1200px;
+}
+
+/* ===========================================================
+   RESET
+   =========================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  /* subtle film grain texture */
+  background-image:
+    radial-gradient(1200px 600px at 80% -100px, hsl(347 82% 54% / .06), transparent 60%),
+    radial-gradient(900px 500px at 0% 100%, hsl(43 96% 56% / .04), transparent 60%);
+  background-attachment: fixed;
+}
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; letter-spacing: .02em; line-height: .95; }
+
+/* Grain overlay — authentic corner-deli feel */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: .035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.container { max-width: var(--container); margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2.5rem); position: relative; z-index: 2; }
+
+/* ===========================================================
+   HEADER
+   =========================================================== */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  background: hsl(0 0% 4% / .72);
+  border-bottom: 1px solid var(--line);
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+.wordmark {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+  letter-spacing: .08em;
+  display: inline-flex;
+  gap: .35em;
+  align-items: baseline;
+  line-height: 1;
+}
+.wordmark .xm { color: var(--accent); }
+.wordmark .dl {
+  color: var(--primary);
+  text-shadow: var(--glow-pink);
+  animation: neon-flicker 6s infinite;
+}
+@keyframes neon-flicker {
+  0%, 94%, 100% { opacity: 1; text-shadow: var(--glow-pink); }
+  95% { opacity: .72; text-shadow: none; }
+  96% { opacity: 1; }
+  97% { opacity: .88; }
+}
+
+.site-nav {
+  display: flex;
+  gap: 2rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: .18em;
+}
+.site-nav a {
+  color: var(--fg-muted);
+  transition: color .18s ease;
+  position: relative;
+  padding: .25rem 0;
+}
+.site-nav a:hover { color: var(--accent); }
+.site-nav a::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -3px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .25s ease;
+}
+.site-nav a:hover::after { transform: scaleX(1); }
+
+.call-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .65rem 1.1rem;
+  background: var(--primary);
+  color: hsl(0 0% 100%);
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: .12em;
+  box-shadow: var(--glow-pink);
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+.call-cta:hover { transform: translateY(-1px); box-shadow: 0 0 32px hsl(347 82% 54% / .65), 0 0 64px hsl(347 82% 54% / .35); }
+.call-cta svg { width: 16px; height: 16px; }
+
+@media (max-width: 780px) {
+  .site-nav { display: none; }
+}
+
+/* ===========================================================
+   HERO
+   =========================================================== */
+.hero {
+  position: relative;
+  min-height: min(92vh, 860px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 4rem 0 6rem;
+  isolation: isolate;
+}
+
+/* Backdrop: layered radial glows + scanline subtle */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(60% 50% at 50% 35%, hsl(347 82% 54% / .16) 0%, transparent 60%),
+    radial-gradient(45% 40% at 50% 85%, hsl(18 92% 56% / .18) 0%, transparent 65%);
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    hsl(0 0% 100% / .018) 3px 4px
+  );
+  pointer-events: none;
+}
+
+/* Animated steam SVG */
+.steam {
+  position: absolute;
+  left: 50%;
+  top: -8%;
+  transform: translateX(-50%);
+  width: min(900px, 90vw);
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .6;
+}
+.steam path {
+  fill: none;
+  stroke: hsl(40 20% 95% / .18);
+  stroke-width: 2;
+  stroke-linecap: round;
+  animation: rise 6s ease-in-out infinite;
+}
+.steam path:nth-child(2) { animation-delay: -1.8s; animation-duration: 7s; }
+.steam path:nth-child(3) { animation-delay: -3.5s; animation-duration: 8s; }
+.steam path:nth-child(4) { animation-delay: -2.2s; animation-duration: 6.5s; }
+@keyframes rise {
+  0%   { transform: translateY(20px) scale(1); opacity: 0; }
+  20%  { opacity: .9; }
+  80%  { opacity: .4; }
+  100% { transform: translateY(-220px) scale(1.15); opacity: 0; }
+}
+
+.hero-inner {
+  position: relative;
+  text-align: center;
+  max-width: 900px;
+  padding: 0 1rem;
+}
+
+.open-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .45rem 1rem .45rem .85rem;
+  background: hsl(0 0% 100% / .04);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: .78rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 1.75rem;
+  backdrop-filter: blur(8px);
+}
+.open-badge .dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 10px var(--success), 0 0 20px hsl(145 65% 48% / .5);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.open-badge.closed .dot { background: var(--fg-dim); box-shadow: none; animation: none; }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.25); opacity: .75; }
+}
+
+.grand-opening {
+  display: inline-block;
+  font-family: var(--font-hand);
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  color: var(--accent);
+  transform: rotate(-3deg);
+  margin-bottom: .5rem;
+  text-shadow: 0 2px 20px hsl(43 96% 56% / .3);
+}
+
+.hero-title {
+  font-size: clamp(4.5rem, 14vw, 11rem);
+  letter-spacing: -.01em;
+  line-height: .88;
+  margin-bottom: 1rem;
+}
+.hero-title .x { color: var(--accent); }
+.hero-title .d { color: var(--primary); text-shadow: var(--glow-pink); }
+.hero-title small {
+  display: block;
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+  letter-spacing: .35em;
+  color: var(--fg);
+  margin-top: 1.25rem;
+  font-weight: 400;
+}
+
+.hero-tagline {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.8vw, 1.35rem);
+  letter-spacing: .4em;
+  color: var(--fg-muted);
+  margin: 1.75rem 0 2.25rem;
+}
+.hero-tagline .sep {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--flame);
+  box-shadow: 0 0 8px var(--flame);
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .65rem;
+  padding: 1rem 2rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: .18em;
+  border-radius: 999px;
+  transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--glow-pink);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 32px hsl(347 82% 54% / .7), 0 0 64px hsl(347 82% 54% / .4); }
+.btn-ghost {
+  color: var(--fg);
+  border: 1.5px solid var(--line-strong);
+  background: hsl(0 0% 100% / .03);
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.address-row {
+  margin-top: 2.5rem;
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  letter-spacing: .15em;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+}
+
+/* ===========================================================
+   SECTION BASE
+   =========================================================== */
+.section {
+  padding: clamp(4rem, 8vw, 7rem) 0;
+  position: relative;
+}
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  letter-spacing: .3em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+.section-title {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  letter-spacing: .02em;
+  margin-bottom: 1rem;
+}
+.section-lede {
+  color: var(--fg-muted);
+  font-size: 1.05rem;
+  max-width: 52ch;
+  margin-bottom: 3rem;
+}
+
+/* ===========================================================
+   TODAY'S SPECIAL — hero-adjacent card
+   =========================================================== */
+.special {
+  background:
+    linear-gradient(180deg, hsl(347 82% 54% / .12), hsl(347 82% 54% / .04)),
+    var(--bg-2);
+  border-top: 1px solid hsl(347 82% 54% / .22);
+  border-bottom: 1px solid hsl(347 82% 54% / .22);
+}
+.special-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  padding: clamp(2rem, 4vw, 3rem) 0;
+}
+.special-stamp {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  text-align: center;
+  line-height: .9;
+  font-size: .95rem;
+  letter-spacing: .15em;
+  border: 3px dashed hsl(0 0% 100% / .35);
+  box-shadow: var(--glow-pink);
+  transform: rotate(-8deg);
+  flex-shrink: 0;
+}
+.special-body h3 {
+  font-size: clamp(1.8rem, 3.5vw, 2.75rem);
+  margin-bottom: .35rem;
+}
+.special-body p {
+  color: var(--fg-muted);
+  font-size: 1.05rem;
+  max-width: 50ch;
+}
+.special-body .hand {
+  display: inline-block;
+  font-family: var(--font-hand);
+  color: var(--accent);
+  font-size: 1.3rem;
+  margin-left: .5rem;
+  transform: rotate(-2deg);
+}
+
+@media (max-width: 720px) {
+  .special-card { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+  .special-stamp { width: 90px; height: 90px; font-size: .85rem; }
+}
+
+/* ===========================================================
+   MENU
+   =========================================================== */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+.menu-card {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  min-height: 200px;
+}
+.menu-card:hover {
+  transform: translateY(-4px);
+  border-color: hsl(347 82% 54% / .4);
+  background: var(--bg-3);
+}
+.menu-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity .25s ease;
+  animation: slide 3s linear infinite;
+}
+.menu-card:hover::before { opacity: 1; }
+@keyframes slide { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
+
+.menu-icon {
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  background: var(--primary-soft);
+  border-radius: 12px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.menu-icon svg { width: 28px; height: 28px; }
+.menu-card h4 {
+  font-size: 1.75rem;
+  letter-spacing: .04em;
+}
+.menu-card p {
+  color: var(--fg-muted);
+  font-size: .93rem;
+  line-height: 1.5;
+  flex: 1;
+}
+.menu-card .meta {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-mono);
+  font-size: .78rem;
+  color: var(--fg-dim);
+  letter-spacing: .08em;
+  padding-top: .75rem;
+  border-top: 1px dashed var(--line-strong);
+}
+.menu-card .tag {
+  padding: .2rem .55rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 6px;
+  font-size: .7rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.menu-footnote {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  color: var(--fg-muted);
+  text-align: center;
+  letter-spacing: .05em;
+}
+
+/* ===========================================================
+   STORE — Also Inside
+   =========================================================== */
+.store {
+  background:
+    linear-gradient(180deg, hsl(0 0% 6%), hsl(0 0% 4%));
+  border-top: 1px solid var(--line);
+}
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+.store-item {
+  aspect-ratio: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .65rem;
+  transition: all .2s ease;
+  text-align: center;
+  padding: 1rem;
+}
+.store-item:hover {
+  border-color: var(--accent);
+  background: var(--bg-3);
+  transform: translateY(-3px);
+}
+.store-item svg { width: 36px; height: 36px; color: var(--accent); }
+.store-item span {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: .2em;
+}
+
+/* ===========================================================
+   VISIT
+   =========================================================== */
+.visit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+@media (max-width: 880px) {
+  .visit-grid { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+.visit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.info-block h4 {
+  font-size: 1.3rem;
+  letter-spacing: .15em;
+  color: var(--fg-muted);
+  margin-bottom: .75rem;
+}
+.info-block address {
+  font-style: normal;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+.info-block .big-phone {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  letter-spacing: .05em;
+  color: var(--accent);
+  display: inline-block;
+  transition: color .2s ease;
+}
+.info-block .big-phone:hover { color: var(--primary); }
+
+.hours-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: .9rem;
+}
+.hours-table td {
+  padding: .6rem 0;
+  border-bottom: 1px dashed var(--line);
+}
+.hours-table tr.today td {
+  color: var(--accent);
+  font-weight: 600;
+}
+.hours-table tr.today td:first-child::before {
+  content: "→ ";
+  color: var(--accent);
+}
+.hours-table td:last-child { text-align: right; }
+
+.map-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  aspect-ratio: 4/5;
+  background: var(--bg-2);
+  box-shadow: var(--shadow-card);
+}
+.map-wrap iframe { border: 0; width: 100%; height: 100%; filter: grayscale(.4) contrast(1.1) brightness(.85); }
+.map-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 60%, hsl(0 0% 4% / .4));
+  pointer-events: none;
+}
+
+.directions-btn {
+  position: absolute;
+  bottom: 1rem; left: 1rem; right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .85rem 1rem;
+  background: hsl(0 0% 4% / .85);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: .18em;
+  color: var(--fg);
+  backdrop-filter: blur(8px);
+  transition: all .2s ease;
+  z-index: 2;
+}
+.directions-btn:hover { background: var(--primary); border-color: var(--primary); color: white; }
+
+/* ===========================================================
+   FOOTER
+   =========================================================== */
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 3rem 0 2rem;
+  background: var(--bg);
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+@media (max-width: 720px) { .footer-grid { grid-template-columns: 1fr; } }
+
+.footer-col h5 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: .2em;
+  color: var(--fg-muted);
+  margin-bottom: 1rem;
+}
+.footer-col a {
+  display: block;
+  padding: .3rem 0;
+  color: var(--fg);
+  transition: color .15s ease;
+  font-size: .95rem;
+}
+.footer-col a:hover { color: var(--accent); }
+
+.family {
+  padding: 1rem 1.25rem;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  transition: border-color .2s ease;
+}
+.family:hover { border-color: var(--accent); }
+.family-mark {
+  width: 40px; height: 40px;
+  background: var(--accent);
+  color: var(--bg);
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: .05em;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.family-text { font-size: .85rem; line-height: 1.4; color: var(--fg-muted); }
+.family-text strong { color: var(--fg); display: block; font-size: .95rem; }
+
+.copyright {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  color: var(--fg-dim);
+  letter-spacing: .08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* ===========================================================
+   SCROLL-REVEAL
+   =========================================================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .7s ease, transform .7s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* Small mobile polish */
+@media (max-width: 480px) {
+  .btn { padding: .85rem 1.5rem; font-size: 1rem; }
+  .hero { padding: 3rem 0 4rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===========================================================
+     HEADER
+     =========================================================== -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="#" class="wordmark" aria-label="Xpressway Deli">
+      <span class="xm">XPRESSWAY</span><span class="dl">DELI</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#menu">Menu</a>
+      <a href="#special">Specials</a>
+      <a href="#store">Store</a>
+      <a href="#visit">Visit</a>
+    </nav>
+    <a class="call-cta" href="tel:+17165550100" aria-label="Call Xpressway Deli">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      CALL
+    </a>
+  </div>
+</header>
+
+<!-- ===========================================================
+     HERO
+     =========================================================== -->
+<section class="hero">
+  <!-- Animated steam -->
+  <svg class="steam" viewBox="0 0 400 500" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M120 500 Q 110 380, 130 320 T 120 200 T 140 80 T 130 0" />
+    <path d="M200 500 Q 190 400, 210 340 T 200 220 T 220 100 T 210 0" />
+    <path d="M280 500 Q 270 380, 290 320 T 280 200 T 300 80 T 290 0" />
+    <path d="M160 500 Q 150 420, 170 360 T 160 240 T 180 120 T 170 0" />
+  </svg>
+
+  <div class="hero-inner container">
+    <div class="open-badge" id="open-badge">
+      <span class="dot"></span>
+      <span id="open-status">OPEN NOW · UNTIL 9 PM</span>
+    </div>
+
+    <div class="grand-opening">Grand Opening</div>
+    <h1 class="hero-title">
+      <span class="x">HOT</span>
+      <br />
+      <span class="d">DELI</span>
+      <small>FRESH · FAST · FIERY</small>
+    </h1>
+
+    <div class="hero-tagline">
+      <span>PASTELITOS</span>
+      <span class="sep"></span>
+      <span>SUBS</span>
+      <span class="sep"></span>
+      <span>WINGS</span>
+    </div>
+
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="tel:+17165550100">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        CALL TO ORDER
+      </a>
+      <a class="btn btn-ghost" href="#menu">
+        VIEW MENU
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+
+    <div class="address-row">1381 MAIN ST · BUFFALO, NY · INSIDE XPRESSWAY MART</div>
+  </div>
+</section>
+
+<!-- ===========================================================
+     TODAY'S SPECIAL
+     =========================================================== -->
+<section class="special" id="special">
+  <div class="container special-card reveal">
+    <div class="special-stamp" id="special-stamp">TODAY'S<br>SPECIAL</div>
+    <div class="special-body">
+      <div class="section-eyebrow">Limited Time · Takeout Only</div>
+      <h3 id="special-title">Grand Opening Special</h3>
+      <p id="special-desc">Any hot sub + crispy fries + fountain drink. Come celebrate with us — this deal won't last. <span class="hand">ask at the counter!</span></p>
+    </div>
+    <a class="btn btn-primary" href="tel:+17165550100">ORDER NOW</a>
+  </div>
+</section>
+
+<!-- ===========================================================
+     MENU
+     =========================================================== -->
+<section class="section" id="menu">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">Hot Deli Menu</div>
+      <h2 class="section-title">What We Serve</h2>
+      <p class="section-lede">Every order is made fresh on the counter. No microwaves, no shortcuts — just real food, hot off the flat top.</p>
+    </div>
+
+    <div class="menu-grid">
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18l-1.5 8h-15L3 11z"/><path d="M3 11a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3"/><circle cx="8" cy="15" r="1" fill="currentColor"/><circle cx="14" cy="15" r="1" fill="currentColor"/></svg></div>
+        <h4>Steak Subs</h4>
+        <p>Shaved steak, melted cheese, grilled peppers & onions on a toasted hoagie. Classic Buffalo comfort.</p>
+        <div class="meta"><span>HOT PRESS</span><span class="tag">Popular</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3c4 0 8 3 8 7 0 5-4 9-9 9-1 0-2-1-2-2 0-5 3-9 3-14z" fill="currentColor" fill-opacity=".15"/><path d="M6 3c4 0 8 3 8 7 0 5-4 9-9 9-1 0-2-1-2-2 0-5 3-9 3-14z"/><path d="M14 10c2 0 5 2 5 5"/></svg></div>
+        <h4>Jumbo Wings</h4>
+        <p>Double-fried crispy. Your sauce: classic Buffalo, BBQ, honey garlic, or Fiery (you've been warned).</p>
+        <div class="meta"><span>6 · 10 · 20 PC</span><span class="tag">Fiery</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="5" fill="currentColor" fill-opacity=".12"/><rect x="3" y="7" width="18" height="10" rx="5"/><line x1="7" y1="12" x2="17" y2="12" stroke-dasharray="1.5 2"/></svg></div>
+        <h4>Pastelitos</h4>
+        <p>Golden, flaky pastries stuffed with seasoned beef, chicken, or cheese. Fried to order.</p>
+        <div class="meta"><span>BEEF · CHICKEN · CHEESE</span><span class="tag">House Fav</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14c0-4 4-7 8-7s8 3 8 7H4z" fill="currentColor" fill-opacity=".12"/><path d="M4 14c0-4 4-7 8-7s8 3 8 7"/><path d="M4 14h16l-1.5 4h-13L4 14z"/></svg></div>
+        <h4>Turkey Subs</h4>
+        <p>Hot roast turkey, provolone, lettuce, tomato, mayo. Simple, honest, heaping.</p>
+        <div class="meta"><span>HOT OR COLD</span><span class="tag">Classic</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v2c0 2-1 3-2 3h-6c-1 0-2-1-2-3V4z" fill="currentColor" fill-opacity=".15"/><path d="M7 4h10v2c0 2-1 3-2 3h-6c-1 0-2-1-2-3V4z"/><path d="M12 9v11"/><path d="M9 20h6"/></svg></div>
+        <h4>Street Tacos</h4>
+        <p>Soft corn tortillas, seasoned meat, onion, cilantro, lime. Street-style, three to an order.</p>
+        <div class="meta"><span>ASADA · POLLO · AL PASTOR</span><span class="tag">New</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h12l-1 9H7l-1-9z" fill="currentColor" fill-opacity=".12"/><path d="M6 11h12l-1 9H7l-1-9z"/><line x1="9" y1="4" x2="9" y2="10"/><line x1="12" y1="3" x2="12" y2="10"/><line x1="15" y1="4" x2="15" y2="10"/></svg></div>
+        <h4>Crispy Fries</h4>
+        <p>Golden, salty, never soggy. Add cheese sauce. Add chili. Add both — we won't judge.</p>
+        <div class="meta"><span>REG · LARGE · LOADED</span><span class="tag">Side</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10h13v4a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5v-4z" fill="currentColor" fill-opacity=".12"/><path d="M5 10h13v4a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5v-4z"/><path d="M18 11h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2"/><path d="M9 3c-.5 1 .5 2 0 3M13 3c-.5 1 .5 2 0 3"/></svg></div>
+        <h4>Hot Coffee</h4>
+        <p>Fresh-brewed all day. Regular, decaf, or flavored. Fuel for the day ahead.</p>
+        <div class="meta"><span>SM · MD · LG</span><span class="tag">All Day</span></div>
+      </article>
+
+      <article class="menu-card reveal">
+        <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l-1 5H9L8 3z" fill="currentColor" fill-opacity=".15"/><path d="M8 3h8l-1 5H9L8 3z"/><path d="M7 8h10v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V8z"/><path d="M11 12v5M13 12v5"/></svg></div>
+        <h4>Cold Drinks</h4>
+        <p>Fountain sodas, bottled juice, Gatorade, water. Everything ice-cold from the cooler.</p>
+        <div class="meta"><span>GRAB & GO</span><span class="tag">Cold</span></div>
+      </article>
+
+    </div>
+
+    <div class="menu-footnote reveal">
+      📞 Menu and prices subject to change — <a href="tel:+17165550100" style="color:var(--accent);text-decoration:underline;">call (716) 555-0100</a> to confirm what's hot today.
+    </div>
+  </div>
+</section>
+
+<!-- ===========================================================
+     STORE — Also Inside Xpressway Mart
+     =========================================================== -->
+<section class="section store">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">Also Inside</div>
+      <h2 class="section-title">Xpressway Mart</h2>
+      <p class="section-lede">The hot deli is just part of it. Xpressway Mart has everything you need for the block — day or night.</p>
+    </div>
+
+    <div class="store-grid">
+      <div class="store-item reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18l-2 12H5L3 6z"/><path d="M3 6L2 3H0"/><circle cx="9" cy="21" r="1.5"/><circle cx="17" cy="21" r="1.5"/></svg>
+        <span>Groceries</span>
+      </div>
+      <div class="store-item reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10h13v4a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5v-4z"/><path d="M18 11h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2"/><path d="M9 3c-.5 1 .5 2 0 3M13 3c-.5 1 .5 2 0 3"/></svg>
+        <span>Coffee</span>
+      </div>
+      <div class="store-item reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2"/><circle cx="8" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="16" cy="12" r="1.5" fill="currentColor"/></svg>
+        <span>Lotto</span>
+      </div>
+      <div class="store-item reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/></svg>
+        <span>ATM</span>
+      </div>
+      <div class="store-item reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h14v3H3v-3z"/><path d="M17 14h4v3h-4M18 10v4M20 10v4"/><path d="M10 11c-1-2-3-2-3-4 0-1 1-2 2-2M14 11c-1-2-3-2-3-4 0-1 1-2 2-2"/></svg>
+        <span>Tobacco</span>
+      </div>
+      <div class="store-item reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/><path d="M8 8l-2-2M18 18l-2-2M8 16l-2 2M18 6l-2 2"/></svg>
+        <span>24 / 7</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===========================================================
+     VISIT
+     =========================================================== -->
+<section class="section" id="visit">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">Find Us</div>
+      <h2 class="section-title">Visit the Counter</h2>
+    </div>
+
+    <div class="visit-grid">
+
+      <div class="visit-info reveal">
+        <div class="info-block">
+          <h4>LOCATION</h4>
+          <address>
+            <strong>Xpressway Mart</strong><br />
+            1381 Main Street<br />
+            Buffalo, NY 14209
+          </address>
+        </div>
+
+        <div class="info-block">
+          <h4>CALL TO ORDER</h4>
+          <a class="big-phone" href="tel:+17165550100">(716) 555-0100</a>
+        </div>
+
+        <div class="info-block">
+          <h4>HOURS</h4>
+          <table class="hours-table" id="hours-table">
+            <tbody>
+              <tr data-day="1"><td>Monday</td><td>7:00 AM — 9:00 PM</td></tr>
+              <tr data-day="2"><td>Tuesday</td><td>7:00 AM — 9:00 PM</td></tr>
+              <tr data-day="3"><td>Wednesday</td><td>7:00 AM — 9:00 PM</td></tr>
+              <tr data-day="4"><td>Thursday</td><td>7:00 AM — 9:00 PM</td></tr>
+              <tr data-day="5"><td>Friday</td><td>7:00 AM — 9:00 PM</td></tr>
+              <tr data-day="6"><td>Saturday</td><td>8:00 AM — 9:00 PM</td></tr>
+              <tr data-day="0"><td>Sunday</td><td>8:00 AM — 9:00 PM</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="map-wrap reveal">
+        <iframe
+          src="https://www.openstreetmap.org/export/embed.html?bbox=-78.8700%2C42.9080%2C-78.8530%2C42.9180&layer=mapnik&marker=42.9128%2C-78.8608"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          title="Xpressway Deli location on map"
+          aria-label="Map of 1381 Main Street, Buffalo, NY"
+        ></iframe>
+        <a class="directions-btn" href="https://www.google.com/maps/dir/?api=1&destination=1381+Main+St+Buffalo+NY+14209" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          GET DIRECTIONS
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===========================================================
+     FOOTER
+     =========================================================== -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="wordmark" style="margin-bottom:.75rem;">
+          <span class="xm">XPRESSWAY</span><span class="dl">DELI</span>
+        </div>
+        <p style="color:var(--fg-muted); font-size:.95rem; max-width: 32ch; line-height: 1.6;">
+          Hot deli counter inside Xpressway Mart. Fresh. Fast. Fiery. Buffalo, NY.
+        </p>
+        <a class="family" href="https://buffalodealdepot.com" target="_blank" rel="noopener">
+          <div class="family-mark">BDD</div>
+          <div class="family-text">
+            <strong>Part of the Buffalo Deal Depot family</strong>
+            Visit the liquidation warehouse →
+          </div>
+        </a>
+      </div>
+      <div class="footer-col">
+        <h5>MENU</h5>
+        <a href="#menu">What We Serve</a>
+        <a href="#special">Today's Special</a>
+        <a href="#store">Xpressway Mart</a>
+      </div>
+      <div class="footer-col">
+        <h5>CONTACT</h5>
+        <a href="tel:+17165550100">(716) 555-0100</a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=1381+Main+St+Buffalo+NY+14209" target="_blank" rel="noopener">1381 Main St, Buffalo</a>
+        <a href="#visit">Hours & Map</a>
+      </div>
+    </div>
+    <div class="copyright">© <span id="year">2026</span> Xpressway Deli · Buffalo, NY · All rights reserved</div>
+  </div>
+</footer>
+
+<script>
+/* ===========================================================
+   LIVE HOURS & OPEN/CLOSED
+   =========================================================== */
+(function () {
+  // Hours in 24h: [openHour, closeHour]. 0 = Sun.
+  var HOURS = {
+    0: [8, 21], 1: [7, 21], 2: [7, 21], 3: [7, 21],
+    4: [7, 21], 5: [7, 21], 6: [8, 21]
+  };
+
+  function pad(n){ return n < 10 ? '0'+n : ''+n; }
+  function fmt12(h){
+    var p = h >= 12 ? 'PM' : 'AM';
+    var hh = h % 12 || 12;
+    return hh + ' ' + p;
+  }
+
+  var now = new Date();
+  var day = now.getDay();
+  var hr = now.getHours() + now.getMinutes()/60;
+  var todayHours = HOURS[day];
+  var isOpen = hr >= todayHours[0] && hr < todayHours[1];
+
+  var badge = document.getElementById('open-badge');
+  var status = document.getElementById('open-status');
+  if (isOpen) {
+    status.textContent = 'OPEN NOW · UNTIL ' + fmt12(todayHours[1]);
+    badge.classList.remove('closed');
+  } else {
+    var nextDay = (day + (hr >= todayHours[1] ? 1 : 0)) % 7;
+    var nextOpen = HOURS[nextDay][0];
+    status.textContent = 'CLOSED · OPENS ' + fmt12(nextOpen);
+    badge.classList.add('closed');
+  }
+
+  // Highlight today in hours table
+  var row = document.querySelector('#hours-table tr[data-day="' + day + '"]');
+  if (row) row.classList.add('today');
+
+  // Year
+  document.getElementById('year').textContent = now.getFullYear();
+})();
+
+/* ===========================================================
+   TODAY'S SPECIAL (day-aware rotation)
+   =========================================================== */
+(function () {
+  var SPECIALS = {
+    0: { stamp: 'SUNDAY',   title: 'Sunday Family Pack',   desc: 'Feed the crew: 20pc jumbo wings + loaded fries + 2L soda. One call, done. <span class="hand">easy sunday</span>' },
+    1: { stamp: 'MONDAY',   title: 'Monday Pick-Me-Up',    desc: 'Any hot sub + large coffee for the start-of-week grind. Bring the receipt, take the edge off. <span class="hand">we get it</span>' },
+    2: { stamp: 'TACO',     title: 'Taco Tuesday',         desc: '3 street tacos (your pick) + chips & salsa + fountain drink. Asada, pollo, al pastor — dealer\'s choice. <span class="hand">vamos!</span>' },
+    3: { stamp: 'WING',     title: 'Wing Wednesday',       desc: '20 jumbo wings for the price of 10. Mix your sauces. Pace yourself on the Fiery. <span class="hand">trust us.</span>' },
+    4: { stamp: 'THURSDAY', title: 'Pastelito Power Hour', desc: '4 pastelitos + fries + coffee for one flat price. 11am–2pm. Cash the midweek in. <span class="hand">hot & flaky</span>' },
+    5: { stamp: 'FRIDAY',   title: 'Friday Feast',         desc: 'Steak sub + wings + fries + drink. End the week right. Wear the stretchy pants. <span class="hand">weekend starts here</span>' },
+    6: { stamp: 'SATURDAY', title: 'Saturday Grand Slam',  desc: 'Build your own combo: any 2 entrées + 2 sides + 2 drinks at a flat rate. Your weekend, your rules. <span class="hand">dig in</span>' }
+  };
+
+  // Only override special if today has one; grand opening stays default
+  var now = new Date();
+  var d = now.getDay();
+  var s = SPECIALS[d];
+  if (s) {
+    document.getElementById('special-stamp').innerHTML = s.stamp + '<br>SPECIAL';
+    document.getElementById('special-title').textContent = s.title;
+    document.getElementById('special-desc').innerHTML = s.desc;
+  }
+})();
+
+/* ===========================================================
+   SCROLL REVEAL
+   =========================================================== */
+(function () {
+  if (!('IntersectionObserver' in window)) {
+    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('visible'); });
+    return;
+  }
+  var obs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(function (el, i) {
+    el.style.transitionDelay = (i % 4) * 80 + 'ms';
+    obs.observe(el);
+  });
+})();
+</script>
+</body>
+</html>
