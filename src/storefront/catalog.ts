@@ -90,6 +90,20 @@ export async function fetchCatalogPage(filters: CatalogFilters = {}): Promise<Ca
   };
 }
 
+export async function fetchStorefrontListingByFacebookId(facebookId: string): Promise<StorefrontListing | null> {
+  const cleanId = String(facebookId || "").trim();
+  if (!/^\d{6,25}$/.test(cleanId)) return null;
+
+  const { data, error } = await marketplaceDb
+    .from("public_listings")
+    .select(SELECT_FIELDS)
+    .eq("facebook_id", cleanId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as StorefrontListing | null) ?? null;
+}
+
 export function cleanImages(images: unknown): string[] {
   if (!Array.isArray(images)) return [];
   return images.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value));
