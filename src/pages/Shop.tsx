@@ -1,454 +1,385 @@
-import { useState, useEffect, useMemo } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { FormEvent, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, X, Sparkles, PackageSearch } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Header } from "@/components/Header";
-import { NewsletterModal } from "@/components/NewsletterModal";
 import { Footer } from "@/components/Footer";
-import { marketplaceDb } from "@/lib/marketplace-client";
-import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, X, MapPin, ArrowUpRight, Package } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { ProductCardV2 } from "@/components/storefront/ProductCardV2";
+import { Button } from "@/components/ui/button";
+import { fetchCatalogPage } from "@/storefront/catalog";
+import { getDepartment, STOREFRONT_DEPARTMENTS } from "@/storefront/taxonomy";
+import type { CatalogSort } from "@/storefront/types";
 
-interface Listing {
-  id: string;
-  facebook_id: string;
-  title: string;
-  price: number | null;
-  description: string | null;
-  category: string | null;
-  images: unknown;
-}
+const PAGE_SIZE = 36;
 
-const PAGE_SIZE_OPTIONS = [20, 50, 100];
+const sortOptions: Array<{ value: CatalogSort; label: string }> = [
+  { value: "newest", label: "Newest first" },
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "price-desc", label: "Price: high to low" },
+  { value: "title-asc", label: "Name A–Z" },
+];
 
-function getCleanImages(images: unknown): string[] {
-  if (!Array.isArray(images)) return [];
-  return images.filter((u): u is string => typeof u === "string" && u.startsWith("https://"));
-}
-
-function formatPrice(p: number | null) {
-  if (!p || p === 0) return "Make Offer";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(p);
-}
-
-function ListingCard({ listing, index }: { listing: Listing; index: number }) {
-  const imgs = getCleanImages(listing.images);
-  const img = imgs[0] || null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.5, delay: Math.min(index % 20, 10) * 0.03 }}
-    >
-      <Link
-        to={`/product/${listing.facebook_id}`}
-        className="group block"
-      >
-        <article className="rounded-2xl border border-border bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 glow-border">
-          <div className="aspect-[4/3] bg-secondary overflow-hidden relative">
-            {img ? (
-              <img
-                src={img}
-                alt={listing.title}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Package className="h-10 w-10 text-muted-foreground/20" />
-              </div>
-            )}
-            {listing.category && (
-              <span className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md text-[0.65rem] font-semibold text-foreground border border-border/50">
-                {listing.category}
-              </span>
-            )}
-            <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-              <ArrowUpRight className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-          </div>
-          <div className="p-4">
-            <h3 className="text-sm font-bold line-clamp-2 leading-tight tracking-tight group-hover:text-primary transition-colors duration-300">
-              {listing.title}
-            </h3>
-            <div className="flex items-center gap-1.5 mt-2 text-muted-foreground text-[0.65rem]">
-              <MapPin className="h-2.5 w-2.5" />
-              <span>Buffalo pickup</span>
-            </div>
-            <div className="flex items-end justify-between mt-3 pt-3 border-t border-border">
-              <p className="text-lg font-black tracking-tight text-foreground leading-none">
-                {formatPrice(listing.price)}
-              </p>
-              <span className="text-[0.65rem] font-bold text-primary">View →</span>
-            </div>
-          </div>
-        </article>
-      </Link>
-    </motion.div>
-  );
+function parsePrice(value: string | null) {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [allListings, setAllListings] = useState<Listing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState(searchParams.get("q") ?? "");
 
-  const searchQuery = searchParams.get("q") || "";
-  const selectedCategory = searchParams.get("cat") || "All";
-  const sortOption = searchParams.get("sort") || "newest";
-  const currentPage = parseInt(searchParams.get("page") || "1", 10);
-  const pageSize = parseInt(searchParams.get("per") || "50", 10);
+  const query = searchParams.get("q") ?? "";
+  const departmentSlug = searchParams.get("dept") ?? "";
+  const subcategorySlug = searchParams.get("sub") ?? "";
+  const sort = (searchParams.get("sort") as CatalogSort) || "newest";
+  const page = Math.max(1, Number(searchParams.get("page") || "1") || 1);
+  const minPrice = parsePrice(searchParams.get("min"));
+  const maxPrice = parsePrice(searchParams.get("max"));
+  const department = getDepartment(departmentSlug);
 
-  const setParam = (key: string, val: string, resetPage = true) => {
-    const p = new URLSearchParams(searchParams);
-    val && val !== "" ? p.set(key, val) : p.delete(key);
-    if (resetPage) p.delete("page");
-    setSearchParams(p, { replace: true });
+  const setParam = (key: string, value?: string, resetPage = true) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (resetPage) next.delete("page");
+    if (key === "dept") next.delete("sub");
+    setSearchParams(next, { replace: true });
   };
 
-  useEffect(() => {
-    document.title = "Inventory | Crazy Moe's";
-  }, []);
+  const catalogQuery = useQuery({
+    queryKey: ["storefront-catalog", query, departmentSlug, subcategorySlug, sort, page, minPrice, maxPrice],
+    queryFn: () =>
+      fetchCatalogPage({
+        query,
+        department: departmentSlug || undefined,
+        subcategory: subcategorySlug || undefined,
+        sort,
+        page,
+        pageSize: PAGE_SIZE,
+        minPrice,
+        maxPrice,
+      }),
+    placeholderData: (previous) => previous,
+  });
 
-  useEffect(() => {
-    async function load() {
-      setIsLoading(true);
-      const all: Listing[] = [];
-      let offset = 0;
-      const PAGE = 1000;
-      while (true) {
-        const { data, error } = await marketplaceDb
-          .from("public_listings")
-          .select("id,facebook_id,title,price,category,images,description")
-          .order("imported_at", { ascending: false })
-          .range(offset, offset + PAGE - 1);
-        if (error || !data?.length) break;
-        all.push(...(data as Listing[]));
-        if (data.length < PAGE) break;
-        offset += PAGE;
-      }
-      setAllListings(all);
-      setIsLoading(false);
+  const data = catalogQuery.data;
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const safePage = Math.min(page, totalPages);
+
+  const pageNumbers = useMemo(() => {
+    const values: Array<number | "…"> = [];
+    for (let i = 1; i <= totalPages; i += 1) {
+      if (i === 1 || i === totalPages || Math.abs(i - safePage) <= 2) values.push(i);
+      else if (values[values.length - 1] !== "…") values.push("…");
     }
-    load();
-  }, []);
+    return values;
+  }, [safePage, totalPages]);
 
-  const categories = useMemo(() => {
-    const cats = new Set(allListings.map((l) => l.category).filter(Boolean) as string[]);
-    return ["All", ...Array.from(cats).sort()];
-  }, [allListings]);
+  const activeFilters = [query, departmentSlug, subcategorySlug, minPrice != null ? "min" : "", maxPrice != null ? "max" : ""].filter(Boolean).length;
 
-  const filtered = useMemo(() => {
-    let r = [...allListings];
-    if (selectedCategory !== "All") r = r.filter((l) => l.category === selectedCategory);
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      r = r.filter((l) => l.title.toLowerCase().includes(q) || l.description?.toLowerCase().includes(q));
-    }
-    switch (sortOption) {
-      case "price-asc":  r.sort((a, b) => (a.price ?? 0) - (b.price ?? 0)); break;
-      case "price-desc": r.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)); break;
-      case "title-asc":  r.sort((a, b) => a.title.localeCompare(b.title)); break;
-      case "title-desc": r.sort((a, b) => b.title.localeCompare(a.title)); break;
-      default: break;
-    }
-    return r;
-  }, [allListings, selectedCategory, searchQuery, sortOption]);
+  const submitSearch = (event: FormEvent) => {
+    event.preventDefault();
+    setParam("q", searchDraft.trim());
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(Math.max(1, currentPage), totalPages);
-  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const clearFilters = () => {
+    setSearchDraft("");
+    const next = new URLSearchParams();
+    if (sort !== "newest") next.set("sort", sort);
+    setSearchParams(next, { replace: true });
+  };
 
-  const goToPage = (n: number) => setParam("page", String(n), false);
-
-  const pageNums = useMemo(() => {
-    const pages: (number | "…")[] = [];
-    const delta = 2;
-    for (let i = 1; i <= totalPages; i++) {
-      if (i === 1 || i === totalPages || (i >= safePage - delta && i <= safePage + delta)) {
-        pages.push(i);
-      } else if (pages[pages.length - 1] !== "…") {
-        pages.push("…");
-      }
-    }
-    return pages;
-  }, [totalPages, safePage]);
-
-  const activeFilterCount = (selectedCategory !== "All" ? 1 : 0) + (searchQuery ? 1 : 0);
+  const goToPage = (nextPage: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextPage <= 1) next.delete("page");
+    else next.set("page", String(nextPage));
+    setSearchParams(next, { replace: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      {/* Hero header */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6 }}
-        className="relative overflow-hidden border-b border-border"
-      >
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -right-32 w-[400px] h-[400px] rounded-full bg-primary/[0.06] blur-[100px]" />
-        </div>
-        <div className="container relative z-10 py-12 text-center">
-          <motion.span
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-xs uppercase tracking-[0.25em] text-primary font-semibold"
-          >
-            Buffalo pickup deals
-          </motion.span>
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-4xl md:text-5xl font-black tracking-tight mt-3"
-          >
-            Available Inventory
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-muted-foreground mt-3 text-base"
-          >
-            {isLoading ? "Loading inventory…" : `${filtered.length.toLocaleString()} items ready for pickup`}
-          </motion.p>
-        </div>
-      </motion.div>
-
-      {/* Sticky filter bar */}
-      <div className="border-b border-border sticky top-[72px] z-30 glass-card">
-        <div className="container py-3 flex flex-wrap gap-3 items-center">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search inventory…"
-              value={searchQuery}
-              onChange={(e) => setParam("q", e.target.value)}
-              className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-secondary/50 text-foreground placeholder:text-muted-foreground transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setParam("q", "")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
+      <main>
+        <section className="relative overflow-hidden border-b border-border/70">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -right-24 -top-40 h-[34rem] w-[34rem] rounded-full bg-primary/[0.08] blur-[120px]" />
+            <div className="absolute -left-40 bottom-0 h-80 w-80 rounded-full bg-white/[0.025] blur-[100px]" />
           </div>
 
-          {/* Category pills - horizontal scroll on mobile */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {categories.slice(0, 8).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setParam("cat", cat === "All" ? "" : cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
-                  (cat === "All" && selectedCategory === "All") || cat === selectedCategory
-                    ? "bg-primary text-primary-foreground shadow-[0_0_15px_-3px_hsl(var(--primary)/0.4)]"
-                    : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary border border-border"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-            {categories.length > 8 && (
-              <button
-                onClick={() => setFiltersOpen(!filtersOpen)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-secondary/50 text-muted-foreground hover:text-foreground border border-border whitespace-nowrap flex items-center gap-1.5"
-              >
-                <SlidersHorizontal className="h-3 w-3" />
-                More
-                {activeFilterCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[0.6rem] flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
+          <div className="container relative py-12 sm:py-16">
+            <div className="mx-auto max-w-4xl text-center">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Buffalo pickup · inventory changes daily
+              </div>
+              <h1 className="text-balance text-4xl font-black tracking-[-0.035em] sm:text-5xl lg:text-6xl">
+                Serious deals. <span className="text-primary">Zero big-box markup.</span>
+              </h1>
+              <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Browse open-box, closeout and liquidation inventory from major brands. What you see is what is available — until it is gone.
+              </p>
 
-          {/* Sort + page size */}
-          <div className="flex items-center gap-2">
-            <select
-              value={sortOption}
-              onChange={(e) => setParam("sort", e.target.value)}
-              className="py-2.5 pl-3 pr-7 rounded-xl border border-border text-xs font-medium bg-secondary/50 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
-            >
-              <option value="newest">Newest</option>
-              <option value="price-asc">Price ↑</option>
-              <option value="price-desc">Price ↓</option>
-              <option value="title-asc">A→Z</option>
-              <option value="title-desc">Z→A</option>
-            </select>
-
-            <div className="hidden sm:flex items-center gap-1">
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => {
-                    const p = new URLSearchParams(searchParams);
-                    p.set("per", String(n));
-                    p.delete("page");
-                    setSearchParams(p, { replace: true });
-                  }}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
-                    pageSize === n
-                      ? "bg-primary text-primary-foreground shadow-[0_0_12px_-3px_hsl(var(--primary)/0.4)]"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+              <form onSubmit={submitSearch} className="mx-auto mt-7 flex max-w-2xl gap-2 rounded-2xl border border-border bg-card/75 p-2 shadow-2xl backdrop-blur-xl">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={searchDraft}
+                    onChange={(event) => setSearchDraft(event.target.value)}
+                    placeholder="Search TVs, tools, furniture, appliances…"
+                    className="h-11 w-full bg-transparent pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+                <Button type="submit" className="h-11 rounded-xl px-5 font-bold">Search</Button>
+              </form>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Expanded filter panel */}
-        <AnimatePresence>
-          {filtersOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden border-t border-border"
+        <section className="border-b border-border/70 bg-card/30">
+          <div className="container flex gap-2 overflow-x-auto py-3 no-scrollbar">
+            <button
+              onClick={() => setParam("dept", "")}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${!departmentSlug ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background/50 text-muted-foreground hover:text-foreground"}`}
             >
-              <div className="container py-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">All categories</p>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
+              All deals
+            </button>
+            {STOREFRONT_DEPARTMENTS.map((item) => (
+              <button
+                key={item.slug}
+                onClick={() => setParam("dept", item.slug)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${departmentSlug === item.slug ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background/50 text-muted-foreground hover:text-foreground"}`}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <div className="container py-8 lg:py-10">
+          <div className="flex items-start gap-8">
+            <aside className="sticky top-24 hidden w-64 shrink-0 lg:block">
+              <div className="rounded-2xl border border-border bg-card/60 p-5 backdrop-blur-sm">
+                <div className="mb-5 flex items-center justify-between">
+                  <h2 className="font-black tracking-tight">Departments</h2>
+                  {activeFilters > 0 && (
+                    <button onClick={clearFilters} className="text-[11px] font-bold text-primary hover:underline">Clear</button>
+                  )}
+                </div>
+
+                <nav className="space-y-1">
+                  <button
+                    onClick={() => setParam("dept", "")}
+                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${!departmentSlug ? "bg-primary/10 font-bold text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+                  >
+                    All inventory
+                  </button>
+                  {STOREFRONT_DEPARTMENTS.map((item) => (
                     <button
-                      key={cat}
-                      onClick={() => {
-                        setParam("cat", cat === "All" ? "" : cat);
-                        setFiltersOpen(false);
-                      }}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-300 ${
-                        (cat === "All" && selectedCategory === "All") || cat === selectedCategory
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground hover:text-foreground border border-border"
-                      }`}
+                      key={item.slug}
+                      onClick={() => setParam("dept", item.slug)}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${departmentSlug === item.slug ? "bg-primary/10 font-bold text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
                     >
-                      {cat}
+                      {item.name}
                     </button>
                   ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                </nav>
 
-      {/* Grid */}
-      <main className="container py-8">
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {Array.from({ length: pageSize > 20 ? 20 : pageSize }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border bg-card aspect-[3/4] shimmer" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-24"
-          >
-            <div className="w-20 h-20 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
-              <Search className="h-8 w-8 text-muted-foreground/40" />
-            </div>
-            <p className="font-bold text-xl">No listings found</p>
-            <p className="text-muted-foreground text-sm mt-2">Try adjusting your search or category filter</p>
-            <button
-              onClick={() => {
-                setParam("q", "");
-                setParam("cat", "");
-              }}
-              className="mt-4 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
-            >
-              Clear filters
-            </button>
-          </motion.div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="text-foreground font-semibold">{((safePage - 1) * pageSize) + 1}–{Math.min(safePage * pageSize, filtered.length)}</span> of {filtered.length.toLocaleString()}
-              </p>
-              {selectedCategory !== "All" && (
-                <button
-                  onClick={() => setParam("cat", "")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
-                >
-                  {selectedCategory}
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {paginated.map((l, i) => (
-                <ListingCard key={l.id} listing={l} index={i} />
-              ))}
-            </div>
-
-            {totalPages > 1 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="flex items-center justify-center gap-1.5 mt-12 flex-wrap"
-              >
-                <button
-                  onClick={() => goToPage(safePage - 1)}
-                  disabled={safePage === 1}
-                  className="p-2.5 rounded-xl border border-border disabled:opacity-30 hover:bg-secondary transition-all hover:scale-105"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                {pageNums.map((n, i) =>
-                  n === "…" ? (
-                    <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">…</span>
-                  ) : (
-                    <button
-                      key={n}
-                      onClick={() => goToPage(n as number)}
-                      className={`min-w-[40px] h-10 px-3 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                        n === safePage
-                          ? "bg-primary text-primary-foreground shadow-[0_0_15px_-3px_hsl(var(--primary)/0.4)]"
-                          : "border border-border hover:bg-secondary text-muted-foreground hover:scale-105"
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  )
+                {department && department.subcategories.length > 0 && (
+                  <div className="mt-6 border-t border-border pt-5">
+                    <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{department.name}</p>
+                    <div className="space-y-1">
+                      {department.subcategories.map((subcategory) => (
+                        <button
+                          key={subcategory.slug}
+                          onClick={() => setParam("sub", subcategory.slug)}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${subcategorySlug === subcategory.slug ? "bg-secondary font-bold text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+                        >
+                          {subcategory.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                <button
-                  onClick={() => goToPage(safePage + 1)}
-                  disabled={safePage === totalPages}
-                  className="p-2.5 rounded-xl border border-border disabled:opacity-30 hover:bg-secondary transition-all hover:scale-105"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </motion.div>
-            )}
-          </>
-        )}
+                <div className="mt-6 border-t border-border pt-5">
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Price</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      inputMode="numeric"
+                      defaultValue={minPrice ?? ""}
+                      onBlur={(event) => setParam("min", event.target.value.trim())}
+                      placeholder="Min"
+                      className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/50"
+                    />
+                    <input
+                      inputMode="numeric"
+                      defaultValue={maxPrice ?? ""}
+                      onBlur={(event) => setParam("max", event.target.value.trim())}
+                      placeholder="Max"
+                      className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/50"
+                    />
+                  </div>
+                </div>
+              </div>
+            </aside>
+
+            <div className="min-w-0 flex-1">
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                    {department?.name ?? "All inventory"}
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
+                    {subcategorySlug && department?.subcategories.find((item) => item.slug === subcategorySlug)?.name
+                      ? department.subcategories.find((item) => item.slug === subcategorySlug)?.name
+                      : department?.description ?? "Fresh finds, updated constantly."}
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {catalogQuery.isLoading ? "Loading inventory…" : `${total.toLocaleString()} ${total === 1 ? "deal" : "deals"} available`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" className="lg:hidden rounded-xl" onClick={() => setFiltersOpen(true)}>
+                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                    Filters {activeFilters > 0 ? `(${activeFilters})` : ""}
+                  </Button>
+                  <select
+                    value={sort}
+                    onChange={(event) => setParam("sort", event.target.value)}
+                    className="h-10 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground outline-none"
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {catalogQuery.isError ? (
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-6 py-12 text-center">
+                  <PackageSearch className="mx-auto h-10 w-10 text-destructive/70" />
+                  <h3 className="mt-4 text-lg font-black">Inventory could not load</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">Refresh the page or try again in a moment.</p>
+                </div>
+              ) : catalogQuery.isLoading && !data ? (
+                <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
+                  {Array.from({ length: 9 }).map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-[1.35rem] border border-border bg-card">
+                      <div className="aspect-[4/3] animate-pulse bg-secondary" />
+                      <div className="space-y-3 p-5">
+                        <div className="h-4 w-4/5 animate-pulse rounded bg-secondary" />
+                        <div className="h-3 w-1/2 animate-pulse rounded bg-secondary" />
+                        <div className="h-6 w-1/3 animate-pulse rounded bg-secondary" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : items.length === 0 ? (
+                <div className="rounded-2xl border border-border bg-card/50 px-6 py-16 text-center">
+                  <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground/40" />
+                  <h3 className="mt-4 text-xl font-black">No deals matched that search</h3>
+                  <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Try a broader search or clear a filter. Inventory changes constantly, so check back often.</p>
+                  <Button onClick={clearFilters} className="mt-5 rounded-xl">Show all inventory</Button>
+                </div>
+              ) : (
+                <motion.div layout className={`grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3 ${catalogQuery.isFetching ? "opacity-65" : "opacity-100"} transition-opacity`}>
+                  {items.map((listing, index) => (
+                    <ProductCardV2 key={listing.facebook_id} listing={listing} index={index} />
+                  ))}
+                </motion.div>
+              )}
+
+              {totalPages > 1 && (
+                <nav className="mt-10 flex items-center justify-center gap-2" aria-label="Catalog pages">
+                  <Button variant="outline" size="icon" className="rounded-xl" disabled={safePage <= 1} onClick={() => goToPage(safePage - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="hidden items-center gap-1 sm:flex">
+                    {pageNumbers.map((value, index) => value === "…" ? (
+                      <span key={`dots-${index}`} className="px-2 text-muted-foreground">…</span>
+                    ) : (
+                      <button
+                        key={value}
+                        onClick={() => goToPage(value)}
+                        className={`h-10 min-w-10 rounded-xl px-3 text-sm font-bold transition ${value === safePage ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="px-3 text-sm text-muted-foreground sm:hidden">{safePage} / {totalPages}</span>
+                  <Button variant="outline" size="icon" className="rounded-xl" disabled={safePage >= totalPages} onClick={() => goToPage(safePage + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </nav>
+              )}
+            </div>
+          </div>
+        </div>
       </main>
 
+      <AnimatePresence>
+        {filtersOpen && (
+          <>
+            <motion.button
+              aria-label="Close filters"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setFiltersOpen(false)}
+              className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm lg:hidden"
+            />
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 z-[80] w-[88vw] max-w-sm overflow-y-auto border-l border-border bg-background p-5 lg:hidden"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Refine inventory</p>
+                  <h2 className="mt-1 text-xl font-black">Filters</h2>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setFiltersOpen(false)}><X className="h-5 w-5" /></Button>
+              </div>
+
+              <div className="mt-6 space-y-2">
+                <button onClick={() => setParam("dept", "")} className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold ${!departmentSlug ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>All inventory</button>
+                {STOREFRONT_DEPARTMENTS.map((item) => (
+                  <button key={item.slug} onClick={() => setParam("dept", item.slug)} className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold ${departmentSlug === item.slug ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>{item.name}</button>
+                ))}
+              </div>
+
+              {department && department.subcategories.length > 0 && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{department.name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {department.subcategories.map((subcategory) => (
+                      <button key={subcategory.slug} onClick={() => setParam("sub", subcategory.slug)} className={`rounded-full border px-3 py-2 text-xs font-bold ${subcategorySlug === subcategory.slug ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>{subcategory.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-8 flex gap-2">
+                <Button variant="outline" className="flex-1 rounded-xl" onClick={clearFilters}>Clear all</Button>
+                <Button className="flex-1 rounded-xl" onClick={() => setFiltersOpen(false)}>Show deals</Button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       <Footer />
-      <NewsletterModal open={newsletterOpen} onOpenChange={setNewsletterOpen} />
     </div>
   );
 };
