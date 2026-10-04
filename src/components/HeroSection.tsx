@@ -1,4 +1,4 @@
-import { ArrowRight, MapPin, Star, TrendingUp, Package } from "lucide-react";
+import { ArrowRight, MapPin, Star, TrendingUp, Package, Zap, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -38,8 +38,11 @@ export function HeroSection({ featuredListing }: HeroSectionProps) {
   const featuredImage = featuredListing ? getFirstImage(featuredListing.images) : null;
 
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+    <section className="relative min-h-[90vh] flex items-center overflow-hidden hero-neon-stage">
       {/* Animated background orbs */}
+      <div className="hero-scanline pointer-events-none" />
+      <div className="hero-beam hero-beam-cyan pointer-events-none" />
+      <div className="hero-beam hero-beam-pink pointer-events-none" />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
           animate={{ x: [0, 30, 0], y: [0, -20, 0], scale: [1, 1.1, 1] }}
@@ -66,6 +69,13 @@ export function HeroSection({ featuredListing }: HeroSectionProps) {
         />
       </div>
 
+      <div className="absolute top-24 left-[5%] hidden xl:flex items-center gap-2 rounded-full border border-primary/30 bg-background/50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-primary backdrop-blur-md animate-float pointer-events-none">
+        <Zap className="h-3.5 w-3.5" /> Deals move fast
+      </div>
+      <div className="absolute bottom-24 right-[4%] hidden xl:flex items-center gap-2 rounded-full border border-accent/30 bg-background/50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-accent backdrop-blur-md animate-float-delayed pointer-events-none">
+        <Sparkles className="h-3.5 w-3.5" /> New drops weekly
+      </div>
+
       <div className="container relative z-10">
         <motion.div
           variants={containerVariants}
@@ -88,7 +98,7 @@ export function HeroSection({ featuredListing }: HeroSectionProps) {
             >
               <span className="text-gradient-white">Big brand deals</span>
               <br />
-              <span className="text-gradient-orange">without big box</span>
+              <span className="text-gradient-orange animate-gradient">without big box</span>
               <br />
               <span className="text-gradient-white">prices.</span>
             </motion.h1>
@@ -120,6 +130,13 @@ export function HeroSection({ featuredListing }: HeroSectionProps) {
               </a>
             </motion.div>
 
+            <motion.div variants={itemVariants} className="mt-8 overflow-hidden rounded-full border border-border/70 bg-card/50 py-2 backdrop-blur-md">
+              <div className="deal-ticker-track text-[0.68rem] font-black uppercase tracking-[0.22em] text-muted-foreground">
+                <span>⚡ Fresh inventory</span><span>✦ One-off finds</span><span>⚡ 40–70% off retail</span><span>✦ Buffalo pickup</span><span>⚡ Limited quantities</span>
+                <span>⚡ Fresh inventory</span><span>✦ One-off finds</span><span>⚡ 40–70% off retail</span><span>✦ Buffalo pickup</span><span>⚡ Limited quantities</span>
+              </div>
+            </motion.div>
+
             {/* Stats row */}
             <motion.div variants={itemVariants} className="flex gap-6 mt-10">
               {stats.map((stat) => (
@@ -143,7 +160,7 @@ export function HeroSection({ featuredListing }: HeroSectionProps) {
           >
             <motion.article
               whileHover={{ y: -4, transition: { duration: 0.3 } }}
-              className="relative rounded-2xl border border-border bg-card p-6 glow-border overflow-hidden"
+              className="relative rounded-2xl border border-border bg-card/90 p-6 glow-border overflow-hidden hero-feature-card"
             >
               {/* Shimmer effect */}
               <div className="absolute inset-0 shimmer pointer-events-none rounded-2xl" />
