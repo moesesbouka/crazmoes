@@ -6,52 +6,52 @@
 
 @layer base {
   :root {
-    --background: 240 6% 4%;
+    --background: 218 72% 6%;
     --foreground: 0 0% 98%;
 
-    --card: 240 5% 7%;
+    --card: 216 58% 10%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 5% 7%;
+    --popover: 216 58% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 25 95% 53%;
+    --primary: 187 100% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4% 12%;
+    --secondary: 216 42% 15%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 4% 10%;
-    --muted-foreground: 240 3% 50%;
+    --muted: 216 36% 13%;
+    --muted-foreground: 216 14% 66%;
 
-    --accent: 25 95% 53%;
+    --accent: 330 86% 58%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 4% 14%;
-    --input: 240 4% 14%;
-    --ring: 25 95% 53%;
+    --border: 211 44% 20%;
+    --input: 211 44% 20%;
+    --ring: 187 100% 45%;
 
     --radius: 1rem;
 
     /* Premium extended tokens */
-    --glass: 240 5% 8% / 0.6;
-    --glass-border: 240 4% 18%;
-    --glow-orange: 25 95% 53%;
-    --glow-amber: 35 100% 60%;
-    --surface-elevated: 240 5% 9%;
+    --glass: 216 58% 10% / 0.68;
+    --glass-border: 199 62% 24%;
+    --glow-orange: 187 100% 45%;
+    --glow-amber: 330 86% 58%;
+    --surface-elevated: 216 52% 12%;
 
     /* Sidebar */
-    --sidebar-background: 240 5% 6%;
+    --sidebar-background: 218 68% 7%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 25 95% 53%;
+    --sidebar-primary: 187 100% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 10%;
+    --sidebar-accent: 216 40% 14%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 4% 14%;
-    --sidebar-ring: 25 95% 53%;
+    --sidebar-border: 211 44% 20%;
+    --sidebar-ring: 187 100% 45%;
   }
 }
 
@@ -91,7 +91,7 @@
 @layer utilities {
   .text-gradient-orange {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(25 95% 53%), hsl(35 100% 65%));
+    background-image: linear-gradient(135deg, hsl(187 100% 45%), hsl(330 86% 58%) 58%, hsl(263 84% 65%));
   }
 
   .text-gradient-white {
@@ -107,8 +107,8 @@
   }
 
   .glow-orange {
-    box-shadow: 0 0 60px -12px hsl(25 95% 53% / 0.35),
-                0 0 120px -24px hsl(25 95% 53% / 0.15);
+    box-shadow: 0 0 60px -12px hsl(187 100% 45% / 0.32),
+                0 0 120px -24px hsl(330 86% 58% / 0.14);
   }
 
   .glow-border {
@@ -120,7 +120,7 @@
     position: absolute;
     inset: -1px;
     border-radius: inherit;
-    background: linear-gradient(135deg, hsl(25 95% 53% / 0.3), transparent 50%, hsl(35 100% 60% / 0.2));
+    background: linear-gradient(135deg, hsl(187 100% 45% / 0.42), transparent 48%, hsl(330 86% 58% / 0.28));
     z-index: -1;
     opacity: 0;
     transition: opacity 0.4s ease;
