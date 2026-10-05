@@ -59,7 +59,7 @@ function ProductRail({
 }) {
   if (!items.length) return null;
   return (
-    <section className="py-12 sm:py-16">
+    <motion.section initial={{opacity:0,y:70}} whileInView={{opacity:1,y:0}} viewport={{once:true,amount:.12}} transition={{duration:.6}} className="relative overflow-hidden py-12 sm:py-16">
       <div className="container">
         <div className="mb-6 flex items-end justify-between gap-5">
           <div>
@@ -79,7 +79,7 @@ function ProductRail({
           <Link to={href}>See all deals <ArrowRight className="ml-2 h-4 w-4" /></Link>
         </Button>
       </div>
-    </section>
+    </motion.section>
   );
 }
 
@@ -147,7 +147,7 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="py-14 sm:py-20">
+        <section className="relative overflow-hidden py-14 sm:py-20"><motion.div aria-hidden animate={{x:["-10%","110%"]}} transition={{duration:8,repeat:Infinity,ease:"linear"}} className="pointer-events-none absolute top-10 whitespace-nowrap text-[7rem] font-black italic text-primary/[.035]">SHOP BY DEPARTMENT • SHOP BY DEPARTMENT •</motion.div>
           <div className="container">
             <div className="mb-7 flex items-end justify-between gap-5">
               <div>
@@ -162,8 +162,8 @@ const Index = () => {
                 const Icon = departmentIcons[department.slug] ?? Package;
                 return (
                   <motion.div key={department.slug} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: Math.min(index, 8) * 0.035 }}>
-                    <Link to={`/shop?dept=${department.slug}`} className="group flex min-h-[150px] h-full flex-col rounded-2xl border border-border bg-card/55 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:bg-card">
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary"><Icon className="h-5 w-5" /></div>
+                    <Link to={`/shop?dept=${department.slug}`} className="group relative flex min-h-[150px] h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/55 p-4 transition-all duration-300 hover:-translate-y-2 hover:scale-[1.03] hover:border-primary/50 hover:bg-card hover:shadow-[0_18px_55px_hsl(var(--primary)/.18)]">
+                      <motion.div whileHover={{rotate:12,scale:1.2}} className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary"><Icon className="h-5 w-5" /></motion.div><div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/0 blur-2xl transition-all duration-300 group-hover:bg-primary/25" />
                       <p className="mt-auto pt-6 text-sm font-black leading-tight">{department.name}</p>
                       <span className="mt-2 inline-flex items-center text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground transition-colors group-hover:text-primary">Browse <ArrowRight className="ml-1 h-3 w-3" /></span>
                     </Link>
@@ -181,7 +181,7 @@ const Index = () => {
         <ProductRail title="Deals under $100" eyebrow="Easy wins" items={under100Query.data?.items ?? []} href="/shop?max=100" />
 
         <section className="container py-8 sm:py-14">
-          <div className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-card px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+          <motion.div initial={{opacity:0,scale:.94}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{duration:.65}} className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-card px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
             <div className="pointer-events-none absolute -right-20 -top-32 h-80 w-80 rounded-full bg-primary/15 blur-[100px]" />
             <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
@@ -191,7 +191,8 @@ const Index = () => {
               </div>
               <Button asChild size="lg" className="h-13 rounded-full px-7 font-black"><Link to="/shop">See what's here now <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
             </div>
-          </div>
+            <motion.div aria-hidden animate={{x:["-30%","130%"],rotate:[-8,8]}} transition={{duration:4,repeat:Infinity,repeatDelay:1}} className="pointer-events-none absolute bottom-3 text-6xl font-black italic text-accent/[.07]">WAREHOUSE PRICES</motion.div>
+          </motion.div>
         </section>
 
         <div className="border-y border-border/70 bg-card/20">
