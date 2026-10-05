@@ -70,14 +70,14 @@ interface MarketplaceListing {
   condition: string | null;
   location: string | null;
   listing_url: string | null;
-  imported_at: string;
+  synced_at: string;
   created_at: string;
   updated_at: string;
   shopify_product_id: string | null;
   launched_at: string | null;
 }
 
-type SortField = "title" | "price" | "imported_at" | "created_at" | "status" | "condition" | "category";
+type SortField = "title" | "price" | "synced_at" | "created_at" | "status" | "condition" | "category";
 type SortDirection = "asc" | "desc";
 
 interface StatusCounts {
@@ -105,14 +105,14 @@ export function AdminMarketplaceInventory() {
   const [itemsPerPage, setItemsPerPage] = useState(20); // Now a state variable with default 20
 
   // Sorting state
-  const [sortField, setSortField] = useState<SortField>("imported_at");
+  const [sortField, setSortField] = useState<SortField>("synced_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter state
   const [accountFilter, setAccountFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [conditionFilter, setConditionFilter] = useState<string>("all");
-  const [launchFilter, setLaunchFilter] = useState<string>("all");
+  const [launchFilter, setLaunchFilter] = useState<string>("all"); // legacy UI; current storefront publishes from active inventory
 
   // Admin-only: hide broken imports by default
   const [showBroken, setShowBroken] = useState<boolean>(false);
@@ -144,7 +144,7 @@ export function AdminMarketplaceInventory() {
   const fetchAccountCounts = useCallback(async () => {
     try {
       const { data, error } = await marketplaceDb
-        .from("admin_listings")
+        .from("active_listings")
         .select("status, shopify_product_id, account_tag");
 
       if (error) throw error;
@@ -176,7 +176,7 @@ export function AdminMarketplaceInventory() {
     setIsLoading(true);
     try {
       let query = marketplaceDb
-        .from("admin_listings")
+        .from("active_listings")
         .select("*", { count: "exact" })
         .order(sortField, { ascending: sortDirection === "asc" });
 
@@ -305,7 +305,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("admin_listings")
+        .from("active_listings")
         .update({
           title: editForm.title,
           description: editForm.description,
@@ -329,7 +329,7 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("admin_listings")
+        .from("active_listings")
         .delete()
         .eq("id", id);
 
@@ -347,12 +347,12 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("admin_listings")
+        .from("active_listings")
         .delete()
         .in("id", Array.from(selectedIds));
 
       if (error) throw error;
-      toast.success(`Deleted ${selectedIds.size} listings`);
+      toast.success(`Deleted ${selectedIds.size} listings from current inventory`);
       setSelectedIds(new Set());
       setSelectAll(false);
       setShowDeleteDialog(false);
@@ -369,7 +369,7 @@ export function AdminMarketplaceInventory() {
     setIsClearing(true);
     try {
       const { error } = await marketplaceDb
-        .from("admin_listings")
+        .from("active_listings")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
 
@@ -391,8 +391,8 @@ export function AdminMarketplaceInventory() {
 
     try {
       const { error } = await marketplaceDb
-        .from("admin_listings")
-        .update({ status: newStatus })
+        .from("active_listings")
+        .update({ status: newStatus, is_active: newStatus === "active", visibility_scope: newStatus === "active" ? "public" : "internal" })
         .in("id", Array.from(selectedIds));
 
       if (error) throw error;
@@ -493,7 +493,7 @@ export function AdminMarketplaceInventory() {
           l.images?.length || 0,
           l.shopify_product_id ? "Yes" : "No",
           l.shopify_product_id || "",
-          new Date(l.imported_at).toLocaleDateString(),
+          new Date(l.synced_at).toLocaleDateString(),
         ].join(",")
       ),
     ].join("\n");
@@ -572,7 +572,7 @@ export function AdminMarketplaceInventory() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between flex-wrap gap-4">
-          <span>Marketplace Inventory ({totalCount} of {grandTotal})</span>
+          <span>Current Inventory Manager ({totalCount} of {grandTotal})</span>
           <div className="flex gap-2">
             <Button
               variant="destructive"
@@ -580,7 +580,7 @@ export function AdminMarketplaceInventory() {
               onClick={() => setShowClearAllDialog(true)}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Clear All
+              DANGER: Clear All
             </Button>
             <Button variant="outline" size="sm" onClick={() => fetchListings()}>
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -870,9 +870,9 @@ export function AdminMarketplaceInventory() {
                     <TableHead>
                       <button
                         className="flex items-center hover:text-foreground"
-                        onClick={() => handleSort("imported_at")}
+                        onClick={() => handleSort("synced_at")}
                       >
-                        Imported {getSortIcon("imported_at")}
+                        Imported {getSortIcon("synced_at")}
                       </button>
                     </TableHead>
                     <TableHead className="w-32">Actions</TableHead>
@@ -927,7 +927,7 @@ export function AdminMarketplaceInventory() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(listing.imported_at).toLocaleDateString()}
+                          {new Date(listing.synced_at).toLocaleDateString()}
                         </span>
                       </TableCell>
                       <TableCell>
