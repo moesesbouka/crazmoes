@@ -185,7 +185,7 @@ const Index = () => {
               <p className="text-xs font-black uppercase tracking-[.25em] text-accent">Featured warehouse find</p><h2 className="mt-3 line-clamp-3 text-3xl font-black leading-[.95] tracking-[-.045em] sm:text-5xl">{newest[0].title}</h2>
               <motion.div animate={{scale:[1,1.07,1]}} transition={{duration:1.5,repeat:Infinity}} className="mt-6 inline-block text-[clamp(3.5rem,8vw,6.5rem)] font-black leading-none tracking-[-.07em] text-primary">{formatCatalogPrice(newest[0].price)}</motion.div>
               <p className="mt-4 max-w-lg text-sm font-bold text-muted-foreground">Real local inventory. One-off quantities. If this one disappears, the next deal takes its place.</p>
-              <Button asChild size="lg" className="mt-6 rounded-full px-8 font-black"><Link to={`/listing/${newest[0].facebook_id}`}>SEE THIS DEAL <ArrowRight className="ml-2 h-4 w-4"/></Link></Button>
+              <Button asChild size="lg" className="mt-6 rounded-full px-8 font-black"><Link to={`/product/${newest[0].facebook_id}`}>SEE THIS DEAL <ArrowRight className="ml-2 h-4 w-4"/></Link></Button>
             </motion.div>
           </div>
         </section>}
