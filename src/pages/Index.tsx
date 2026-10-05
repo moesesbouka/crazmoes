@@ -102,8 +102,6 @@ const Index = () => {
   });
 
   const newest = newestQuery.data?.items ?? [];
-  const heroProduct = newest.find((item) => cleanImages(item.images).length > 0) ?? newest[0];
-  const heroImage = heroProduct ? cleanImages(heroProduct.images)[0] : "";
   const heroDeals = newest.filter((item) => cleanImages(item.images).length > 0).slice(0, 5);
 
   return (
