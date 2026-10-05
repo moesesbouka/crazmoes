@@ -11,7 +11,8 @@ import { Lock, Mail } from "lucide-react";
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);\n  const [isResetting, setIsResetting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,7 +36,19 @@ const AdminLogin = () => {
     checkAuth();
   }, [navigate]);
 
-  const handleReset = async () => {\n    const resetEmail = email.trim() || "moesesbouka@gmail.com";\n    setIsResetting(true);\n    try {\n      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo: `${window.location.origin}/admin/reset-password` });\n      if (error) throw error;\n      setEmail(resetEmail);\n      toast.success("Password reset email sent. Check your inbox.");\n    } catch (error: any) { toast.error(error.message || "Could not send reset email"); }\n    finally { setIsResetting(false); }\n  };\n\n  const handleLogin = async (e: React.FormEvent) => {
+  const handleReset = async () => {
+    const resetEmail = email.trim() || "moesesbouka@gmail.com";
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo: `${window.location.origin}/admin/reset-password` });
+      if (error) throw error;
+      setEmail(resetEmail);
+      toast.success("Password reset email sent. Check your inbox.");
+    } catch (error: any) { toast.error(error.message || "Could not send reset email"); }
+    finally { setIsResetting(false); }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -118,7 +131,8 @@ const AdminLogin = () => {
                 />
               </div>
             </div>
-            <Button type="button" variant="ghost" className="w-full" disabled={isResetting} onClick={handleReset}>{isResetting ? "Sending reset email..." : "Forgot password?"}</Button>\n            <Button type="submit" className="w-full hero-gradient" disabled={isLoading}>
+            <Button type="button" variant="ghost" className="w-full" disabled={isResetting} onClick={handleReset}>{isResetting ? "Sending reset email..." : "Forgot password?"}</Button>
+            <Button type="submit" className="w-full hero-gradient" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
