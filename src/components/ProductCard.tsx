@@ -46,13 +46,13 @@ export function ProductCard({ listing, index = 0 }: ProductCardProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 55, scale: 0.94 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.7, delay: Math.min(index * 0.08, 0.32), ease: [0.16, 1, 0.3, 1] }}
     >
       <Link to={`/product/${listing.facebook_id}`} className="group block">
-        <article className="relative rounded-2xl border border-border bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 glow-border">
+        <article className="relative rounded-2xl border border-border bg-card overflow-hidden transition-all duration-500 hover:border-primary/50 hover:-translate-y-2 hover:shadow-[0_18px_55px_-20px_hsl(var(--primary)/0.55)] glow-border">
           {/* Image section */}
           <div className="aspect-[4/3] overflow-hidden bg-secondary relative">
             {imageUrl ? (
