@@ -70,11 +70,11 @@ function ProductRail({
             <Link to={href}>See all <ArrowRight className="ml-2 h-4 w-4" /></Link>
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+        <div className="relative"><motion.div aria-hidden animate={{x:["-20%","115%"]}} transition={{duration:6,repeat:Infinity,ease:"linear"}} className="pointer-events-none absolute -top-4 z-0 whitespace-nowrap text-5xl font-black italic text-primary/[.045]">HOT DEALS • HOT DEALS • HOT DEALS •</motion.div><div className="relative z-10 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {items.slice(0, 8).map((listing, index) => (
             <ProductCardV2 key={listing.facebook_id} listing={listing} index={index} />
           ))}
-        </div>
+        </div></div>
         <Button asChild variant="outline" className="mt-6 w-full rounded-xl font-bold sm:hidden">
           <Link to={href}>See all deals <ArrowRight className="ml-2 h-4 w-4" /></Link>
         </Button>
@@ -199,9 +199,9 @@ const Index = () => {
           <ProductRail title="Big-ticket steals" eyebrow="Worth the look" items={bigTicketQuery.data?.items ?? []} href="/shop?min=250" />
         </div>
 
-        <section id="visit" className="py-16 sm:py-24">
+        <section id="visit" className="relative overflow-hidden py-16 sm:py-24"><motion.div aria-hidden animate={{x:["100%","-120%"]}} transition={{duration:10,repeat:Infinity,ease:"linear"}} className="pointer-events-none absolute top-4 whitespace-nowrap text-[6rem] font-black italic tracking-[-.05em] text-accent/[.04]">BUFFALO PICKUP • REAL INVENTORY • NO DROP-SHIPPING •</motion.div>
           <div className="container grid gap-5 lg:grid-cols-3">
-            <div className="rounded-[1.75rem] border border-border bg-card/55 p-6 sm:p-8 lg:col-span-2">
+            <motion.div initial={{opacity:0,x:-90,rotate:-2}} whileInView={{opacity:1,x:0,rotate:0}} viewport={{once:true,amount:.25}} transition={{duration:.65,type:"spring"}} className="relative overflow-hidden rounded-[1.75rem] border border-primary/25 bg-card/55 p-6 shadow-[0_20px_70px_hsl(var(--primary)/.08)] sm:p-8 lg:col-span-2"><motion.div aria-hidden animate={{scale:[1,1.35,1],opacity:[.2,.5,.2]}} transition={{duration:3,repeat:Infinity}} className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-primary/25 blur-[90px]" />
               <div className="grid gap-8 sm:grid-cols-[auto_1fr] sm:items-center">
                 <div className="grid h-20 w-20 place-items-center rounded-2xl bg-primary/10 text-primary"><MapPin className="h-9 w-9" /></div>
                 <div>
@@ -211,12 +211,12 @@ const Index = () => {
                   <Button asChild variant="outline" className="mt-5 rounded-full font-bold"><Link to="/schedule-pickup">Schedule a pickup <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
                 </div>
               </div>
-            </div>
-            <div className="rounded-[1.75rem] border border-border bg-card/55 p-6 sm:p-8">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-secondary text-primary"><Hammer className="h-5 w-5" /></div>
+            </motion.div>
+            <motion.div initial={{opacity:0,x:90,rotate:2}} whileInView={{opacity:1,x:0,rotate:0}} viewport={{once:true,amount:.25}} transition={{duration:.65,type:"spring",delay:.1}} whileHover={{y:-8,scale:1.02}} className="rounded-[1.75rem] border border-accent/25 bg-card/55 p-6 shadow-[0_20px_70px_hsl(var(--accent)/.08)] sm:p-8">
+              <motion.div animate={{rotate:[-5,8,-5],scale:[1,1.12,1]}} transition={{duration:2.2,repeat:Infinity}} className="grid h-11 w-11 place-items-center rounded-xl bg-secondary text-primary"><Hammer className="h-5 w-5" /></motion.div>
               <h3 className="mt-6 text-xl font-black">A real warehouse, not drop-shipping.</h3>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">The products shown here represent real local liquidation inventory. When something sells, it comes out of the active catalog.</p>
-            </div>
+            </motion.div>
           </div>
         </section>
       </main>
