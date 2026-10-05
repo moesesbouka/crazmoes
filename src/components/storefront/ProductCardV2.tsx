@@ -19,10 +19,11 @@ export function ProductCardV2({ listing, index = 0 }: ProductCardV2Props) {
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 70, scale: 0.88, rotate: index % 2 === 0 ? -2 : 2 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.45, delay: Math.min(index, 8) * 0.025 }}
+      transition={{ duration: 0.55, delay: Math.min(index, 8) * 0.045, type: "spring" }}
+      whileHover={{ y: -10, scale: 1.025 }}
       className="group h-full"
     >
       <Link
@@ -73,11 +74,11 @@ export function ProductCardV2({ listing, index = 0 }: ProductCardV2Props) {
           <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/70 pt-4">
             <div>
               <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Deal price</p>
-              <p className="mt-1 text-xl font-black tracking-tight text-foreground">
+              <motion.p animate={{ textShadow: ["0 0 0px transparent", "0 0 18px hsl(var(--primary)/.45)", "0 0 0px transparent"] }} transition={{duration:2.4,repeat:Infinity,delay:index*.12}} className="mt-1 text-xl font-black tracking-tight text-primary">
                 {formatCatalogPrice(listing.price)}
-              </p>
+              </motion.p>
             </div>
-            <span className="pb-1 text-xs font-bold text-primary">View deal →</span>
+            <span className="rounded-full bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">View deal →</span>
           </div>
         </div>
       </Link>
