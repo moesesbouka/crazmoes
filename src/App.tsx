@@ -13,7 +13,7 @@ const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const SchedulePickup = lazy(() => import("./pages/SchedulePickup"));
 const ProductScraper = lazy(() => import("./pages/ProductScraper"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
-const AdminSetup = lazy(() => import("./pages/AdminSetup"));
+const AdminSetup = lazy(() => import("./pages/AdminSetup"));\nconst AdminResetPassword = lazy(() => import("./pages/AdminResetPassword"));
 const Admin = lazy(() => import("./pages/Admin"));
 const BulkPoster = lazy(() => import("./pages/BulkPoster"));
 const CrazyMoeCRMv2 = lazy(() => import("./pages/CrazyMoeCRMv2"));
@@ -38,7 +38,7 @@ const App = () => (
           <Route path="/schedule-pickup" element={<SchedulePickup />} />
           <Route path="/scraper" element={<ProductScraper />} />
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/setup" element={<AdminSetup />} />
+          <Route path="/admin/setup" element={<AdminSetup />} />\n          <Route path="/admin/reset-password" element={<AdminResetPassword />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/bulk-poster" element={<BulkPoster />} />
           <Route path="/admin/crm-v2" element={<CrazyMoeCRMv2 />} />
