@@ -104,72 +104,35 @@ const Index = () => {
   const newest = newestQuery.data?.items ?? [];
   const heroProduct = newest.find((item) => cleanImages(item.images).length > 0) ?? newest[0];
   const heroImage = heroProduct ? cleanImages(heroProduct.images)[0] : "";
+  const heroDeals = newest.filter((item) => cleanImages(item.images).length > 0).slice(0, 5);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/70">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -right-48 -top-56 h-[48rem] w-[48rem] rounded-full bg-primary/[0.12] blur-[150px]" />
-            <div className="absolute -bottom-48 left-[-10%] h-[34rem] w-[34rem] rounded-full bg-white/[0.03] blur-[120px]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.035),transparent_38%)]" />
-          </div>
-
-          <div className="container relative grid min-h-[650px] items-center gap-10 py-14 lg:grid-cols-[0.92fr_1.08fr] lg:py-20 xl:min-h-[720px]">
-            <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65 }} className="relative z-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-primary">
-                <Zap className="h-3.5 w-3.5" /> Buffalo's constantly changing deal floor
-              </div>
-              <h1 className="mt-6 max-w-3xl text-balance text-[clamp(3rem,7vw,6.75rem)] font-black leading-[0.88] tracking-[-0.065em]">
-                Big brands.<br /><span className="text-primary">Wild prices.</span>
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Open-box, return and closeout inventory from major retailers — priced to move and ready for local Buffalo pickup.
-              </p>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button asChild size="lg" className="h-13 rounded-full px-7 text-sm font-black shadow-[0_18px_50px_-18px_hsl(var(--primary)/0.65)]">
-                  <Link to="/shop">Shop current inventory <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="h-13 rounded-full px-7 text-sm font-bold">
-                  <Link to="/shop"><Search className="mr-2 h-4 w-4" /> Search deals</Link>
-                </Button>
-              </div>
-
-              <div className="mt-9 grid max-w-lg grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-card/45 py-4 backdrop-blur-sm">
-                <div className="px-4"><p className="text-xl font-black">Fresh</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">inventory</p></div>
-                <div className="px-4"><p className="text-xl font-black">Local</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">pickup</p></div>
-                <div className="px-4"><p className="text-xl font-black">7-day</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">DOA coverage</p></div>
-              </div>
+        <section className="relative overflow-hidden border-b border-border/70 hero-neon-stage">
+          <div className="hero-scanline pointer-events-none" />
+          <div className="hero-beam hero-beam-cyan pointer-events-none" />
+          <div className="hero-beam hero-beam-pink pointer-events-none" />
+          <motion.div initial={{x:"-120%"}} animate={{x:"120%"}} transition={{duration:2.8,repeat:Infinity,repeatDelay:1.2}} className="pointer-events-none absolute top-24 z-20 whitespace-nowrap text-[clamp(4rem,18vw,13rem)] font-black italic tracking-[-.08em] text-white/[.035]">CRAZY DEALS CRAZY DEALS</motion.div>
+          <div className="container relative grid min-h-[720px] items-center gap-6 py-10 lg:grid-cols-[.82fr_1.18fr]">
+            <motion.div initial={{opacity:0,x:-80}} animate={{opacity:1,x:0}} transition={{duration:.65,type:"spring"}} className="relative z-20">
+              <motion.div animate={{scale:[1,1.08,1],rotate:[-2,2,-2]}} transition={{duration:1.8,repeat:Infinity}} className="inline-flex rounded-xl bg-accent px-4 py-2 text-xs font-black uppercase tracking-[.2em] text-white shadow-[0_0_35px_hsl(var(--accent)/.55)]">⚡ Inventory changes constantly</motion.div>
+              <h1 className="mt-5 text-[clamp(3.7rem,9vw,8rem)] font-black leading-[.78] tracking-[-.075em]">BIG<br/><span className="text-gradient-orange animate-gradient">DEALS.</span><br/>NO WAIT.</h1>
+              <motion.p animate={{opacity:[.65,1,.65]}} transition={{duration:2,repeat:Infinity}} className="mt-6 text-lg font-bold text-foreground">One-off liquidation finds. When they're gone, they're gone.</motion.p>
+              <div className="mt-7 flex gap-3"><Button asChild size="lg" className="rounded-full px-8 font-black"><Link to="/shop">SHOP THE DROP <ArrowRight className="ml-2 h-4 w-4"/></Link></Button></div>
             </motion.div>
-
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.12, duration: 0.75 }} className="relative mx-auto w-full max-w-[720px]">
-              <div className="absolute -inset-6 rounded-[3rem] bg-primary/[0.07] blur-3xl" />
-              <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-card shadow-[0_45px_120px_-50px_rgba(0,0,0,0.95)] sm:rounded-[2.5rem]">
-                <div className="absolute left-4 top-4 z-20 rounded-full border border-white/10 bg-black/65 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white backdrop-blur-xl sm:left-6 sm:top-6">
-                  Just landed
-                </div>
-                <div className="aspect-[4/3] bg-gradient-to-br from-secondary via-card to-background p-4 sm:p-8">
-                  {heroImage ? (
-                    <ProductImage src={heroImage} alt={heroProduct?.title || "Featured deal"} className="h-full w-full rounded-2xl bg-transparent" showProcessingIndicator={false} />
-                  ) : (
-                    <div className="flex h-full items-center justify-center"><Package className="h-20 w-20 text-muted-foreground/20" /></div>
-                  )}
-                </div>
-                {heroProduct && (
-                  <Link to={`/product/${heroProduct.facebook_id}`} className="group flex items-center justify-between gap-5 border-t border-border bg-background/85 p-5 backdrop-blur-xl sm:p-6">
-                    <div className="min-w-0">
-                      <p className="line-clamp-1 text-sm font-bold text-muted-foreground">{heroProduct.title}</p>
-                      <p className="mt-1 text-3xl font-black tracking-tight text-primary">{formatCatalogPrice(heroProduct.price)}</p>
-                    </div>
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-transform duration-300 group-hover:translate-x-1"><ArrowRight className="h-5 w-5" /></div>
-                  </Link>
-                )}
-              </div>
-            </motion.div>
+            <div className="relative z-10 min-h-[470px] sm:min-h-[560px]">
+              <motion.div animate={{rotate:[-5,-2,-5],y:[0,-18,0]}} transition={{duration:4,repeat:Infinity,ease:"easeInOut"}} className="absolute left-[2%] top-[8%] z-20 rounded-2xl bg-primary px-5 py-3 text-3xl font-black text-primary-foreground shadow-2xl">40–70%<span className="block text-xs tracking-[.2em]">OFF RETAIL</span></motion.div>
+              {heroDeals.map((deal,i)=>{ const img=cleanImages(deal.images)[0]; const pos=["left-[15%] top-[16%] w-[62%] rotate-[-5deg]","right-[0%] top-[3%] w-[43%] rotate-[7deg]","right-[4%] bottom-[2%] w-[48%] rotate-[-4deg]","left-[0%] bottom-[0%] w-[38%] rotate-[5deg]","left-[33%] top-[38%] w-[48%] rotate-[2deg]"][i]; return <motion.div key={deal.facebook_id} initial={{opacity:0,scale:.5,y:120}} animate={{opacity:1,scale:1,y:[0,-12,0]}} transition={{opacity:{delay:.15*i,duration:.5},scale:{delay:.15*i,duration:.55,type:"spring"},y:{delay:i*.3,duration:3+i*.35,repeat:Infinity,ease:"easeInOut"}} className={`absolute ${pos} overflow-hidden rounded-3xl border-2 border-white/15 bg-card p-2 shadow-[0_25px_70px_rgba(0,0,0,.55)]`}>
+                <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-secondary"><ProductImage src={img} alt={deal.title} className="h-full w-full" showProcessingIndicator={false}/></div>
+                <div className="flex items-center justify-between gap-2 p-3"><p className="line-clamp-1 text-xs font-black">{deal.title}</p><span className="shrink-0 text-lg font-black text-primary">{formatCatalogPrice(deal.price)}</span></div>
+              </motion.div>})}
+              <motion.div animate={{rotate:360}} transition={{duration:12,repeat:Infinity,ease:"linear"}} className="absolute right-[8%] top-[44%] z-30 grid h-24 w-24 place-items-center rounded-full border-4 border-dashed border-accent bg-background/90 text-center text-xs font-black uppercase text-accent shadow-[0_0_45px_hsl(var(--accent)/.45)]">NEW<br/>DROPS</motion.div>
+            </div>
           </div>
+          <div className="overflow-hidden border-t border-primary/25 bg-primary py-3 text-primary-foreground"><div className="deal-ticker-track text-sm font-black uppercase tracking-[.18em]"><span>⚡ JUST LANDED</span><span>✦ LIMITED QUANTITY</span><span>⚡ BUFFALO PICKUP</span><span>✦ PRICED TO MOVE</span><span>⚡ JUST LANDED</span><span>✦ LIMITED QUANTITY</span><span>⚡ BUFFALO PICKUP</span><span>✦ PRICED TO MOVE</span></div></div>
         </section>
 
         <section className="border-b border-border/70 bg-card/25 py-5">
