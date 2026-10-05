@@ -107,7 +107,7 @@ const Shop = () => {
       <Header />
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/70">
+        <section className="relative overflow-hidden border-b border-primary/20 hero-neon-stage"><motion.div aria-hidden animate={{x:["-30%","110%"]}} transition={{duration:7,repeat:Infinity,ease:"linear"}} className="pointer-events-none absolute top-10 whitespace-nowrap text-[clamp(5rem,15vw,11rem)] font-black italic tracking-[-.08em] text-primary/[.045]">WAREHOUSE DEALS • WAREHOUSE DEALS •</motion.div>
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -right-24 -top-40 h-[34rem] w-[34rem] rounded-full bg-primary/[0.08] blur-[120px]" />
             <div className="absolute -left-40 bottom-0 h-80 w-80 rounded-full bg-white/[0.025] blur-[100px]" />
@@ -120,7 +120,7 @@ const Shop = () => {
                 Buffalo pickup · inventory changes daily
               </div>
               <h1 className="text-balance text-4xl font-black tracking-[-0.035em] sm:text-5xl lg:text-6xl">
-                Serious deals. <span className="text-primary">Zero big-box markup.</span>
+                SERIOUS DEALS. <span className="text-gradient-orange animate-gradient">ZERO BIG-BOX MARKUP.</span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
                 Browse open-box, closeout and liquidation inventory from major brands. What you see is what is available — until it is gone.
@@ -370,7 +370,7 @@ const Shop = () => {
                 </div>
               )}
 
-              <div className="mt-8 flex gap-2">
+              <div className="mt-6 border-t border-border pt-5"><p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Price range</p><div className="grid grid-cols-2 gap-2"><input inputMode="numeric" defaultValue={minPrice ?? ""} onBlur={(event) => setParam("min", event.target.value.trim())} placeholder="Min $" className="h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary/50"/><input inputMode="numeric" defaultValue={maxPrice ?? ""} onBlur={(event) => setParam("max", event.target.value.trim())} placeholder="Max $" className="h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary/50"/></div></div><div className="mt-8 flex gap-2">
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={clearFilters}>Clear all</Button>
                 <Button className="flex-1 rounded-xl" onClick={() => setFiltersOpen(false)}>Show deals</Button>
               </div>
