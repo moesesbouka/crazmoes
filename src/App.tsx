@@ -1,23 +1,25 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Shop from "./pages/Shop";
-import About from "./pages/About";
-import ProductDetail from "./pages/ProductDetail";
-import SchedulePickup from "./pages/SchedulePickup";
-import ProductScraper from "./pages/ProductScraper";
-import AdminLogin from "./pages/AdminLogin";
-import AdminSetup from "./pages/AdminSetup";
-import Admin from "./pages/Admin";
-import BulkPoster from "./pages/BulkPoster";
-import CrazyMoeCRMv2 from "./pages/CrazyMoeCRMv2";
-import PartnerDeal from "./pages/PartnerDeal";
-import ForChrissy from "./pages/ForChrissy";
-import NotFound from "./pages/NotFound";
 import { ChatWidget } from "./components/ChatWidget";
+
+const Shop = lazy(() => import("./pages/Shop"));
+const About = lazy(() => import("./pages/About"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const SchedulePickup = lazy(() => import("./pages/SchedulePickup"));
+const ProductScraper = lazy(() => import("./pages/ProductScraper"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const AdminSetup = lazy(() => import("./pages/AdminSetup"));
+const Admin = lazy(() => import("./pages/Admin"));
+const BulkPoster = lazy(() => import("./pages/BulkPoster"));
+const CrazyMoeCRMv2 = lazy(() => import("./pages/CrazyMoeCRMv2"));
+const PartnerDeal = lazy(() => import("./pages/PartnerDeal"));
+const ForChrissy = lazy(() => import("./pages/ForChrissy"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <Suspense fallback={<div className="min-h-[70vh] bg-background" />}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/shop" element={<Shop />} />
@@ -44,6 +47,7 @@ const App = () => (
           <Route path="/for-chrissy.html" element={<ForChrissy />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
         <ChatWidget />
       </BrowserRouter>
     </TooltipProvider>
