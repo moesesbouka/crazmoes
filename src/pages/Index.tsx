@@ -174,6 +174,22 @@ const Index = () => {
           </div>
         </section>
 
+        {newest.length > 0 && <section className="relative overflow-hidden border-y border-primary/20 bg-card/35 py-12 sm:py-16">
+          <motion.div aria-hidden animate={{x:["-25%","105%"]}} transition={{duration:7,repeat:Infinity,ease:"linear"}} className="pointer-events-none absolute top-0 whitespace-nowrap text-[clamp(5rem,14vw,11rem)] font-black italic tracking-[-.08em] text-primary/[.045]">STEAL OF THE DROP • STEAL OF THE DROP •</motion.div>
+          <div className="container relative grid items-center gap-8 lg:grid-cols-[1.1fr_.9fr]">
+            <motion.div initial={{opacity:0,x:-100,rotate:-5}} whileInView={{opacity:1,x:0,rotate:-2}} viewport={{once:true}} transition={{type:"spring",duration:.8}} className="relative">
+              <div className="overflow-hidden rounded-[2rem] border-2 border-primary/30 bg-secondary p-3 shadow-[0_30px_100px_hsl(var(--primary)/.22)]"><div className="aspect-[16/10] overflow-hidden rounded-[1.5rem]"><ProductImage src={cleanImages(newest[0].images)[0]} alt={newest[0].title} className="h-full w-full" showProcessingIndicator={false}/></div></div>
+              <motion.div animate={{rotate:[8,13,8],scale:[1,1.08,1]}} transition={{duration:1.8,repeat:Infinity}} className="absolute -right-2 -top-5 rounded-2xl bg-accent px-5 py-3 text-center font-black text-white shadow-[0_0_45px_hsl(var(--accent)/.55)]"><span className="block text-xs tracking-[.2em]">CRAZY MOE</span><span className="text-2xl">DEAL!</span></motion.div>
+            </motion.div>
+            <motion.div initial={{opacity:0,x:100}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{duration:.65}}>
+              <p className="text-xs font-black uppercase tracking-[.25em] text-accent">Featured warehouse find</p><h2 className="mt-3 line-clamp-3 text-3xl font-black leading-[.95] tracking-[-.045em] sm:text-5xl">{newest[0].title}</h2>
+              <motion.div animate={{scale:[1,1.07,1]}} transition={{duration:1.5,repeat:Infinity}} className="mt-6 inline-block text-[clamp(3.5rem,8vw,6.5rem)] font-black leading-none tracking-[-.07em] text-primary">{formatCatalogPrice(newest[0].price)}</motion.div>
+              <p className="mt-4 max-w-lg text-sm font-bold text-muted-foreground">Real local inventory. One-off quantities. If this one disappears, the next deal takes its place.</p>
+              <Button asChild size="lg" className="mt-6 rounded-full px-8 font-black"><Link to={`/listing/${newest[0].facebook_id}`}>SEE THIS DEAL <ArrowRight className="ml-2 h-4 w-4"/></Link></Button>
+            </motion.div>
+          </div>
+        </section>}
+
         <div className="border-y border-border/70 bg-card/20">
           <ProductRail title="Just dropped" eyebrow="New arrivals" items={newest.slice(0, 8)} href="/shop?sort=newest" />
         </div>
